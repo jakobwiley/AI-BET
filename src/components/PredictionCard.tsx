@@ -1,43 +1,81 @@
 'use client';
 
+import React from 'react';
 import { Prediction } from '@/models/types';
-import { formatConfidence, formatPredictionType, getConfidenceColor } from '@/utils/formatting';
-import { motion } from 'framer-motion';
 
 interface PredictionCardProps {
   prediction: Prediction;
 }
 
-export default function PredictionCard({ prediction }: PredictionCardProps) {
-  const confidenceColor = getConfidenceColor(prediction.confidence);
-  const formattedConfidence = formatConfidence(prediction.confidence);
-  const formattedType = formatPredictionType(prediction.predictionType);
+const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
+  // Format prediction for display
+  const formatPrediction = () => {
+    switch (prediction.predictionType) {
+      case 'SPREAD':
+        return `${prediction.predictionValue >= 0 ? '+' : ''}${prediction.predictionValue}`;
+      case 'MONEYLINE':
+        return prediction.predictionValue === 'HOME' ? 'Home Win' : 
+               prediction.predictionValue === 'AWAY' ? 'Away Win' : prediction.predictionValue;
+      case 'TOTAL':
+        return `${prediction.predictionValue}`;
+      case 'OVER_UNDER':
+        return prediction.predictionValue;
+      default:
+        return prediction.predictionValue;
+    }
+  };
+  
+  // Get type label
+  const getTypeLabel = () => {
+    switch (prediction.predictionType) {
+      case 'SPREAD':
+        return 'Spread';
+      case 'MONEYLINE':
+        return 'Moneyline';
+      case 'TOTAL':
+        return 'Total Points';
+      case 'OVER_UNDER':
+        return 'Over/Under';
+      default:
+        return prediction.predictionType;
+    }
+  };
+  
+  // Get confidence color classes
+  const getConfidenceClasses = () => {
+    const confidence = prediction.confidence || 0;
+    if (confidence >= 80) return 'bg-green-100 text-green-800';
+    if (confidence >= 60) return 'bg-blue-100 text-blue-800';
+    if (confidence >= 40) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-gray-100 text-gray-800';
+  };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="bg-gray-800 rounded-xl overflow-hidden shadow-lg mb-4 p-4"
-    >
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h3 className="text-white font-bold text-lg">{formattedType}</h3>
-          <p className="text-blue-400 text-lg font-medium">{prediction.predictionValue}</p>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-gray-400 text-xs">Confidence</span>
-          <div className="flex items-center">
-            <span className={`w-2 h-2 rounded-full mr-1 ${confidenceColor.replace('text', 'bg')}`}></span>
-            <span className="text-white font-bold">{formattedConfidence}</span>
-          </div>
-        </div>
+    <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2 border-b">
+        <h3 className="font-medium">{getTypeLabel()}</h3>
       </div>
       
-      <div className="bg-gray-700 rounded-lg p-3 mb-3">
-        <h4 className="text-gray-300 text-sm mb-1">Reasoning</h4>
-        <p className="text-gray-200 text-sm">{prediction.reasoning}</p>
+      <div className="p-4">
+        <div className="text-2xl font-bold mb-2">
+          {formatPrediction()}
+        </div>
+        
+        <div className="mb-3">
+          <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${getConfidenceClasses()}`}>
+            {prediction.confidence ? `${prediction.confidence}% Confidence` : 'No confidence score'}
+          </span>
+        </div>
+        
+        {prediction.reasoning && (
+          <div className="text-sm text-gray-600 mt-3">
+            <div className="font-medium mb-1">Reasoning:</div>
+            <p>{prediction.reasoning}</p>
+          </div>
+        )}
       </div>
-    </motion.div>
+    </div>
   );
-} 
+};
+
+export default PredictionCard; 
