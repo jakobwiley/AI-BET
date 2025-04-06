@@ -2,21 +2,36 @@
 
 import { useState, useEffect } from 'react';
 import { SportsApiService } from '@/lib/sportsApi';
-import { Game, Prediction, PlayerProp } from '@/models/types';
+import { Game } from '@/models/types';
 import PredictionCard from '@/components/PredictionCard';
 import PlayerPropCard from '@/components/PlayerPropCard';
 import { FaSpinner, FaBasketballBall, FaBaseballBall, FaArrowLeft } from 'react-icons/fa';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useGamePredictions, usePlayerProps } from '@/hooks/useSportsData';
 
 export default function GamePage({ params }: { params: { id: string } }) {
   const [game, setGame] = useState<Game | null>(null);
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
-  const [playerProps, setPlayerProps] = useState<PlayerProp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [activeTab, setActiveTab] = useState<'predictions' | 'playerProps'>('predictions');
+  
+  // Determine the sport from the game ID
+  const sport = params.id.startsWith('nba') ? 'NBA' : 'MLB';
+  
+  // Use our custom hooks for predictions and player props
+  const { 
+    predictions, 
+    loading: predictionsLoading, 
+    error: predictionsError 
+  } = useGamePredictions(params.id);
+  
+  const { 
+    playerProps, 
+    loading: propsLoading, 
+    error: propsError 
+  } = usePlayerProps(params.id, sport);
 
   useEffect(() => {
     const fetchGameDetails = async () => {
@@ -25,7 +40,6 @@ export default function GamePage({ params }: { params: { id: string } }) {
         
         // In a real app, you would have an API endpoint to get a specific game
         // For this example, we'll get all games and find the one with the matching ID
-        const sport = params.id.startsWith('nba') ? 'NBA' : 'MLB';
         const games = await SportsApiService.getUpcomingGames(sport);
         const foundGame = games.find(g => g.id === params.id);
         
@@ -34,14 +48,6 @@ export default function GamePage({ params }: { params: { id: string } }) {
         }
         
         setGame(foundGame);
-        
-        // Fetch predictions and player props
-        const gamePredictions = await SportsApiService.getPredictionsForGame(params.id);
-        const gamePlayerProps = await SportsApiService.getPlayerPropsForGame(params.id, sport);
-        
-        setPredictions(gamePredictions);
-        setPlayerProps(gamePlayerProps);
-        
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch game details'));
@@ -51,8 +57,9 @@ export default function GamePage({ params }: { params: { id: string } }) {
     };
 
     fetchGameDetails();
-  }, [params.id]);
+  }, [params.id, sport]);
 
+  // Showing loading state when any data is loading
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -62,13 +69,14 @@ export default function GamePage({ params }: { params: { id: string } }) {
     );
   }
 
+  // Show error state if game data fails to load
   if (error || !game) {
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold text-red-500 mb-4">Error Loading Game</h1>
         <p className="text-gray-300 mb-4">{error?.message || 'Game not found'}</p>
         <Link 
-          href={`/${game?.sport.toLowerCase() || ''}`}
+          href={`/${sport.toLowerCase()}`}
           className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded inline-flex items-center"
         >
           <FaArrowLeft className="mr-2" />
@@ -104,6 +112,9 @@ export default function GamePage({ params }: { params: { id: string } }) {
             <div className="flex-1 text-center md:text-left">
               <h2 className="text-2xl md:text-3xl font-bold text-white">{game.homeTeamName}</h2>
               <p className="text-gray-400 text-sm">Home</p>
+              {game.homeTeamScore !== undefined && (
+                <p className="text-white font-bold text-xl">{game.homeTeamScore}</p>
+              )}
             </div>
             
             <div className="flex flex-col items-center px-6">
@@ -116,6 +127,9 @@ export default function GamePage({ params }: { params: { id: string } }) {
             <div className="flex-1 text-center md:text-right">
               <h2 className="text-2xl md:text-3xl font-bold text-white">{game.awayTeamName}</h2>
               <p className="text-gray-400 text-sm">Away</p>
+              {game.awayTeamScore !== undefined && (
+                <p className="text-white font-bold text-xl">{game.awayTeamScore}</p>
+              )}
             </div>
           </div>
         </div>
@@ -154,7 +168,15 @@ export default function GamePage({ params }: { params: { id: string } }) {
         >
           <h2 className="text-xl font-bold mb-4">Game Predictions</h2>
           
-          {predictions.length > 0 ? (
+          {predictionsLoading ? (
+            <div className="flex justify-center py-8">
+              <FaSpinner className="animate-spin text-2xl text-blue-500" />
+            </div>
+          ) : predictionsError ? (
+            <div className="text-center py-8 bg-gray-800 rounded-xl">
+              <p className="text-red-400">Error loading predictions. Please try again.</p>
+            </div>
+          ) : predictions.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {predictions.map((prediction) => (
                 <PredictionCard key={prediction.id} prediction={prediction} />
@@ -176,7 +198,15 @@ export default function GamePage({ params }: { params: { id: string } }) {
         >
           <h2 className="text-xl font-bold mb-4">Player Props</h2>
           
-          {playerProps.length > 0 ? (
+          {propsLoading ? (
+            <div className="flex justify-center py-8">
+              <FaSpinner className="animate-spin text-2xl text-blue-500" />
+            </div>
+          ) : propsError ? (
+            <div className="text-center py-8 bg-gray-800 rounded-xl">
+              <p className="text-red-400">Error loading player props. Please try again.</p>
+            </div>
+          ) : playerProps.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {playerProps.map((prop) => (
                 <PlayerPropCard key={prop.id} playerProp={prop} />
