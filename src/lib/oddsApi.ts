@@ -1,6 +1,7 @@
 import { Game, Prediction, PlayerProp, SportType, PredictionType } from '@/models/types';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { CacheService } from './cacheService';
 
 // Define environment variables
 const API_KEY = process.env.NEXT_PUBLIC_THE_ODDS_API_KEY || 'be72ccb153316fd0d1c07b44a4394e9d';
@@ -51,6 +52,8 @@ interface Outcome {
 }
 
 export class OddsApiService {
+  private static cacheService = CacheService.getInstance();
+
   private static logRequest(method: string, url: string): void {
     if (LOG_LEVEL === 'DEBUG') {
       console.log(`[OddsAPI] ${method} ${url}`);
@@ -66,8 +69,38 @@ export class OddsApiService {
   private static logError(error: any): void {
     console.error('[OddsAPI] Error:', error.response?.data || error.message || error);
   }
+  
+  private static logCacheHit(key: string): void {
+    if (LOG_LEVEL === 'DEBUG') {
+      console.log(`[OddsAPI] Cache hit for: ${key}`);
+    }
+  }
 
-  private static async apiRequest<T>(method: string, endpoint: string, params: Record<string, any> = {}): Promise<T> {
+  private static async apiRequest<T>(
+    method: string, 
+    endpoint: string, 
+    params: Record<string, any> = {},
+    useCache: boolean = true,
+    forceFresh: boolean = false
+  ): Promise<T> {
+    // Create cache key based on endpoint and params
+    const cacheKey = `oddsapi:${endpoint}:${JSON.stringify(params)}`;
+    
+    // Check if we should use cached data
+    if (useCache && !forceFresh) {
+      const cachedData = this.cacheService.get<T>(cacheKey);
+      if (cachedData) {
+        this.logCacheHit(cacheKey);
+        return cachedData;
+      }
+    }
+    
+    // Check if we've reached the API limit
+    if (this.cacheService.hasReachedLimit()) {
+      console.warn('Monthly API call limit reached. Using cached data only.');
+      throw new Error('Monthly API call limit reached. Try again next month or contact support.');
+    }
+    
     try {
       const url = `${API_HOST}${endpoint}`;
       const queryParams = {
@@ -76,6 +109,9 @@ export class OddsApiService {
       };
 
       this.logRequest(method, url);
+      
+      // Record the API call before making the request
+      this.cacheService.recordApiCall(endpoint);
 
       const response = await axios({
         method,
@@ -84,14 +120,36 @@ export class OddsApiService {
       });
 
       this.logResponse(response.data);
+      
+      // Cache the response if it's successful
+      if (useCache) {
+        // Calculate TTL based on game time if available
+        const gameTime = Array.isArray(response.data) && response.data.length > 0
+          ? response.data[0].commence_time
+          : response.data?.commence_time;
+          
+        const ttl = CacheService.calculateTTL(gameTime);
+        this.cacheService.set(cacheKey, response.data, ttl);
+      }
+      
       return response.data;
     } catch (error: any) {
       this.logError(error);
+      
+      // If error, try to get from cache as fallback, even if we normally wouldn't
+      if (useCache) {
+        const cachedData = this.cacheService.get<T>(cacheKey);
+        if (cachedData) {
+          console.log('[OddsAPI] Using cached data as fallback due to API error');
+          return cachedData;
+        }
+      }
+      
       throw new Error(`API request failed: ${error.message}`);
     }
   }
 
-  public static async getUpcomingGames(sport: SportType): Promise<Game[]> {
+  public static async getUpcomingGames(sport: SportType, forceFresh: boolean = false): Promise<Game[]> {
     try {
       const sportKey = sportMapping[sport];
       const endpoint = ENDPOINTS.ODDS.replace('{sport}', sportKey);
@@ -100,7 +158,7 @@ export class OddsApiService {
         regions: 'us',
         markets: 'spreads,totals,h2h',
         oddsFormat: 'american'
-      });
+      }, true, forceFresh);
 
       return oddsData.map(game => this.transformGameData(game, sport));
     } catch (error) {
@@ -109,7 +167,7 @@ export class OddsApiService {
     }
   }
 
-  public static async getGameOdds(gameId: string, sport: SportType): Promise<Prediction[]> {
+  public static async getGameOdds(gameId: string, sport: SportType, forceFresh: boolean = false): Promise<Prediction[]> {
     try {
       const sportKey = sportMapping[sport];
       const endpoint = ENDPOINTS.ODDS.replace('{sport}', sportKey);
@@ -119,7 +177,7 @@ export class OddsApiService {
         markets: 'spreads,totals,h2h',
         oddsFormat: 'american',
         eventIds: gameId
-      });
+      }, true, forceFresh);
 
       if (!oddsData.length) {
         throw new Error('No odds data found for this game');
@@ -132,7 +190,7 @@ export class OddsApiService {
     }
   }
 
-  public static async getPlayerProps(gameId: string, sport: SportType): Promise<PlayerProp[]> {
+  public static async getPlayerProps(gameId: string, sport: SportType, forceFresh: boolean = false): Promise<PlayerProp[]> {
     try {
       const sportKey = sportMapping[sport];
       const endpoint = ENDPOINTS.PLAYER_PROPS.replace('{sport}', sportKey);
@@ -141,7 +199,7 @@ export class OddsApiService {
         regions: 'us',
         oddsFormat: 'american',
         eventIds: gameId
-      });
+      }, true, forceFresh);
 
       if (!propsData.length) {
         throw new Error('No player props found for this game');
@@ -151,6 +209,35 @@ export class OddsApiService {
     } catch (error) {
       console.error('Error fetching player props:', error);
       return [];
+    }
+  }
+  
+  // Get stats about API usage
+  public static getApiUsageStats() {
+    return this.cacheService.getApiUsage();
+  }
+  
+  // Get remaining API calls
+  public static getRemainingApiCalls() {
+    return this.cacheService.getRemainingCalls();
+  }
+  
+  // Force refresh all cached data
+  public static async refreshAllData(): Promise<void> {
+    // First clear the cache
+    this.cacheService.clear();
+    
+    // Then fetch fresh data for both sports
+    try {
+      // Only actually fetch if we have API calls available
+      if (!this.cacheService.hasReachedLimit()) {
+        await Promise.all([
+          this.getUpcomingGames('NBA', true),
+          this.getUpcomingGames('MLB', true)
+        ]);
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
     }
   }
 
@@ -179,7 +266,8 @@ export class OddsApiService {
       awayTeamName,
       startTime,
       gameDate: startTime,
-      status: 'Scheduled'
+      status: 'Scheduled',
+      spread
     };
   }
 

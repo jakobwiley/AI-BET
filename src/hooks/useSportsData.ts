@@ -3,226 +3,188 @@ import { Game, Prediction, PlayerProp, SportType } from '@/models/types';
 import { OddsApiService } from '@/lib/oddsApi';
 import { SportsDataApiService } from '@/lib/sportsDataApi';
 
-// Hook for fetching upcoming games
+// Hook for getting upcoming games
 export function useUpcomingGames(sport: SportType) {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
-    async function fetchGames() {
-      setLoading(true);
-      setError(null);
+  // Function to fetch games
+  const fetchGames = async (forceFresh: boolean = false) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // First try to get from Odds API (with potential caching)
+      const oddsGames = await OddsApiService.getUpcomingGames(sport, forceFresh);
       
-      try {
-        // First try to get games with odds from the Odds API
-        const gamesWithOdds = await OddsApiService.getUpcomingGames(sport);
-        
-        if (gamesWithOdds.length > 0) {
-          setGames(gamesWithOdds);
-        } else {
-          // Fallback to the sports data API if odds API returns no games
-          const gamesFromSportsData = await SportsDataApiService.getUpcomingGames(sport);
-          setGames(gamesFromSportsData);
-        }
-      } catch (err) {
-        console.error(`Error fetching ${sport} games:`, err);
-        setError(`Failed to load ${sport} games. Please try again later.`);
-      } finally {
-        setLoading(false);
+      if (oddsGames && oddsGames.length > 0) {
+        setGames(oddsGames);
+        setLastUpdated(new Date());
+      } else {
+        // Fallback to SportsDataApi if OddsApi returns nothing
+        const sportsDataGames = await SportsDataApiService.getUpcomingGames(sport);
+        setGames(sportsDataGames);
+        setLastUpdated(new Date());
       }
+    } catch (err: any) {
+      console.error(`Error fetching ${sport} games:`, err);
+      setError(`Failed to load games: ${err.message}`);
+      
+      // Try to get from SportsDataApi as a fallback
+      try {
+        const fallbackGames = await SportsDataApiService.getUpcomingGames(sport);
+        if (fallbackGames && fallbackGames.length > 0) {
+          setGames(fallbackGames);
+          setLastUpdated(new Date());
+          setError(null); // Clear error if fallback succeeds
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback also failed:', fallbackErr);
+      }
+    } finally {
+      setLoading(false);
     }
+  };
 
+  // Fetch games on initial load
+  useEffect(() => {
     fetchGames();
   }, [sport]);
 
-  return { games, loading, error };
+  return { 
+    games, 
+    loading, 
+    error, 
+    lastUpdated,
+    refresh: (forceFresh: boolean = true) => fetchGames(forceFresh),
+    apiUsage: OddsApiService.getApiUsageStats(),
+    remainingCalls: OddsApiService.getRemainingApiCalls()
+  };
 }
 
-// Hook for fetching game predictions
+// Hook for getting game predictions
 export function useGamePredictions(gameId: string, sport: SportType) {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
-    async function fetchPredictions() {
-      if (!gameId) return;
-      
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Get detailed odds for this game
-        const gameOdds = await OddsApiService.getGameOdds(gameId, sport);
-        
-        if (gameOdds) {
-          // Transform odds into predictions
-          const transformedPredictions: Prediction[] = [];
-          
-          // Process bookmaker odds and convert to predictions
-          // This would need customization based on the actual API response
-          // For now, we'll create some placeholder predictions based on the data
-          if (gameOdds.bookmakers && gameOdds.bookmakers.length > 0) {
-            const bookmaker = gameOdds.bookmakers[0];
-            
-            // Process spreads
-            const spreadsMarket = bookmaker.markets.find((m: any) => m.key === 'spreads');
-            if (spreadsMarket) {
-              transformedPredictions.push({
-                predictionType: 'SPREAD',
-                value: `${spreadsMarket.outcomes[0].name} ${spreadsMarket.outcomes[0].point}`,
-                confidence: 0.7 // Placeholder confidence value
-              });
-            }
-            
-            // Process moneyline
-            const h2hMarket = bookmaker.markets.find((m: any) => m.key === 'h2h');
-            if (h2hMarket) {
-              // Find team with better odds
-              const sortedOutcomes = [...h2hMarket.outcomes].sort((a: any, b: any) => a.price - b.price);
-              transformedPredictions.push({
-                predictionType: 'MONEYLINE',
-                value: sortedOutcomes[0].name,
-                confidence: 0.65 // Placeholder confidence value
-              });
-            }
-            
-            // Process totals
-            const totalsMarket = bookmaker.markets.find((m: any) => m.key === 'totals');
-            if (totalsMarket) {
-              transformedPredictions.push({
-                predictionType: 'OVER_UNDER',
-                value: `${totalsMarket.outcomes[0].name} ${totalsMarket.outcomes[0].point}`,
-                confidence: 0.6 // Placeholder confidence value
-              });
-            }
-          }
-          
-          setPredictions(transformedPredictions);
-        } else {
-          // If no real odds data, use placeholder predictions
-          setPredictions([
-            {
-              predictionType: 'SPREAD',
-              value: 'No real data available',
-              confidence: 0.5
-            }
-          ]);
-        }
-      } catch (err) {
-        console.error(`Error fetching predictions for game ${gameId}:`, err);
-        setError('Failed to load predictions. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
+  // Function to fetch predictions
+  const fetchPredictions = async (forceFresh: boolean = false) => {
+    if (!gameId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const gameOdds = await OddsApiService.getGameOdds(gameId, sport, forceFresh);
+      setPredictions(gameOdds);
+      setLastUpdated(new Date());
+    } catch (err: any) {
+      console.error(`Error fetching predictions for game ${gameId}:`, err);
+      setError(`Failed to load predictions: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    fetchPredictions();
+  // Fetch predictions on initial load or when gameId changes
+  useEffect(() => {
+    if (gameId) {
+      fetchPredictions();
+    }
   }, [gameId, sport]);
 
-  return { predictions, loading, error };
+  return { 
+    predictions, 
+    loading, 
+    error, 
+    lastUpdated,
+    refresh: (forceFresh: boolean = true) => fetchPredictions(forceFresh)
+  };
 }
 
-// Hook for fetching player props
+// Hook for getting player props
 export function usePlayerProps(gameId: string, sport: SportType) {
   const [playerProps, setPlayerProps] = useState<PlayerProp[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
-    async function fetchPlayerProps() {
-      if (!gameId) return;
-      
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Try to get player props from Odds API
-        const propsData = await OddsApiService.getPlayerProps(gameId, sport);
-        
-        if (propsData && propsData.bookmakers && propsData.bookmakers.length > 0) {
-          const playerPropsArray: PlayerProp[] = [];
-          
-          // Process the player props from the bookmakers
-          // Note: This transformation would need to be customized based on the actual API response
-          const bookmaker = propsData.bookmakers[0];
-          
-          bookmaker.markets.forEach((market: any) => {
-            if (market.key.includes('player')) {
-              market.outcomes.forEach((outcome: any) => {
-                // Extract player name and prop type from the market key
-                const [playerName, propType] = parsePlayerPropMarket(market.key);
-                
-                playerPropsArray.push({
-                  playerName,
-                  propType: propType as 'POINTS' | 'REBOUNDS' | 'ASSISTS' | 'HOME_RUNS' | 'STRIKEOUTS',
-                  overUnderValue: outcome.point,
-                  predictionValue: outcome.name, // 'OVER' or 'UNDER'
-                  confidence: calculateConfidence(outcome.price)
-                });
-              });
-            }
-          });
-          
-          setPlayerProps(playerPropsArray);
-        } else {
-          // If no real player prop data available, we could generate placeholder data
-          // For a real production app, you might want to get player data from the sports data API
-          // and combine it with game data to make educated prop bets
-          setPlayerProps([]);
-        }
-      } catch (err) {
-        console.error(`Error fetching player props for game ${gameId}:`, err);
-        setError('Failed to load player props. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
+  // Function to fetch player props
+  const fetchPlayerProps = async (forceFresh: boolean = false) => {
+    if (!gameId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const props = await OddsApiService.getPlayerProps(gameId, sport, forceFresh);
+      setPlayerProps(props);
+      setLastUpdated(new Date());
+    } catch (err: any) {
+      console.error(`Error fetching player props for game ${gameId}:`, err);
+      setError(`Failed to load player props: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    fetchPlayerProps();
+  // Fetch player props on initial load or when gameId changes
+  useEffect(() => {
+    if (gameId) {
+      fetchPlayerProps();
+    }
   }, [gameId, sport]);
 
-  return { playerProps, loading, error };
+  return { 
+    playerProps, 
+    loading, 
+    error, 
+    lastUpdated,
+    refresh: (forceFresh: boolean = true) => fetchPlayerProps(forceFresh)
+  };
 }
 
-// Helper function to parse player name and prop type from market key
-function parsePlayerPropMarket(marketKey: string): [string, string] {
-  // Example market key: "player_points_lebron_james"
-  const parts = marketKey.split('_');
+// Hook for API usage statistics
+export function useApiUsage() {
+  const [usageStats, setUsageStats] = useState(OddsApiService.getApiUsageStats());
+  const [remainingCalls, setRemainingCalls] = useState(OddsApiService.getRemainingApiCalls());
   
-  if (parts.length < 3) {
-    return ["Unknown Player", "POINTS"];
-  }
+  // Update stats every minute
+  useEffect(() => {
+    const updateStats = () => {
+      setUsageStats(OddsApiService.getApiUsageStats());
+      setRemainingCalls(OddsApiService.getRemainingApiCalls());
+    };
+    
+    const interval = setInterval(updateStats, 60000); // Update every minute
+    
+    // Initial update
+    updateStats();
+    
+    return () => clearInterval(interval);
+  }, []);
   
-  const propType = parts[1].toUpperCase();
-  const playerNameParts = parts.slice(2);
-  const playerName = playerNameParts.map(part => 
-    part.charAt(0).toUpperCase() + part.slice(1)
-  ).join(' ');
+  // Function to refresh all data
+  const refreshAllData = async () => {
+    try {
+      await OddsApiService.refreshAllData();
+      // Update stats after refresh
+      setUsageStats(OddsApiService.getApiUsageStats());
+      setRemainingCalls(OddsApiService.getRemainingApiCalls());
+      return true;
+    } catch (error) {
+      console.error("Error refreshing all data:", error);
+      return false;
+    }
+  };
   
-  return [playerName, propType];
-}
-
-// Helper function to calculate confidence based on odds
-function calculateConfidence(odds: number): number {
-  // Convert American odds to a confidence score between 0 and 1
-  // This is a simplified calculation and should be improved for real use
-  
-  // Normalize odds to a probability
-  let probability;
-  if (odds > 0) {
-    probability = 100 / (odds + 100);
-  } else {
-    probability = Math.abs(odds) / (Math.abs(odds) + 100);
-  }
-  
-  // Add some randomness to make it look more natural
-  const randomFactor = Math.random() * 0.1 - 0.05; // Random value between -0.05 and 0.05
-  let confidence = probability + randomFactor;
-  
-  // Ensure confidence is between 0.5 and 0.9
-  confidence = Math.max(0.5, Math.min(0.9, confidence));
-  
-  return parseFloat(confidence.toFixed(2));
+  return {
+    usageStats,
+    remainingCalls,
+    refreshAllData
+  };
 } 
