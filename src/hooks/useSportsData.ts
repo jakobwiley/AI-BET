@@ -1,7 +1,10 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { Game, Prediction, PlayerProp, SportType } from '@/models/types';
 import { OddsApiService } from '@/lib/oddsApi';
 import { SportsDataApiService } from '@/lib/sportsDataApi';
+import { ESPNApiService } from '@/lib/espnApi';
 
 // Hook for getting upcoming games
 export function useUpcomingGames(sport: SportType) {
@@ -9,48 +12,84 @@ export function useUpcomingGames(sport: SportType) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [apiKeyValid, setApiKeyValid] = useState<boolean | null>(null);
+  const [usingOddsApi, setUsingOddsApi] = useState<boolean>(false);
+
+  useEffect(() => {
+    async function testApiKey() {
+      const isValid = await OddsApiService.testApiKey();
+      setApiKeyValid(isValid);
+      if (!isValid) {
+        console.warn('[useSportsData] API key is invalid or not working. Using mock data.');
+      }
+    }
+
+    testApiKey();
+  }, []);
 
   // Function to fetch games
-  const fetchGames = async (forceFresh: boolean = false) => {
+  const fetchGames = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // First try to get from Odds API (with potential caching)
-      const oddsGames = await OddsApiService.getUpcomingGames(sport, forceFresh);
-      
-      if (oddsGames && oddsGames.length > 0) {
-        setGames(oddsGames);
-        setLastUpdated(new Date());
-      } else {
-        // Fallback to SportsDataApi if OddsApi returns nothing
-        const sportsDataGames = await SportsDataApiService.getUpcomingGames(sport);
-        setGames(sportsDataGames);
-        setLastUpdated(new Date());
+      // Fetch games from ESPN API
+      const espnGames = await ESPNApiService.getUpcomingGames(sport);
+      console.log(`[useSportsData] Received ${espnGames.length} games from ESPN for ${sport}`);
+
+      // Fetch odds data if API key is valid
+      let oddsGames: Game[] = [];
+      if (apiKeyValid) {
+        try {
+          oddsGames = await OddsApiService.getGameOdds(sport);
+          console.log(`[useSportsData] Received ${oddsGames.length} games with odds for ${sport}`);
+          setUsingOddsApi(true);
+        } catch (oddsError) {
+          console.warn(`[useSportsData] Failed to fetch odds data: ${oddsError}`);
+          setUsingOddsApi(false);
+        }
       }
+
+      // Merge ESPN games with odds data and fetch predictions
+      const mergedGames = await Promise.all(espnGames.map(async espnGame => {
+        const oddsGame = oddsGames.find(og => 
+          og.homeTeamName === espnGame.homeTeamName && 
+          og.awayTeamName === espnGame.awayTeamName
+        );
+
+        // Fetch predictions for this game
+        let predictions: Prediction[] = [];
+        try {
+          predictions = await OddsApiService.getGamePredictions(espnGame.id, sport);
+        } catch (predError) {
+          console.warn(`[useSportsData] Failed to fetch predictions for game ${espnGame.id}: ${predError}`);
+        }
+
+        return {
+          ...espnGame,
+          spread: oddsGame?.spread || espnGame.spread,
+          moneyline: oddsGame?.moneyline,
+          total: oddsGame?.total,
+          predictions
+        };
+      }));
+
+      setGames(mergedGames);
+      setLastUpdated(new Date());
     } catch (err: any) {
       console.error(`Error fetching ${sport} games:`, err);
       setError(`Failed to load games: ${err.message}`);
-      
-      // Try to get from SportsDataApi as a fallback
-      try {
-        const fallbackGames = await SportsDataApiService.getUpcomingGames(sport);
-        if (fallbackGames && fallbackGames.length > 0) {
-          setGames(fallbackGames);
-          setLastUpdated(new Date());
-          setError(null); // Clear error if fallback succeeds
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback also failed:', fallbackErr);
-      }
+      setGames([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch games on initial load
+  // Fetch games on initial load and every 30 seconds
   useEffect(() => {
     fetchGames();
+    const interval = setInterval(fetchGames, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, [sport]);
 
   return { 
@@ -58,9 +97,11 @@ export function useUpcomingGames(sport: SportType) {
     loading, 
     error, 
     lastUpdated,
-    refresh: (forceFresh: boolean = true) => fetchGames(forceFresh),
+    refresh: () => fetchGames(),
     apiUsage: OddsApiService.getApiUsageStats(),
-    remainingCalls: OddsApiService.getRemainingApiCalls()
+    remainingCalls: OddsApiService.getRemainingApiCalls(),
+    apiKeyValid,
+    usingOddsApi
   };
 }
 
@@ -79,8 +120,8 @@ export function useGamePredictions(gameId: string, sport: SportType) {
     setError(null);
     
     try {
-      const gameOdds = await OddsApiService.getGameOdds(gameId, sport, forceFresh);
-      setPredictions(gameOdds);
+      const predictions = await OddsApiService.getGamePredictions(gameId, sport, forceFresh);
+      setPredictions(predictions);
       setLastUpdated(new Date());
     } catch (err: any) {
       console.error(`Error fetching predictions for game ${gameId}:`, err);

@@ -22,6 +22,13 @@ export class CacheService {
   private readonly MONTHLY_LIMIT = 500;
 
   private constructor() {
+    // Clear all storage on initialization
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(this.STORAGE_KEY);
+      localStorage.removeItem(this.USAGE_KEY);
+      console.log('[CacheService] Cleared all storage on initialization');
+    }
+    
     this.loadFromStorage();
     this.apiUsage = this.loadApiUsage();
     this.checkAndResetMonthlyCounter();
@@ -95,42 +102,42 @@ export class CacheService {
   // Calculate appropriate TTL based on game time
   public static calculateTTL(gameTime?: string): number {
     if (!gameTime) {
-      return 2 * 60 * 60 * 1000; // Default 2 hours
+      return 30 * 60 * 1000; // Default 30 minutes
     }
     
     const gameDate = new Date(gameTime);
     const now = new Date();
     const hoursUntilGame = (gameDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     
-    // Dynamic TTL strategy:
-    // - More than 1 week away: 24 hours
-    // - 1-7 days away: 12 hours
-    // - 24-48 hours away: 6 hours
-    // - 12-24 hours away: 4 hours
-    // - 6-12 hours away: 3 hours
-    // - 3-6 hours away: 2 hours
-    // - 1-3 hours away: 1 hour
-    // - Less than 1 hour: 30 minutes
-    // - Game in progress: 10 minutes
+    // More aggressive TTL strategy:
+    // - More than 1 week away: 12 hours
+    // - 1-7 days away: 6 hours
+    // - 24-48 hours away: 4 hours
+    // - 12-24 hours away: 2 hours
+    // - 6-12 hours away: 1 hour
+    // - 3-6 hours away: 30 minutes
+    // - 1-3 hours away: 15 minutes
+    // - Less than 1 hour: 5 minutes
+    // - Game in progress: 2 minutes
     
     if (hoursUntilGame < 0) {
-      return 10 * 60 * 1000; // Game in progress: 10 minutes
+      return 2 * 60 * 1000; // Game in progress: 2 minutes
     } else if (hoursUntilGame < 1) {
-      return 30 * 60 * 1000; // Less than 1 hour: 30 minutes
+      return 5 * 60 * 1000; // Less than 1 hour: 5 minutes
     } else if (hoursUntilGame < 3) {
-      return 60 * 60 * 1000; // 1-3 hours: 1 hour
+      return 15 * 60 * 1000; // 1-3 hours: 15 minutes
     } else if (hoursUntilGame < 6) {
-      return 2 * 60 * 60 * 1000; // 3-6 hours: 2 hours
+      return 30 * 60 * 1000; // 3-6 hours: 30 minutes
     } else if (hoursUntilGame < 12) {
-      return 3 * 60 * 60 * 1000; // 6-12 hours: 3 hours
+      return 60 * 60 * 1000; // 6-12 hours: 1 hour
     } else if (hoursUntilGame < 24) {
-      return 4 * 60 * 60 * 1000; // 12-24 hours: 4 hours
+      return 2 * 60 * 60 * 1000; // 12-24 hours: 2 hours
     } else if (hoursUntilGame < 48) {
-      return 6 * 60 * 60 * 1000; // 24-48 hours: 6 hours
+      return 4 * 60 * 60 * 1000; // 24-48 hours: 4 hours
     } else if (hoursUntilGame < 168) {
-      return 12 * 60 * 60 * 1000; // 1-7 days: 12 hours
+      return 6 * 60 * 60 * 1000; // 1-7 days: 6 hours
     } else {
-      return 24 * 60 * 60 * 1000; // More than 1 week: 24 hours
+      return 12 * 60 * 60 * 1000; // More than 1 week: 12 hours
     }
   }
 
@@ -235,5 +242,28 @@ export class CacheService {
         this.cache.delete(key);
       }
     }
+  }
+
+  // Force refresh specific data
+  public forceRefresh(pattern: string): void {
+    const keysToDelete: string[] = [];
+    this.cache.forEach((_, key) => {
+      if (key.startsWith(pattern)) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => this.cache.delete(key));
+    this.saveToStorage();
+    console.log(`[CacheService] Forced refresh for pattern: ${pattern}`);
+  }
+
+  // Clear all sports data cache
+  public clearSportsData(): void {
+    this.forceRefresh('sports_data:');
+  }
+
+  // Clear specific sport's cache
+  public clearSportCache(sport: SportType): void {
+    this.forceRefresh(`sports_data:${sport}`);
   }
 } 

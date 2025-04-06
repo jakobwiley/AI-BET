@@ -1,15 +1,25 @@
-import React from 'react';
-import { Game, SportType } from '@/models/types';
+'use client';
+
+import React, { useState } from 'react';
+import { Game, SportType, Prediction, PlayerProp } from '@/models/types';
 import { useGamePredictions } from '@/hooks/useSportsData';
 import { SportsDataApiService } from '@/lib/sportsDataApi';
 import PredictionCard from './PredictionCard';
+import PlayerPropCard from './PlayerPropCard';
+import { motion } from 'framer-motion';
+import { FaSpinner } from 'react-icons/fa';
 
 interface GameDetailsProps {
   game: Game;
+  initialPredictions?: Prediction[];
+  initialPlayerProps?: PlayerProp[];
 }
 
-const GameDetails: React.FC<GameDetailsProps> = ({ game }) => {
-  const { predictions, loading: predictionsLoading, error: predictionsError } = useGamePredictions(game.id, game.sport);
+const GameDetails: React.FC<GameDetailsProps> = ({ game, initialPredictions = [], initialPlayerProps = [] }) => {
+  const [activeTab, setActiveTab] = useState<'predictions' | 'playerProps'>('predictions');
+  const [predictions, setPredictions] = useState<Prediction[]>(initialPredictions);
+  const [playerProps, setPlayerProps] = useState<PlayerProp[]>(initialPlayerProps);
+  const [loading, setLoading] = useState(false);
   
   // Get team logos
   const homeTeamLogo = SportsDataApiService.getTeamLogoUrl(game.sport, game.homeTeamId, game.homeTeamName);
@@ -95,30 +105,80 @@ const GameDetails: React.FC<GameDetailsProps> = ({ game }) => {
       </div>
       
       {/* Predictions section */}
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-4">Game Predictions</h3>
-        
-        {predictionsLoading ? (
-          <div className="flex justify-center items-center h-20">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-            <span className="ml-2">Loading predictions...</span>
-          </div>
-        ) : predictionsError ? (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-            <span className="block sm:inline">{predictionsError}</span>
-          </div>
-        ) : predictions.length === 0 ? (
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
-            <span className="block sm:inline">No predictions available for this game yet.</span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {predictions.map((prediction, index) => (
-              <PredictionCard key={index} prediction={prediction} />
-            ))}
-          </div>
-        )}
+      <div className="flex space-x-4 mb-6">
+        <button
+          className={`px-4 py-2 rounded-lg ${
+            activeTab === 'predictions'
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+          onClick={() => setActiveTab('predictions')}
+        >
+          Predictions
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${
+            activeTab === 'playerProps'
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+          onClick={() => setActiveTab('playerProps')}
+        >
+          Player Props
+        </button>
       </div>
+      
+      {activeTab === 'predictions' && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <h2 className="text-xl font-bold mb-4">Game Predictions</h2>
+          
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <FaSpinner className="animate-spin text-2xl text-blue-500" />
+            </div>
+          ) : predictions.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {predictions.map((prediction) => (
+                <PredictionCard key={prediction.id} prediction={prediction} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-gray-800 rounded-xl">
+              <p className="text-gray-300">No predictions available for this game yet.</p>
+            </div>
+          )}
+        </motion.div>
+      )}
+      
+      {activeTab === 'playerProps' && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <h2 className="text-xl font-bold mb-4">Player Props</h2>
+          
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <FaSpinner className="animate-spin text-2xl text-blue-500" />
+            </div>
+          ) : playerProps.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {playerProps.map((prop) => (
+                <PlayerPropCard key={prop.id} playerProp={prop} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-gray-800 rounded-xl">
+              <p className="text-gray-300">No player props available for this game yet.</p>
+            </div>
+          )}
+        </motion.div>
+      )}
       
       {/* Sport-specific stats section */}
       <div>
