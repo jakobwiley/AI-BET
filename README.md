@@ -1,96 +1,36 @@
-# BetAI - Sports Betting Prediction App
-
-BetAI is a modern, AI-powered sports betting prediction platform that provides high-confidence predictions for NBA and MLB games, including both game outcomes and player props.
-
-![BetAI Screenshot](https://via.placeholder.com/800x400?text=BetAI+Screenshot)
-
-## Features
-
-- **NBA & MLB Predictions**: Get AI-powered predictions for all NBA and MLB games
-- **Player Props**: Detailed player prop predictions with confidence ratings
-- **Confidence Ratings**: Each prediction includes a confidence percentage to help you make smarter bets
-- **Detailed Insights**: Reasoning behind each prediction to understand the AI's decision-making
-- **Mobile & Desktop Friendly**: Responsive design for all devices
-- **User Authentication**: Save your favorite teams and players
-
-## Tech Stack
-
-- **Frontend**: Next.js, React, TypeScript, Tailwind CSS, Framer Motion
-- **Backend**: Next.js API Routes
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: NextAuth.js
-- **Styling**: Tailwind CSS
-- **Deployment**: Vercel
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-### Prerequisites
+First, run the development server:
 
-- Node.js (v18 or later)
-- npm or yarn
-- PostgreSQL database
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/betai.git
-   cd betai
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   - Copy `.env.example` to `.env.local`
-   - Update the values with your database connection string and API keys
-
-4. Set up the database:
-   ```bash
-   npx prisma migrate dev
-   ```
-
-5. Run the development server:
-   ```bash
-   npm run dev
-   ```
-
-6. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-## API Keys & External Services
-
-BetAI uses the following APIs for sports data:
-
-- [SportsData.io](https://sportsdata.io/) - For NBA and MLB game data
-- [The Odds API](https://the-odds-api.com/) - For betting odds
-
-You'll need to sign up for these services and add your API keys to the `.env.local` file.
-
-## Project Structure
-
-```
-betai/
-├── prisma/           # Database schema and migrations
-├── public/           # Static assets
-├── src/
-│   ├── app/          # Next.js app router and pages
-│   ├── components/   # React components
-│   ├── hooks/        # Custom React hooks
-│   ├── lib/          # Utility functions and API clients
-│   ├── models/       # TypeScript types and interfaces
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-## Contributing
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## License
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Learn More
 
-## Acknowledgments
+To learn more about Next.js, take a look at the following resources:
 
-- Sports data provided by SportsData.io and The Odds API
-- Icons by FontAwesome via react-icons 
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

@@ -1,8 +1,32 @@
-import { Game, Prediction } from '@/models/types';
-import { format } from 'date-fns';
+'use client';
+
 import { FaArrowRight, FaBasketballBall, FaBaseballBall } from 'react-icons/fa';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+
+interface Game {
+  id: string;
+  sport: 'NBA' | 'MLB';
+  gameDate: Date;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeTeamScore?: number;
+  awayTeamScore?: number;
+  status: string;
+}
+
+interface Prediction {
+  id: string;
+  gameId: string;
+  predictionType: string;
+  predictionValue: string;
+  confidence: number;
+  reasoning: string;
+  outcome?: string;
+  createdAt: Date;
+}
 
 interface GameCardProps {
   game: Game;
@@ -30,6 +54,17 @@ const GameCard = ({ game, predictions }: GameCardProps) => {
   // Get the appropriate sport icon
   const SportIcon = game.sport === 'NBA' ? FaBasketballBall : FaBaseballBall;
 
+  // Format date
+  const formatDate = (date: Date) => {
+    const options: Intl.DateTimeFormatOptions = { 
+      month: 'short', 
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    };
+    return new Date(date).toLocaleDateString('en-US', options);
+  };
+
   return (
     <motion.div 
       whileHover={{ scale: 1.02 }}
@@ -40,7 +75,7 @@ const GameCard = ({ game, predictions }: GameCardProps) => {
           <div className="flex items-center">
             <SportIcon className="text-blue-500 mr-2" />
             <span className="text-gray-400 text-sm">
-              {format(new Date(game.gameDate), 'PPP · h:mm a')}
+              {formatDate(game.gameDate)}
             </span>
           </div>
           <span className="bg-gray-700 text-xs px-2 py-1 rounded-full text-gray-300">

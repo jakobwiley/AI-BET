@@ -1,5 +1,21 @@
-import { PlayerProp } from '@/models/types';
+'use client';
+
 import { motion } from 'framer-motion';
+
+interface PlayerProp {
+  id: string;
+  gameId: string;
+  playerId: string;
+  playerName: string;
+  teamId: string;
+  propType: string;
+  overUnderValue: number;
+  predictionValue: string;
+  confidence: number;
+  reasoning: string;
+  outcome?: string;
+  createdAt: Date;
+}
 
 interface PlayerPropCardProps {
   playerProp: PlayerProp;
@@ -20,7 +36,7 @@ const PlayerPropCard = ({ playerProp }: PlayerPropCardProps) => {
 
   // Format prop type for display
   const formatPropType = (type: string) => {
-    return type.replace('_', ' ').toLowerCase();
+    return type.replace(/_/g, ' ').toLowerCase();
   };
 
   return (
