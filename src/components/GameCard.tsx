@@ -18,13 +18,13 @@ const GameCard = ({ game, predictions }: GameCardProps) => {
 
   // Function to format the confidence as a percentage
   const formatConfidence = (confidence: number) => {
-    return `${Math.round(confidence * 100)}%`;
+    return `${Math.round(confidence)}%`;
   };
 
   // Function to determine the confidence indicator color
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'bg-green-500';
-    if (confidence >= 0.6) return 'bg-yellow-500';
+    if (confidence >= 80) return 'bg-green-500';
+    if (confidence >= 60) return 'bg-yellow-500';
     return 'bg-red-500';
   };
 
@@ -85,7 +85,10 @@ const GameCard = ({ game, predictions }: GameCardProps) => {
               <div className="flex flex-col items-end">
                 <span className="text-gray-400 text-xs">Confidence</span>
                 <div className="flex items-center">
-                  <span className={`w-2 h-2 rounded-full mr-1 ${getConfidenceColor(highestConfidencePrediction.confidence || 0)}`}></span>
+                  <span 
+                    data-testid="confidence-indicator"
+                    className={`w-2 h-2 rounded-full mr-1 ${getConfidenceColor(highestConfidencePrediction.confidence || 0)}`}
+                  />
                   <span className="text-white font-bold">
                     {formatConfidence(highestConfidencePrediction.confidence || 0)}
                   </span>

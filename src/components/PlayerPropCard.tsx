@@ -53,11 +53,11 @@ const PlayerPropCard = ({ playerProp }: PlayerPropCardProps) => {
       <div className="bg-gray-700 rounded-lg p-3 mb-3">
         <div className="flex justify-between items-center mb-1">
           <span className="text-gray-300">Line</span>
-          <span className="text-white font-medium">{playerProp.overUnderValue}</span>
+          <span className="text-white font-medium">{playerProp.line}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-gray-300">Prediction</span>
-          <span className="text-blue-400 font-medium">{playerProp.predictionValue}</span>
+          <span className="text-blue-400 font-medium">{playerProp.prediction}</span>
         </div>
       </div>
       
