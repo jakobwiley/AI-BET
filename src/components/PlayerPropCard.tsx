@@ -1,21 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-
-interface PlayerProp {
-  id: string;
-  gameId: string;
-  playerId: string;
-  playerName: string;
-  teamId: string;
-  propType: string;
-  overUnderValue: number;
-  predictionValue: string;
-  confidence: number;
-  reasoning: string;
-  outcome?: string;
-  createdAt: Date;
-}
+import { PlayerProp } from '@/models/types';
 
 interface PlayerPropCardProps {
   playerProp: PlayerProp;
@@ -23,12 +9,14 @@ interface PlayerPropCardProps {
 
 const PlayerPropCard = ({ playerProp }: PlayerPropCardProps) => {
   // Function to format the confidence as a percentage
-  const formatConfidence = (confidence: number) => {
+  const formatConfidence = (confidence: number | undefined) => {
+    if (!confidence) return 'N/A';
     return `${Math.round(confidence * 100)}%`;
   };
 
   // Function to determine the confidence indicator color
-  const getConfidenceColor = (confidence: number) => {
+  const getConfidenceColor = (confidence: number | undefined) => {
+    if (!confidence) return 'bg-gray-500';
     if (confidence >= 0.8) return 'bg-green-500';
     if (confidence >= 0.6) return 'bg-yellow-500';
     return 'bg-red-500';
@@ -73,10 +61,12 @@ const PlayerPropCard = ({ playerProp }: PlayerPropCardProps) => {
         </div>
       </div>
       
-      <div>
-        <h4 className="text-gray-300 text-sm mb-1">Reasoning</h4>
-        <p className="text-gray-400 text-sm">{playerProp.reasoning}</p>
-      </div>
+      {playerProp.reasoning && (
+        <div>
+          <h4 className="text-gray-300 text-sm mb-1">Reasoning</h4>
+          <p className="text-gray-400 text-sm">{playerProp.reasoning}</p>
+        </div>
+      )}
       
       {playerProp.outcome && (
         <div className="mt-3 pt-3 border-t border-gray-700">

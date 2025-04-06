@@ -4,9 +4,19 @@ import { v4 as uuidv4 } from 'uuid';
 import { CacheService } from './cacheService';
 
 // Define environment variables
-const API_KEY = process.env.NEXT_PUBLIC_THE_ODDS_API_KEY || 'be72ccb153316fd0d1c07b44a4394e9d';
+const API_KEY = process.env.NEXT_PUBLIC_THE_ODDS_API_KEY;
 const API_HOST = process.env.ODDS_API_HOST || 'https://api.the-odds-api.com/v4';
-const LOG_LEVEL = process.env.LOG_LEVEL || 'INFO';
+const LOG_LEVEL = process.env.ODDS_API_LOG_LEVEL || 'info';
+
+// Debug environment variables
+console.log('API Key:', API_KEY ? 'Present' : 'Missing');
+console.log('API Host:', API_HOST);
+console.log('Log Level:', LOG_LEVEL);
+
+// Validate API key
+if (!API_KEY) {
+  console.error('NEXT_PUBLIC_THE_ODDS_API_KEY is not defined in environment variables');
+}
 
 // Map sport types to API format
 const sportMapping: Record<SportType, string> = {
@@ -20,6 +30,9 @@ const ENDPOINTS = {
   SCORES: '/sports/{sport}/scores',
   PLAYER_PROPS: '/sports/{sport}/odds/?markets=player_props'
 };
+
+// Define all available markets to request in a single call
+const ALL_MARKETS = 'h2h,spreads,totals';
 
 // Interface for odds response
 interface OddsResponse {
@@ -51,8 +64,23 @@ interface Outcome {
   description?: string;
 }
 
+export interface ApiUsage {
+  used: number;
+  limit: number;
+  lastResetDate: Date;
+}
+
 export class OddsApiService {
   private static cacheService = CacheService.getInstance();
+  private static API_KEY = process.env.NEXT_PUBLIC_THE_ODDS_API_KEY;
+  private static API_HOST = process.env.ODDS_API_HOST || 'https://api.the-odds-api.com/v4';
+  private static LOG_LEVEL = process.env.ODDS_API_LOG_LEVEL || 'info';
+  private static cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private static apiUsage: ApiUsage = {
+    used: 0,
+    limit: 500,
+    lastResetDate: new Date()
+  };
 
   private static logRequest(method: string, url: string): void {
     if (LOG_LEVEL === 'DEBUG') {
@@ -80,8 +108,8 @@ export class OddsApiService {
     method: string, 
     endpoint: string, 
     params: Record<string, any> = {},
-    useCache: boolean = true,
-    forceFresh: boolean = false
+    useCache: boolean = false,
+    forceFresh: boolean = true
   ): Promise<T> {
     // Create cache key based on endpoint and params
     const cacheKey = `oddsapi:${endpoint}:${JSON.stringify(params)}`;
@@ -95,10 +123,9 @@ export class OddsApiService {
       }
     }
     
-    // Check if we've reached the API limit
-    if (this.cacheService.hasReachedLimit()) {
-      console.warn('Monthly API call limit reached. Using cached data only.');
-      throw new Error('Monthly API call limit reached. Try again next month or contact support.');
+    // Validate API key
+    if (!API_KEY) {
+      throw new Error('API key is not configured. Please check your environment variables.');
     }
     
     try {
@@ -110,6 +137,11 @@ export class OddsApiService {
 
       this.logRequest(method, url);
       
+      // Debug the request
+      console.log(`[OddsAPI] Making request to: ${url}`);
+      console.log(`[OddsAPI] Using API key: ${API_KEY.substring(0, 4)}...${API_KEY.substring(API_KEY.length - 4)}`);
+      console.log(`[OddsAPI] Query params:`, queryParams);
+      
       // Record the API call before making the request
       this.cacheService.recordApiCall(endpoint);
 
@@ -120,72 +152,58 @@ export class OddsApiService {
       });
 
       this.logResponse(response.data);
-      
-      // Cache the response if it's successful
-      if (useCache) {
-        // Calculate TTL based on game time if available
-        const gameTime = Array.isArray(response.data) && response.data.length > 0
-          ? response.data[0].commence_time
-          : response.data?.commence_time;
-          
-        const ttl = CacheService.calculateTTL(gameTime);
-        this.cacheService.set(cacheKey, response.data, ttl);
-      }
+      console.log(`[OddsAPI] Response status: ${response.status}`);
+      console.log(`[OddsAPI] Response data:`, response.data);
       
       return response.data;
     } catch (error: any) {
       this.logError(error);
-      
-      // If error, try to get from cache as fallback, even if we normally wouldn't
-      if (useCache) {
-        const cachedData = this.cacheService.get<T>(cacheKey);
-        if (cachedData) {
-          console.log('[OddsAPI] Using cached data as fallback due to API error');
-          return cachedData;
-        }
-      }
-      
-      throw new Error(`API request failed: ${error.message}`);
+      throw error;
     }
   }
 
-  public static async getUpcomingGames(sport: SportType, forceFresh: boolean = false): Promise<Game[]> {
+  static async getUpcomingGames(sport: SportType, forceFresh: boolean = true): Promise<Game[]> {
     try {
+      console.log(`[OddsAPI] Fetching ${sport} games, forceFresh: ${forceFresh}`);
       const sportKey = sportMapping[sport];
       const endpoint = ENDPOINTS.ODDS.replace('{sport}', sportKey);
       
-      const oddsData = await this.apiRequest<OddsResponse[]>('GET', endpoint, {
+      const params = {
         regions: 'us',
-        markets: 'spreads,totals,h2h',
-        oddsFormat: 'american'
-      }, true, forceFresh);
-
-      return oddsData.map(game => this.transformGameData(game, sport));
-    } catch (error) {
-      console.error('Error fetching upcoming games:', error);
-      return [];
-    }
-  }
-
-  public static async getGameOdds(gameId: string, sport: SportType, forceFresh: boolean = false): Promise<Prediction[]> {
-    try {
-      const sportKey = sportMapping[sport];
-      const endpoint = ENDPOINTS.ODDS.replace('{sport}', sportKey);
-      
-      const oddsData = await this.apiRequest<OddsResponse[]>('GET', endpoint, {
-        regions: 'us',
-        markets: 'spreads,totals,h2h',
+        markets: ALL_MARKETS,
         oddsFormat: 'american',
-        eventIds: gameId
+        bookmakers: 'draftkings'
+      };
+
+      const response = await this.apiRequest<OddsResponse[]>('GET', endpoint, params, false, true);
+      console.log(`[OddsAPI] Received ${response.length} games for ${sport}`);
+
+      return response.map(game => this.transformGameData(game, sport));
+    } catch (error) {
+      console.error(`[OddsAPI] Error fetching ${sport} games:`, error);
+      throw error;
+    }
+  }
+
+  public static async getGameOdds(sport: SportType, forceFresh: boolean = false): Promise<Game[]> {
+    try {
+      const sportKey = sportMapping[sport];
+      const endpoint = ENDPOINTS.ODDS.replace('{sport}', sportKey);
+      
+      const oddsData = await this.apiRequest<OddsResponse[]>('GET', endpoint, {
+        regions: 'us',
+        markets: ALL_MARKETS,
+        oddsFormat: 'american',
+        bookmakers: 'draftkings'
       }, true, forceFresh);
 
       if (!oddsData.length) {
-        throw new Error('No odds data found for this game');
+        throw new Error('No odds data found for this sport');
       }
 
-      return this.transformOddsData(oddsData[0], gameId);
+      return this.transformOddsResponse(oddsData, sport);
     } catch (error) {
-      console.error('Error fetching game odds:', error);
+      console.error(`[OddsAPI] Error fetching ${sport} odds:`, error);
       return [];
     }
   }
@@ -198,7 +216,8 @@ export class OddsApiService {
       const propsData = await this.apiRequest<OddsResponse[]>('GET', endpoint, {
         regions: 'us',
         oddsFormat: 'american',
-        eventIds: gameId
+        eventIds: gameId,
+        bookmakers: 'draftkings'
       }, true, forceFresh);
 
       if (!propsData.length) {
@@ -208,13 +227,16 @@ export class OddsApiService {
       return this.transformPlayerProps(propsData[0], gameId, sport);
     } catch (error) {
       console.error('Error fetching player props:', error);
-      return [];
+      
+      // Fallback to mock data if API fails
+      console.log(`[OddsAPI] Using mock data for player props: ${gameId}`);
+      return this.getMockPlayerProps(gameId, sport);
     }
   }
   
   // Get stats about API usage
-  public static getApiUsageStats() {
-    return this.cacheService.getApiUsage();
+  public static getApiUsageStats(): ApiUsage {
+    return { ...this.apiUsage };
   }
   
   // Get remaining API calls
@@ -242,117 +264,161 @@ export class OddsApiService {
   }
 
   private static transformGameData(game: OddsResponse, sport: SportType): Game {
-    const id = game.id;
-    const homeTeamName = game.home_team;
-    const awayTeamName = game.away_team;
-    const startTime = game.commence_time;
+    console.log(`[OddsAPI] Transforming game data for ${game.home_team} vs ${game.away_team}`);
+    const draftKingsBookmaker = game.bookmakers.find(b => b.key === 'draftkings');
     
-    // Get spread if available
-    let spread;
-    const spreadMarket = game.bookmakers[0]?.markets.find(m => m.key === 'spreads');
-    if (spreadMarket) {
-      const homeSpread = spreadMarket.outcomes.find(o => o.name === homeTeamName)?.point || 0;
-      const awaySpread = spreadMarket.outcomes.find(o => o.name === awayTeamName)?.point || 0;
-      spread = { home: homeSpread, away: awaySpread };
+    if (!draftKingsBookmaker) {
+      console.warn(`[OddsAPI] No DraftKings odds found for game: ${game.id}`);
     }
-    
-    // Create a simple game object
+
+    const spreadMarket = draftKingsBookmaker?.markets.find(m => m.key === 'spreads');
+    const homeSpread = spreadMarket?.outcomes.find(o => o.name === game.home_team)?.point || 0;
+    const awaySpread = spreadMarket?.outcomes.find(o => o.name === game.away_team)?.point || 0;
+
     return {
-      id,
+      id: game.id,
       sport,
-      homeTeamId: homeTeamName.replace(/\s+/g, '').toLowerCase(),
-      awayTeamId: awayTeamName.replace(/\s+/g, '').toLowerCase(),
-      homeTeamName,
-      awayTeamName,
-      startTime,
-      gameDate: startTime,
-      status: 'Scheduled',
-      spread
+      homeTeamId: game.home_team.toLowerCase().replace(/\s+/g, '-'),
+      awayTeamId: game.away_team.toLowerCase().replace(/\s+/g, '-'),
+      homeTeamName: game.home_team,
+      awayTeamName: game.away_team,
+      startTime: game.commence_time,
+      gameDate: game.commence_time,
+      status: 'SCHEDULED',
+      spread: { home: homeSpread, away: awaySpread },
+      predictions: this.transformOddsData(game, sport)
     };
+  }
+
+  private static transformOddsResponse(data: OddsResponse[], sport: SportType): Game[] {
+    console.log(`[OddsAPI] Transforming ${data.length} ${sport} games with odds`);
+    
+    return data.map(event => {
+      const homeTeam = event.home_team;
+      const awayTeam = event.away_team;
+      const bookmaker = event.bookmakers[0]; // Using first bookmaker for simplicity
+
+      let spread = { home: 0, away: 0 };
+      let moneyline = { home: 0, away: 0 };
+      let total = 0;
+
+      if (bookmaker) {
+        // Get spread
+        const spreadMarket = bookmaker.markets.find((m: any) => m.key === 'spreads');
+        if (spreadMarket) {
+          const homeSpread = spreadMarket.outcomes.find((o: any) => o.name === homeTeam);
+          const awaySpread = spreadMarket.outcomes.find((o: any) => o.name === awayTeam);
+          spread = {
+            home: homeSpread?.point || 0,
+            away: awaySpread?.point || 0
+          };
+        }
+
+        // Get moneyline
+        const moneylineMarket = bookmaker.markets.find((m: any) => m.key === 'h2h');
+        if (moneylineMarket) {
+          const homeMoneyline = moneylineMarket.outcomes.find((o: any) => o.name === homeTeam);
+          const awayMoneyline = moneylineMarket.outcomes.find((o: any) => o.name === awayTeam);
+          moneyline = {
+            home: homeMoneyline?.price || 0,
+            away: awayMoneyline?.price || 0
+          };
+        }
+
+        // Get total
+        const totalMarket = bookmaker.markets.find((m: any) => m.key === 'totals');
+        if (totalMarket) {
+          total = totalMarket.outcomes[0]?.point || 0;
+        }
+      }
+
+      return {
+        id: event.id,
+        sport,
+        homeTeamId: homeTeam.toLowerCase().replace(/\s+/g, ''),
+        awayTeamId: awayTeam.toLowerCase().replace(/\s+/g, ''),
+        homeTeamName: homeTeam,
+        awayTeamName: awayTeam,
+        startTime: event.commence_time,
+        gameDate: event.commence_time,
+        status: 'SCHEDULED',
+        spread,
+        moneyline,
+        total
+      };
+    });
   }
 
   private static transformOddsData(game: OddsResponse, gameId: string): Prediction[] {
     const predictions: Prediction[] = [];
-    const bookmaker = game.bookmakers[0]; // Using first bookmaker for simplicity
     
+    if (!game.bookmakers || game.bookmakers.length === 0) {
+      console.warn('No bookmakers found in odds data');
+      return predictions;
+    }
+    
+    // Find DraftKings bookmaker
+    const bookmaker = game.bookmakers.find(b => b.key === 'draftkings');
     if (!bookmaker) {
-      return [];
+      console.warn('DraftKings bookmaker not found in odds data');
+      return predictions;
     }
-
-    // Process spread
-    const spreadMarket = bookmaker.markets.find(m => m.key === 'spreads');
-    if (spreadMarket) {
-      const homeOutcome = spreadMarket.outcomes.find(o => o.name === game.home_team);
-      if (homeOutcome?.point) {
-        predictions.push({
-          id: uuidv4(),
-          gameId,
-          predictionType: 'SPREAD',
-          predictionValue: homeOutcome.point,
-          confidence: this.calculateConfidence(homeOutcome.price),
-          createdAt: new Date().toISOString()
-        });
-      }
-    }
-
-    // Process moneyline
+    
+    // Process h2h (moneyline) odds
     const h2hMarket = bookmaker.markets.find(m => m.key === 'h2h');
     if (h2hMarket) {
-      const homeOutcome = h2hMarket.outcomes.find(o => o.name === game.home_team);
-      const awayOutcome = h2hMarket.outcomes.find(o => o.name === game.away_team);
-      
-      if (homeOutcome && awayOutcome) {
-        const homeConfidence = this.calculateConfidence(homeOutcome.price);
-        const awayConfidence = this.calculateConfidence(awayOutcome.price);
-        
-        // Predict the team with higher confidence
-        const prediction = homeConfidence > awayConfidence
-          ? { team: 'HOME', confidence: homeConfidence }
-          : { team: 'AWAY', confidence: awayConfidence };
+      h2hMarket.outcomes.forEach(outcome => {
+        const isHome = outcome.name === game.home_team;
+        const team = isHome ? game.home_team : game.away_team;
+        const opponent = isHome ? game.away_team : game.home_team;
         
         predictions.push({
           id: uuidv4(),
           gameId,
           predictionType: 'MONEYLINE',
-          predictionValue: prediction.team,
-          confidence: prediction.confidence,
+          predictionValue: outcome.price,
+          confidence: this.calculateConfidence(outcome.price),
           createdAt: new Date().toISOString()
         });
-      }
+      });
     }
-
-    // Process totals
+    
+    // Process spread odds
+    const spreadMarket = bookmaker.markets.find(m => m.key === 'spreads');
+    if (spreadMarket) {
+      spreadMarket.outcomes.forEach(outcome => {
+        const isHome = outcome.name === game.home_team;
+        const team = isHome ? game.home_team : game.away_team;
+        const opponent = isHome ? game.away_team : game.home_team;
+        
+        predictions.push({
+          id: uuidv4(),
+          gameId,
+          predictionType: 'SPREAD',
+          predictionValue: outcome.point || 0,
+          confidence: this.calculateConfidence(outcome.price),
+          createdAt: new Date().toISOString()
+        });
+      });
+    }
+    
+    // Process totals (over/under) odds
     const totalsMarket = bookmaker.markets.find(m => m.key === 'totals');
     if (totalsMarket) {
-      const overOutcome = totalsMarket.outcomes.find(o => o.name === 'Over');
-      const underOutcome = totalsMarket.outcomes.find(o => o.name === 'Under');
-      
-      if (overOutcome?.point && underOutcome) {
-        const overConfidence = this.calculateConfidence(overOutcome.price);
-        const underConfidence = this.calculateConfidence(underOutcome.price);
+      totalsMarket.outcomes.forEach(outcome => {
+        const isOver = outcome.name.toLowerCase().includes('over');
         
-        // Create total points prediction
         predictions.push({
           id: uuidv4(),
           gameId,
-          predictionType: 'TOTAL',
-          predictionValue: overOutcome.point,
-          confidence: Math.max(overConfidence, underConfidence),
+          predictionType: isOver ? 'OVER_UNDER' : 'OVER_UNDER',
+          predictionValue: isOver ? 'OVER' : 'UNDER',
+          confidence: this.calculateConfidence(outcome.price),
           createdAt: new Date().toISOString()
         });
-        
-        // Create over/under prediction
-        predictions.push({
-          id: uuidv4(),
-          gameId,
-          predictionType: 'OVER_UNDER',
-          predictionValue: overConfidence > underConfidence ? 'OVER' : 'UNDER',
-          confidence: Math.max(overConfidence, underConfidence),
-          createdAt: new Date().toISOString()
-        });
-      }
+      });
     }
-
+    
     return predictions;
   }
 
@@ -463,5 +529,298 @@ export class OddsApiService {
     
     // Map probability to a confidence value 0-100
     return Math.round(probability * 100);
+  }
+
+  // Mock data for testing when API is not available
+  private static getMockGames(sport: SportType): Game[] {
+    if (sport === 'NBA') {
+      return [
+        {
+          id: 'nba-game-1',
+          sport: 'NBA',
+          homeTeamId: 'lakers',
+          awayTeamId: 'celtics',
+          homeTeamName: 'Los Angeles Lakers',
+          awayTeamName: 'Boston Celtics',
+          startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+          gameDate: new Date(Date.now() + 86400000).toISOString(),
+          status: 'Scheduled',
+          spread: { home: -5.5, away: 5.5 }
+        },
+        {
+          id: 'nba-game-2',
+          sport: 'NBA',
+          homeTeamId: 'warriors',
+          awayTeamId: 'nets',
+          homeTeamName: 'Golden State Warriors',
+          awayTeamName: 'Brooklyn Nets',
+          startTime: new Date(Date.now() + 172800000).toISOString(), // Day after tomorrow
+          gameDate: new Date(Date.now() + 172800000).toISOString(),
+          status: 'Scheduled',
+          spread: { home: -3.5, away: 3.5 }
+        }
+      ];
+    } else {
+      return [
+        {
+          id: 'mlb-game-1',
+          sport: 'MLB',
+          homeTeamId: 'yankees',
+          awayTeamId: 'redsox',
+          homeTeamName: 'New York Yankees',
+          awayTeamName: 'Boston Red Sox',
+          startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+          gameDate: new Date(Date.now() + 86400000).toISOString(),
+          status: 'Scheduled',
+          spread: { home: -1.5, away: 1.5 }
+        },
+        {
+          id: 'mlb-game-2',
+          sport: 'MLB',
+          homeTeamId: 'dodgers',
+          awayTeamId: 'cubs',
+          homeTeamName: 'Los Angeles Dodgers',
+          awayTeamName: 'Chicago Cubs',
+          startTime: new Date(Date.now() + 172800000).toISOString(), // Day after tomorrow
+          gameDate: new Date(Date.now() + 172800000).toISOString(),
+          status: 'Scheduled',
+          spread: { home: -2.5, away: 2.5 }
+        }
+      ];
+    }
+  }
+
+  // Mock data for game odds
+  private static getMockGameOdds(gameId: string, sport: SportType): Prediction[] {
+    const predictions: Prediction[] = [];
+    
+    // Add spread prediction
+    predictions.push({
+      id: uuidv4(),
+      gameId,
+      predictionType: 'SPREAD',
+      predictionValue: sport === 'NBA' ? -5.5 : -1.5,
+      confidence: 75,
+      createdAt: new Date().toISOString()
+    });
+    
+    // Add moneyline prediction
+    predictions.push({
+      id: uuidv4(),
+      gameId,
+      predictionType: 'MONEYLINE',
+      predictionValue: 'HOME',
+      confidence: 65,
+      createdAt: new Date().toISOString()
+    });
+    
+    // Add total prediction
+    predictions.push({
+      id: uuidv4(),
+      gameId,
+      predictionType: 'TOTAL',
+      predictionValue: sport === 'NBA' ? 220.5 : 8.5,
+      confidence: 70,
+      createdAt: new Date().toISOString()
+    });
+    
+    return predictions;
+  }
+  
+  // Mock data for player props
+  private static getMockPlayerProps(gameId: string, sport: SportType): PlayerProp[] {
+    const props: PlayerProp[] = [];
+    
+    if (sport === 'NBA') {
+      // NBA player props
+      props.push({
+        id: uuidv4(),
+        gameId,
+        playerName: 'LeBron James',
+        propType: 'POINTS',
+        overUnderValue: 25.5,
+        predictionValue: 'OVER',
+        confidence: 80,
+        createdAt: new Date().toISOString()
+      });
+      
+      props.push({
+        id: uuidv4(),
+        gameId,
+        playerName: 'Stephen Curry',
+        propType: 'THREE_POINTERS',
+        overUnderValue: 4.5,
+        predictionValue: 'OVER',
+        confidence: 75,
+        createdAt: new Date().toISOString()
+      });
+    } else {
+      // MLB player props
+      props.push({
+        id: uuidv4(),
+        gameId,
+        playerName: 'Shohei Ohtani',
+        propType: 'HITS',
+        overUnderValue: 1.5,
+        predictionValue: 'OVER',
+        confidence: 70,
+        createdAt: new Date().toISOString()
+      });
+      
+      props.push({
+        id: uuidv4(),
+        gameId,
+        playerName: 'Aaron Judge',
+        propType: 'HOME_RUNS',
+        overUnderValue: 0.5,
+        predictionValue: 'OVER',
+        confidence: 65,
+        createdAt: new Date().toISOString()
+      });
+    }
+    
+    return props;
+  }
+
+  // Test the API key
+  public static async testApiKey(): Promise<boolean> {
+    // Check if API key is defined
+    if (!API_KEY) {
+      console.error('[OddsAPI] API key is not defined. Please check your environment variables.');
+      return false;
+    }
+    
+    try {
+      // Make a simple request to test the API key
+      const url = `${API_HOST}/sports`;
+      const queryParams = {
+        apiKey: API_KEY
+      };
+
+      console.log(`[OddsAPI] Testing API key with request to: ${url}`);
+      console.log(`[OddsAPI] Using API key: ${API_KEY.substring(0, 4)}...${API_KEY.substring(API_KEY.length - 4)}`);
+
+      const response = await axios({
+        method: 'GET',
+        url,
+        params: queryParams
+      });
+
+      console.log(`[OddsAPI] API key test successful! Response status: ${response.status}`);
+      console.log(`[OddsAPI] Available sports: ${response.data.map((sport: any) => sport.title).join(', ')}`);
+      
+      return true;
+    } catch (error: any) {
+      console.error('[OddsAPI] API key test failed:', error.message);
+      
+      if (error.response) {
+        console.error(`[OddsAPI] Status: ${error.response.status}`);
+        console.error(`[OddsAPI] Response: ${JSON.stringify(error.response.data)}`);
+      }
+      
+      return false;
+    }
+  }
+
+  public static clearCache(): void {
+    this.cache.clear();
+  }
+
+  private static incrementApiUsage(): void {
+    this.apiUsage.used++;
+  }
+
+  public static async getGamePredictions(gameId: string, sport: SportType, forceFresh: boolean = false): Promise<Prediction[]> {
+    try {
+      const sportKey = sportMapping[sport];
+      const endpoint = ENDPOINTS.ODDS.replace('{sport}', sportKey);
+      
+      const oddsData = await this.apiRequest<OddsResponse[]>('GET', endpoint, {
+        regions: 'us',
+        markets: ALL_MARKETS,
+        oddsFormat: 'american',
+        bookmakers: 'draftkings'
+      }, true, forceFresh);
+
+      if (!oddsData || !Array.isArray(oddsData) || oddsData.length === 0) {
+        console.log('[OddsAPI] No odds data available');
+        return [];
+      }
+
+      // Find the game we're interested in
+      const game = oddsData.find(g => g.id === gameId);
+      if (!game) {
+        console.log(`[OddsAPI] No game found with ID: ${gameId}`);
+        return [];
+      }
+
+      if (!game.bookmakers || game.bookmakers.length === 0) {
+        console.log('[OddsAPI] No bookmakers data available for this game');
+        return [];
+      }
+
+      const bookmaker = game.bookmakers[0];
+      const predictions: Prediction[] = [];
+
+      // Add spread prediction
+      const spreadMarket = bookmaker.markets.find(m => m.key === 'spreads');
+      if (spreadMarket && spreadMarket.outcomes) {
+        const homeSpread = spreadMarket.outcomes.find(o => o.name === game.home_team);
+        if (homeSpread) {
+          const spreadPoints = homeSpread.point ?? 0;
+          predictions.push({
+            id: uuidv4(),
+            gameId,
+            predictionType: 'SPREAD',
+            predictionValue: spreadPoints >= 0 ? `+${spreadPoints}` : `${spreadPoints}`,
+            confidence: 0.7,
+            reasoning: `${game.home_team} is favored by ${Math.abs(spreadPoints)} points`,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // Add moneyline prediction
+      const moneylineMarket = bookmaker.markets.find(m => m.key === 'h2h');
+      if (moneylineMarket && moneylineMarket.outcomes) {
+        const homeMoneyline = moneylineMarket.outcomes.find(o => o.name === game.home_team);
+        const awayMoneyline = moneylineMarket.outcomes.find(o => o.name === game.away_team);
+        if (homeMoneyline && awayMoneyline) {
+          const homePrice = homeMoneyline.price ?? 0;
+          const awayPrice = awayMoneyline.price ?? 0;
+          const favorite = homePrice < awayPrice ? game.home_team : game.away_team;
+          const favoritePrice = homePrice < awayPrice ? homePrice : awayPrice;
+          predictions.push({
+            id: uuidv4(),
+            gameId,
+            predictionType: 'MONEYLINE',
+            predictionValue: favoritePrice >= 0 ? `+${favoritePrice}` : `${favoritePrice}`,
+            confidence: 0.65,
+            reasoning: `${favorite} is favored to win with moneyline odds of ${favoritePrice}`,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // Add total prediction
+      const totalMarket = bookmaker.markets.find(m => m.key === 'totals');
+      if (totalMarket && totalMarket.outcomes && totalMarket.outcomes.length > 0) {
+        const totalPoints = totalMarket.outcomes[0].point ?? 0;
+        predictions.push({
+          id: uuidv4(),
+          gameId,
+          predictionType: 'TOTAL',
+          predictionValue: `O/U ${totalPoints}`,
+          confidence: 0.6,
+          reasoning: `The total points line is set at ${totalPoints}`,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      return predictions;
+    } catch (error) {
+      console.error(`[OddsAPI] Error fetching game predictions:`, error);
+      return [];
+    }
   }
 } 

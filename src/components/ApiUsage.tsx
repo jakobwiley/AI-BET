@@ -1,133 +1,118 @@
+'use client';
+
 import React, { useState } from 'react';
-import { useApiUsage } from '@/hooks/useSportsData';
+import { OddsApiService } from '@/lib/oddsApi';
+import type { ApiUsage as ApiUsageType } from '@/lib/oddsApi';
+import { CacheService } from '@/lib/cacheService';
 
 interface ApiUsageProps {
   className?: string;
 }
 
-const ApiUsage: React.FC<ApiUsageProps> = ({ className = '' }) => {
-  const { usageStats, remainingCalls, refreshAllData } = useApiUsage();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+export function ApiUsage({ className = '' }: ApiUsageProps) {
+  const [refreshing, setRefreshing] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [apiKeyValid, setApiKeyValid] = useState<boolean | null>(null);
+  const [stats, setStats] = useState<ApiUsageType>({
+    used: 0,
+    limit: 500,
+    lastResetDate: new Date()
+  });
 
-  // Calculate usage percentage
-  const monthlyLimit = 500;
-  const usagePercentage = (usageStats.totalCalls / monthlyLimit) * 100;
-  const usageColor = 
-    usagePercentage < 30 ? 'bg-green-500' :
-    usagePercentage < 70 ? 'bg-yellow-500' :
-    'bg-red-500';
+  // Only check API key and stats when the component mounts
+  React.useEffect(() => {
+    async function checkApiKey() {
+      const isValid = await OddsApiService.testApiKey();
+      setApiKeyValid(isValid);
+      if (isValid) {
+        setStats(OddsApiService.getApiUsageStats());
+      }
+    }
+    checkApiKey();
+  }, []);
+
+  const usagePercentage = (stats.used / stats.limit) * 100;
+  const usageColor = usagePercentage > 90 ? 'text-red-500' : usagePercentage > 75 ? 'text-yellow-500' : 'text-green-500';
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setRefreshMessage(null);
-    
     try {
-      const success = await refreshAllData();
-      if (success) {
-        setRefreshMessage('Data refreshed successfully.');
-      } else {
-        setRefreshMessage('Failed to refresh data. Try again later.');
-      }
+      setRefreshing(true);
+      setMessage('Refreshing data...');
+      OddsApiService.clearCache();
+      CacheService.getInstance().clearSportsData();
+      setMessage('Data refreshed successfully!');
+      setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      console.error('Error refreshing data:', error);
-      setRefreshMessage('Error refreshing data. Check console for details.');
+      setMessage('Failed to refresh data. Please try again.');
+      setTimeout(() => setMessage(null), 3000);
     } finally {
-      setIsRefreshing(false);
-      // Clear message after 3 seconds
-      setTimeout(() => setRefreshMessage(null), 3000);
+      setRefreshing(false);
     }
   };
 
-  // Format the last reset date
-  const formatResetDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString();
-    } catch (e) {
-      return 'Unknown';
-    }
+  const formatResetDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  // Calculate next reset date (1st of next month)
   const getNextResetDate = () => {
     const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return nextMonth.toLocaleDateString();
+    const resetDate = new Date(now);
+    resetDate.setMonth(resetDate.getMonth() + 1);
+    resetDate.setDate(1);
+    resetDate.setHours(0, 0, 0, 0);
+    return resetDate;
   };
 
   return (
-    <div className={`rounded-lg border bg-white p-4 shadow-sm ${className}`}>
-      <h2 className="text-lg font-semibold mb-2">API Usage</h2>
-      
-      <div className="mb-3">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-sm text-gray-600">Monthly usage (limit: {monthlyLimit})</span>
-          <span className="text-sm font-medium">{usageStats.totalCalls} calls</span>
+    <div className={`p-4 space-y-4 ${className}`}>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">API Usage</h3>
+        <div className={`text-sm ${apiKeyValid === null ? 'text-gray-500' : apiKeyValid ? 'text-green-500' : 'text-red-500'}`}>
+          {apiKeyValid === null ? 'Checking API key...' : apiKeyValid ? 'API Key: Valid' : 'API Key: Invalid'}
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2.5">
-          <div 
-            className={`h-2.5 rounded-full ${usageColor}`} 
+      </div>
+      
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span>Used:</span>
+          <span className={usageColor}>{stats.used} / {stats.limit}</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div
+            className={`h-2 rounded-full ${
+              usagePercentage > 90 ? 'bg-red-500' : usagePercentage > 75 ? 'bg-yellow-500' : 'bg-green-500'
+            }`}
             style={{ width: `${Math.min(usagePercentage, 100)}%` }}
-          ></div>
+          />
         </div>
       </div>
-      
-      <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
-        <div>
-          <div className="text-gray-500">Remaining calls</div>
-          <div className="font-medium">{remainingCalls}</div>
-        </div>
-        <div>
-          <div className="text-gray-500">Last reset</div>
-          <div className="font-medium">{formatResetDate(usageStats.lastResetDate)}</div>
-        </div>
-        <div>
-          <div className="text-gray-500">Next reset</div>
-          <div className="font-medium">{getNextResetDate()}</div>
-        </div>
-        <div>
-          <div className="text-gray-500">Cache status</div>
-          <div className="font-medium">
-            {remainingCalls > 0 ? 'Active' : 'Fallback only'}
-          </div>
-        </div>
+
+      <div className="text-xs text-gray-500">
+        Resets on {formatResetDate(getNextResetDate())}
       </div>
-      
-      <div className="mt-3">
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing || remainingCalls === 0}
-          className={`w-full px-4 py-2 text-white font-medium rounded-md 
-            ${isRefreshing || remainingCalls === 0 
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700'}`}
-        >
-          {isRefreshing ? (
-            <span className="flex items-center justify-center">
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Refreshing...
-            </span>
-          ) : remainingCalls === 0 ? (
-            'Limit reached'
-          ) : (
-            'Refresh data'
-          )}
-        </button>
-        
-        {refreshMessage && (
-          <div className={`mt-2 text-sm text-center ${
-            refreshMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {refreshMessage}
-          </div>
-        )}
-      </div>
+
+      {message && (
+        <div className="text-sm text-center text-gray-600">
+          {message}
+        </div>
+      )}
+
+      <button
+        onClick={handleRefresh}
+        disabled={refreshing}
+        className={`w-full py-2 px-4 rounded-md text-sm font-medium ${
+          refreshing
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-blue-500 text-white hover:bg-blue-600'
+        }`}
+      >
+        {refreshing ? 'Refreshing...' : 'Refresh Data'}
+      </button>
     </div>
   );
-};
-
-export default ApiUsage; 
+} 

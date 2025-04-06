@@ -34,17 +34,22 @@ export interface Game {
     home: number;
     away: number;
   };
+  moneyline?: {
+    home: number;
+    away: number;
+  };
+  total?: number;
 }
 
 export interface Prediction {
-  id?: string;
-  gameId?: string;
-  predictionType: PredictionType;
-  predictionValue: string | number;
-  confidence?: number;
+  id: string;
+  gameId: string;
+  predictionType: 'SPREAD' | 'MONEYLINE' | 'TOTAL' | 'OVER_UNDER';
+  predictionValue: string;
+  confidence: number;
   reasoning?: string;
-  createdAt?: string;
-  game?: Game;
+  outcome?: 'WIN' | 'LOSS' | 'PUSH';
+  createdAt: string;
 }
 
 export interface PlayerProp {
@@ -60,6 +65,7 @@ export interface PlayerProp {
   reasoning?: string;
   createdAt?: string;
   game?: Game;
+  outcome?: 'WIN' | 'LOSS' | 'PENDING';
 }
 
 export interface Team {

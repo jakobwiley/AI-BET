@@ -3,30 +3,7 @@
 import { FaArrowRight, FaBasketballBall, FaBaseballBall } from 'react-icons/fa';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-
-interface Game {
-  id: string;
-  sport: 'NBA' | 'MLB';
-  gameDate: Date;
-  homeTeamId: string;
-  awayTeamId: string;
-  homeTeamName: string;
-  awayTeamName: string;
-  homeTeamScore?: number;
-  awayTeamScore?: number;
-  status: string;
-}
-
-interface Prediction {
-  id: string;
-  gameId: string;
-  predictionType: string;
-  predictionValue: string;
-  confidence: number;
-  reasoning: string;
-  outcome?: string;
-  createdAt: Date;
-}
+import { Game, Prediction } from '@/models/types';
 
 interface GameCardProps {
   game: Game;
@@ -36,7 +13,7 @@ interface GameCardProps {
 const GameCard = ({ game, predictions }: GameCardProps) => {
   // Find the highest confidence prediction
   const highestConfidencePrediction = predictions?.reduce((prev, current) => {
-    return prev.confidence > current.confidence ? prev : current;
+    return (prev?.confidence || 0) > (current?.confidence || 0) ? prev : current;
   }, predictions[0]);
 
   // Function to format the confidence as a percentage
@@ -55,14 +32,15 @@ const GameCard = ({ game, predictions }: GameCardProps) => {
   const SportIcon = game.sport === 'NBA' ? FaBasketballBall : FaBaseballBall;
 
   // Format date
-  const formatDate = (date: Date) => {
+  const formatDate = (date: string) => {
+    const dateObj = new Date(date);
     const options: Intl.DateTimeFormatOptions = { 
       month: 'short', 
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit'
     };
-    return new Date(date).toLocaleDateString('en-US', options);
+    return dateObj.toLocaleDateString('en-US', options);
   };
 
   return (
@@ -107,9 +85,9 @@ const GameCard = ({ game, predictions }: GameCardProps) => {
               <div className="flex flex-col items-end">
                 <span className="text-gray-400 text-xs">Confidence</span>
                 <div className="flex items-center">
-                  <span className={`w-2 h-2 rounded-full mr-1 ${getConfidenceColor(highestConfidencePrediction.confidence)}`}></span>
+                  <span className={`w-2 h-2 rounded-full mr-1 ${getConfidenceColor(highestConfidencePrediction.confidence || 0)}`}></span>
                   <span className="text-white font-bold">
-                    {formatConfidence(highestConfidencePrediction.confidence)}
+                    {formatConfidence(highestConfidencePrediction.confidence || 0)}
                   </span>
                 </div>
               </div>
