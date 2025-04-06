@@ -766,15 +766,16 @@ export class OddsApiService {
       const spreadMarket = bookmaker.markets.find(m => m.key === 'spreads');
       if (spreadMarket && spreadMarket.outcomes) {
         const homeSpread = spreadMarket.outcomes.find(o => o.name === game.home_team);
-        if (homeSpread) {
-          const spreadPoints = homeSpread.point ?? 0;
+        const awaySpread = spreadMarket.outcomes.find(o => o.name === game.away_team);
+        if (homeSpread && awaySpread) {
+          const homePoint = homeSpread.point ?? 0;
           predictions.push({
             id: uuidv4(),
             gameId,
             predictionType: 'SPREAD',
-            predictionValue: spreadPoints >= 0 ? `+${spreadPoints}` : `${spreadPoints}`,
-            confidence: 0.7,
-            reasoning: `${game.home_team} is favored by ${Math.abs(spreadPoints)} points`,
+            predictionValue: homePoint >= 0 ? `+${homePoint.toString()}` : homePoint.toString(),
+            confidence: 75,
+            reasoning: `${game.home_team} is ${homePoint >= 0 ? 'getting' : 'giving'} ${Math.abs(homePoint)} points`,
             createdAt: new Date().toISOString()
           });
         }
@@ -794,8 +795,8 @@ export class OddsApiService {
             id: uuidv4(),
             gameId,
             predictionType: 'MONEYLINE',
-            predictionValue: favoritePrice >= 0 ? `+${favoritePrice}` : `${favoritePrice}`,
-            confidence: 0.65,
+            predictionValue: favoritePrice >= 0 ? `+${favoritePrice.toString()}` : favoritePrice.toString(),
+            confidence: 65,
             reasoning: `${favorite} is favored to win with moneyline odds of ${favoritePrice}`,
             createdAt: new Date().toISOString()
           });
@@ -810,8 +811,8 @@ export class OddsApiService {
           id: uuidv4(),
           gameId,
           predictionType: 'TOTAL',
-          predictionValue: `O/U ${totalPoints}`,
-          confidence: 0.6,
+          predictionValue: `O/U ${totalPoints.toString()}`,
+          confidence: 70,
           reasoning: `The total points line is set at ${totalPoints}`,
           createdAt: new Date().toISOString()
         });

@@ -59,8 +59,8 @@ export interface PlayerProp {
   playerName: string;
   teamId?: string;
   propType: PlayerPropType;
-  overUnderValue: number;
-  predictionValue: 'OVER' | 'UNDER';
+  line: number;
+  prediction: number;
   confidence?: number;
   reasoning?: string;
   createdAt?: string;

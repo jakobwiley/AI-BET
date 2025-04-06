@@ -72,7 +72,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
         
         <div className="mb-3">
           <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${getConfidenceClasses()}`}>
-            {prediction.confidence ? `${Math.round(prediction.confidence * 100)}% Confidence` : 'No confidence score'}
+            {prediction.confidence ? `${Math.round(prediction.confidence)}%` : 'No confidence score'}
           </span>
         </div>
         

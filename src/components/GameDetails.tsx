@@ -11,11 +11,12 @@ import { FaSpinner } from 'react-icons/fa';
 
 interface GameDetailsProps {
   game: Game;
-  initialPredictions?: Prediction[];
-  initialPlayerProps?: PlayerProp[];
+  initialPredictions: Prediction[];
+  initialPlayerProps: PlayerProp[];
+  isLoading?: boolean;
 }
 
-const GameDetails: React.FC<GameDetailsProps> = ({ game, initialPredictions = [], initialPlayerProps = [] }) => {
+const GameDetails: React.FC<GameDetailsProps> = ({ game, initialPredictions = [], initialPlayerProps = [], isLoading = false }) => {
   const [activeTab, setActiveTab] = useState<'predictions' | 'playerProps'>('predictions');
   const [predictions, setPredictions] = useState<Prediction[]>(initialPredictions);
   const [playerProps, setPlayerProps] = useState<PlayerProp[]>(initialPlayerProps);
@@ -42,6 +43,14 @@ const GameDetails: React.FC<GameDetailsProps> = ({ game, initialPredictions = []
   const spreadDisplay = game.spread 
     ? `${game.homeTeamName} ${game.spread.home >= 0 ? '+' : ''}${game.spread.home}` 
     : null;
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-300">Loading predictions...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
