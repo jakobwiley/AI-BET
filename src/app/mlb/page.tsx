@@ -1,42 +1,105 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SportsApiService } from '@/lib/sportsApi';
-import { Game, Prediction } from '@/models/types';
-import GameCard from '@/components/GameCard';
 import { FaSpinner, FaFilter, FaSortAmountDown } from "react-icons/fa";
+import GameCard from '@/components/GameCard';
+
+// Mock data for MLB games
+const mockGames = [
+  {
+    id: 'mlb-game-1',
+    sport: 'MLB' as const,
+    gameDate: new Date(new Date().getTime() + 24 * 60 * 60 * 1000), // Tomorrow
+    homeTeamId: 'yankees',
+    awayTeamId: 'redsox',
+    homeTeamName: 'Yankees',
+    awayTeamName: 'Red Sox',
+    status: 'SCHEDULED',
+  },
+  {
+    id: 'mlb-game-2',
+    sport: 'MLB' as const,
+    gameDate: new Date(new Date().getTime() + 48 * 60 * 60 * 1000), // Day after tomorrow
+    homeTeamId: 'dodgers',
+    awayTeamId: 'giants',
+    homeTeamName: 'Dodgers',
+    awayTeamName: 'Giants',
+    status: 'SCHEDULED',
+  },
+  {
+    id: 'mlb-game-3',
+    sport: 'MLB' as const,
+    gameDate: new Date(new Date().getTime() + 72 * 60 * 60 * 1000), // 3 days from now
+    homeTeamId: 'astros',
+    awayTeamId: 'braves',
+    homeTeamName: 'Astros',
+    awayTeamName: 'Braves',
+    status: 'SCHEDULED',
+  }
+];
+
+// Mock predictions for each game
+const mockPredictions = {
+  'mlb-game-1': [
+    {
+      id: 'pred-1',
+      gameId: 'mlb-game-1',
+      predictionType: 'MONEYLINE',
+      predictionValue: 'Yankees Win',
+      confidence: 0.76,
+      reasoning: 'The Yankees have won 7 of their last 10 home games against the Red Sox.',
+      createdAt: new Date()
+    },
+    {
+      id: 'pred-2',
+      gameId: 'mlb-game-1',
+      predictionType: 'OVER_UNDER',
+      predictionValue: 'OVER 8.5',
+      confidence: 0.68,
+      reasoning: 'Both teams have strong offensive lineups and the weather conditions favor hitting.',
+      createdAt: new Date()
+    }
+  ],
+  'mlb-game-2': [
+    {
+      id: 'pred-3',
+      gameId: 'mlb-game-2',
+      predictionType: 'SPREAD',
+      predictionValue: 'Dodgers -1.5',
+      confidence: 0.71,
+      reasoning: 'The Dodgers have been dominant at home this season, winning by multiple runs.',
+      createdAt: new Date()
+    }
+  ],
+  'mlb-game-3': [
+    {
+      id: 'pred-4',
+      gameId: 'mlb-game-3',
+      predictionType: 'MONEYLINE',
+      predictionValue: 'Braves Win',
+      confidence: 0.64,
+      reasoning: 'The Braves have a stronger starting pitcher scheduled and have been hitting well on the road.',
+      createdAt: new Date()
+    }
+  ]
+};
 
 export default function MLBPage() {
-  const [games, setGames] = useState<Game[]>([]);
-  const [predictions, setPredictions] = useState<Record<string, Prediction[]>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [games, setGames] = useState<any[]>([]);
+  const [predictions, setPredictions] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
-    const fetchGames = async () => {
-      try {
-        setLoading(true);
-        const gamesData = await SportsApiService.getUpcomingGames('MLB');
-        setGames(gamesData);
-
-        // Fetch predictions for each game
-        const predictionsMap: Record<string, Prediction[]> = {};
-        
-        for (const game of gamesData) {
-          const gamePredictions = await SportsApiService.getPredictionsForGame(game.id);
-          predictionsMap[game.id] = gamePredictions;
-        }
-        
-        setPredictions(predictionsMap);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch MLB games'));
-      } finally {
-        setLoading(false);
-      }
+    // Simulate API loading
+    const loadData = async () => {
+      // Wait 1 second to simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setGames(mockGames);
+      setPredictions(mockPredictions);
+      setLoading(false);
     };
 
-    fetchGames();
+    loadData();
   }, []);
 
   if (loading) {
@@ -44,21 +107,6 @@ export default function MLBPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <FaSpinner className="animate-spin text-4xl text-blue-500 mb-4" />
         <p className="text-gray-300">Loading MLB predictions...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-red-500 mb-4">Error Loading MLB Predictions</h1>
-        <p className="text-gray-300 mb-4">{error.message}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Try Again
-        </button>
       </div>
     );
   }
@@ -80,22 +128,15 @@ export default function MLBPage() {
         </div>
       </div>
 
-      {games.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map((game) => (
-            <GameCard 
-              key={game.id} 
-              game={game} 
-              predictions={predictions[game.id]} 
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-gray-800 rounded-xl">
-          <p className="text-xl text-gray-300">No MLB games scheduled currently.</p>
-          <p className="text-gray-400 mt-2">Check back later for upcoming games and predictions!</p>
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {games.map((game) => (
+          <GameCard 
+            key={game.id} 
+            game={game} 
+            predictions={predictions[game.id]} 
+          />
+        ))}
+      </div>
     </div>
   );
 } 

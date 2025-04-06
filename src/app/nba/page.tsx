@@ -1,42 +1,105 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SportsApiService } from '@/lib/sportsApi';
-import { Game, Prediction } from '@/models/types';
-import GameCard from '@/components/GameCard';
 import { FaSpinner, FaFilter, FaSortAmountDown } from "react-icons/fa";
+import GameCard from '@/components/GameCard';
+
+// Mock data for NBA games
+const mockGames = [
+  {
+    id: 'nba-game-1',
+    sport: 'NBA' as const,
+    gameDate: new Date(new Date().getTime() + 24 * 60 * 60 * 1000), // Tomorrow
+    homeTeamId: 'lakers',
+    awayTeamId: 'warriors',
+    homeTeamName: 'Lakers',
+    awayTeamName: 'Warriors',
+    status: 'SCHEDULED',
+  },
+  {
+    id: 'nba-game-2',
+    sport: 'NBA' as const,
+    gameDate: new Date(new Date().getTime() + 48 * 60 * 60 * 1000), // Day after tomorrow
+    homeTeamId: 'celtics',
+    awayTeamId: 'bucks',
+    homeTeamName: 'Celtics',
+    awayTeamName: 'Bucks',
+    status: 'SCHEDULED',
+  },
+  {
+    id: 'nba-game-3',
+    sport: 'NBA' as const,
+    gameDate: new Date(new Date().getTime() + 72 * 60 * 60 * 1000), // 3 days from now
+    homeTeamId: 'heat',
+    awayTeamId: 'nets',
+    homeTeamName: 'Heat',
+    awayTeamName: 'Nets',
+    status: 'SCHEDULED',
+  }
+];
+
+// Mock predictions for each game
+const mockPredictions = {
+  'nba-game-1': [
+    {
+      id: 'pred-1',
+      gameId: 'nba-game-1',
+      predictionType: 'SPREAD',
+      predictionValue: 'Warriors -5.5',
+      confidence: 0.85,
+      reasoning: 'The Warriors have covered the spread in 7 of their last 10 away games.',
+      createdAt: new Date()
+    },
+    {
+      id: 'pred-2',
+      gameId: 'nba-game-1',
+      predictionType: 'MONEYLINE',
+      predictionValue: 'Warriors Win',
+      confidence: 0.75,
+      reasoning: 'The Warriors have a strong historical advantage over the Lakers this season.',
+      createdAt: new Date()
+    }
+  ],
+  'nba-game-2': [
+    {
+      id: 'pred-3',
+      gameId: 'nba-game-2',
+      predictionType: 'SPREAD',
+      predictionValue: 'Celtics -3.5',
+      confidence: 0.65,
+      reasoning: 'The Celtics have a strong home court advantage.',
+      createdAt: new Date()
+    }
+  ],
+  'nba-game-3': [
+    {
+      id: 'pred-4',
+      gameId: 'nba-game-3',
+      predictionType: 'OVER_UNDER',
+      predictionValue: 'OVER 220.5',
+      confidence: 0.72,
+      reasoning: 'Both teams have been scoring above their season average in recent games.',
+      createdAt: new Date()
+    }
+  ]
+};
 
 export default function NBAPage() {
-  const [games, setGames] = useState<Game[]>([]);
-  const [predictions, setPredictions] = useState<Record<string, Prediction[]>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [games, setGames] = useState<any[]>([]);
+  const [predictions, setPredictions] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
-    const fetchGames = async () => {
-      try {
-        setLoading(true);
-        const gamesData = await SportsApiService.getUpcomingGames('NBA');
-        setGames(gamesData);
-
-        // Fetch predictions for each game
-        const predictionsMap: Record<string, Prediction[]> = {};
-        
-        for (const game of gamesData) {
-          const gamePredictions = await SportsApiService.getPredictionsForGame(game.id);
-          predictionsMap[game.id] = gamePredictions;
-        }
-        
-        setPredictions(predictionsMap);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch NBA games'));
-      } finally {
-        setLoading(false);
-      }
+    // Simulate API loading
+    const loadData = async () => {
+      // Wait 1 second to simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setGames(mockGames);
+      setPredictions(mockPredictions);
+      setLoading(false);
     };
 
-    fetchGames();
+    loadData();
   }, []);
 
   if (loading) {
@@ -44,21 +107,6 @@ export default function NBAPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <FaSpinner className="animate-spin text-4xl text-blue-500 mb-4" />
         <p className="text-gray-300">Loading NBA predictions...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-red-500 mb-4">Error Loading NBA Predictions</h1>
-        <p className="text-gray-300 mb-4">{error.message}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Try Again
-        </button>
       </div>
     );
   }
@@ -80,22 +128,15 @@ export default function NBAPage() {
         </div>
       </div>
 
-      {games.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map((game) => (
-            <GameCard 
-              key={game.id} 
-              game={game} 
-              predictions={predictions[game.id]} 
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-gray-800 rounded-xl">
-          <p className="text-xl text-gray-300">No NBA games scheduled currently.</p>
-          <p className="text-gray-400 mt-2">Check back later for upcoming games and predictions!</p>
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {games.map((game) => (
+          <GameCard 
+            key={game.id} 
+            game={game} 
+            predictions={predictions[game.id]} 
+          />
+        ))}
+      </div>
     </div>
   );
 } 

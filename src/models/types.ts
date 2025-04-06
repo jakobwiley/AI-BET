@@ -1,21 +1,30 @@
-export type SportType = 'NBA' | 'MLB';
+export enum SportType {
+  NBA = 'NBA',
+  MLB = 'MLB'
+}
 
-export type GameStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'CANCELLED';
+export enum PredictionType {
+  SPREAD = 'SPREAD',
+  MONEYLINE = 'MONEYLINE',
+  TOTAL = 'TOTAL'
+}
 
-export type PredictionType = 'SPREAD' | 'MONEYLINE' | 'OVER_UNDER' | 'PLAYER_PROP';
-
-export type PropType = 
-  | 'POINTS' 
-  | 'REBOUNDS' 
-  | 'ASSISTS' 
-  | 'STRIKEOUTS' 
-  | 'HITS' 
-  | 'HOME_RUNS' 
-  | 'TOTAL_BASES' 
-  | 'STOLEN_BASES' 
-  | 'OTHER';
-
-export type PredictionOutcome = 'WIN' | 'LOSS' | 'PUSH' | 'VOID';
+export enum PlayerPropType {
+  // NBA
+  POINTS = 'POINTS',
+  REBOUNDS = 'REBOUNDS',
+  ASSISTS = 'ASSISTS',
+  STEALS = 'STEALS',
+  BLOCKS = 'BLOCKS',
+  THREES = 'THREES',
+  
+  // MLB
+  HITS = 'HITS',
+  HOME_RUNS = 'HOME_RUNS',
+  RBIS = 'RBIS',
+  STRIKEOUTS = 'STRIKEOUTS',
+  WALKS = 'WALKS'
+}
 
 export interface Game {
   id: string;
@@ -25,9 +34,7 @@ export interface Game {
   awayTeamId: string;
   homeTeamName: string;
   awayTeamName: string;
-  homeTeamScore?: number;
-  awayTeamScore?: number;
-  status: GameStatus;
+  status: 'SCHEDULED' | 'LIVE' | 'FINAL';
   predictions: Prediction[];
   playerProps: PlayerProp[];
 }
@@ -37,9 +44,8 @@ export interface Prediction {
   gameId: string;
   predictionType: PredictionType;
   predictionValue: string;
-  confidence: number; // 0-1 value representing confidence
+  confidence: number;
   reasoning: string;
-  outcome?: PredictionOutcome;
   createdAt: Date;
   game: Game;
 }
@@ -50,31 +56,11 @@ export interface PlayerProp {
   playerId: string;
   playerName: string;
   teamId: string;
-  propType: PropType;
+  propType: PlayerPropType;
   overUnderValue: number;
-  predictionValue: string;
+  predictionValue: 'OVER' | 'UNDER';
   confidence: number;
   reasoning: string;
-  outcome?: PredictionOutcome;
   createdAt: Date;
   game: Game;
-}
-
-export interface User {
-  id: string;
-  name?: string;
-  email: string;
-  emailVerified?: Date;
-  image?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Favorite {
-  id: string;
-  userId: string;
-  teamId?: string;
-  playerId?: string;
-  createdAt: Date;
-  user: User;
 } 
