@@ -4,19 +4,19 @@ import { SportType } from '@/models/types';
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
-  expiresAt: number;
+  ttl: number;
 }
 
 interface ApiUsage {
-  totalCalls: number;
-  lastResetDate: string; // ISO string of the first day of the current month
-  callsByEndpoint: Record<string, number>;
+  used: number;
+  limit: number;
+  lastResetDate: Date;
 }
 
 export class CacheService {
   private static instance: CacheService;
   private cache: Map<string, CacheEntry<any>> = new Map();
-  private apiUsage: ApiUsage;
+  private apiCalls: Map<string, number> = new Map();
   private readonly STORAGE_KEY = 'ai_bet_api_cache';
   private readonly USAGE_KEY = 'ai_bet_api_usage';
   private readonly MONTHLY_LIMIT = 500;
@@ -24,14 +24,8 @@ export class CacheService {
   private constructor() {
     // Clear all storage on initialization
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(this.STORAGE_KEY);
-      localStorage.removeItem(this.USAGE_KEY);
-      console.log('[CacheService] Cleared all storage on initialization');
+      localStorage.clear();
     }
-    
-    this.loadFromStorage();
-    this.apiUsage = this.loadApiUsage();
-    this.checkAndResetMonthlyCounter();
   }
 
   public static getInstance(): CacheService {
@@ -48,50 +42,50 @@ export class CacheService {
 
   // Get remaining API calls
   public getRemainingCalls(): number {
-    return Math.max(0, this.MONTHLY_LIMIT - this.apiUsage.totalCalls);
+    return Math.max(0, this.MONTHLY_LIMIT - this.apiUsage.used);
   }
 
   // Check if we've reached the API limit
   public hasReachedLimit(): boolean {
-    return this.apiUsage.totalCalls >= this.MONTHLY_LIMIT;
+    return this.apiUsage.used >= this.MONTHLY_LIMIT;
   }
 
   // Record an API call
   public recordApiCall(endpoint: string): void {
-    this.apiUsage.totalCalls++;
-    this.apiUsage.callsByEndpoint[endpoint] = (this.apiUsage.callsByEndpoint[endpoint] || 0) + 1;
+    const count = this.apiCalls.get(endpoint) || 0;
+    this.apiCalls.set(endpoint, count + 1);
+    this.apiUsage.used++;
     this.saveApiUsage();
   }
 
   // Get value from cache
   public get<T>(key: string): T | null {
     const entry = this.cache.get(key);
-    
-    if (!entry) {
+    if (!entry) return null;
+
+    const now = Date.now();
+    if (now - entry.timestamp > entry.ttl * 1000) {
+      // Entry is expired
       return null;
     }
-    
-    // Check if entry has expired
-    if (Date.now() > entry.expiresAt) {
-      this.cache.delete(key);
-      return null;
-    }
-    
+
+    return entry.data as T;
+  }
+
+  // Get expired value from cache
+  public getExpired<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
     return entry.data as T;
   }
 
   // Set value in cache with TTL (time to live) in milliseconds
-  public set<T>(key: string, data: T, ttl: number): void {
-    const timestamp = Date.now();
-    const expiresAt = timestamp + ttl;
-    
-    this.cache.set(key, { 
-      data, 
-      timestamp, 
-      expiresAt 
+  public set(key: string, data: any, ttl: number): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl
     });
-    
-    this.saveToStorage();
   }
 
   // Get cache key for sports data
@@ -142,16 +136,13 @@ export class CacheService {
   }
 
   // Delete an item from cache
-  public delete(key: string): boolean {
-    const deleted = this.cache.delete(key);
-    this.saveToStorage();
-    return deleted;
+  public delete(key: string): void {
+    this.cache.delete(key);
   }
 
   // Clear the entire cache
   public clear(): void {
     this.cache.clear();
-    this.saveToStorage();
   }
 
   // Save the cache to localStorage (in browser) or memory (in server)
@@ -177,7 +168,7 @@ export class CacheService {
           });
           
           // Clean expired items
-          this.cleanExpiredItems();
+          this.cleanExpiredEntries();
         } catch (e) {
           console.error('Failed to parse cached data:', e);
         }
@@ -207,9 +198,9 @@ export class CacheService {
     
     // Default usage object
     return {
-      totalCalls: 0,
-      lastResetDate: this.getCurrentMonthStart(),
-      callsByEndpoint: {}
+      used: 0,
+      limit: this.MONTHLY_LIMIT,
+      lastResetDate: new Date()
     };
   }
 
@@ -217,28 +208,28 @@ export class CacheService {
   private checkAndResetMonthlyCounter(): void {
     const currentMonthStart = this.getCurrentMonthStart();
     
-    if (this.apiUsage.lastResetDate !== currentMonthStart) {
+    if (this.apiUsage.lastResetDate.toDateString() !== currentMonthStart.toDateString()) {
       // Reset counter for new month
       this.apiUsage = {
-        totalCalls: 0,
-        lastResetDate: currentMonthStart,
-        callsByEndpoint: {}
+        used: 0,
+        limit: this.MONTHLY_LIMIT,
+        lastResetDate: currentMonthStart
       };
       this.saveApiUsage();
     }
   }
 
   // Get the first day of current month as ISO string
-  private getCurrentMonthStart(): string {
+  private getCurrentMonthStart(): Date {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   }
 
   // Clean expired items from cache
-  private cleanExpiredItems(): void {
+  private cleanExpiredEntries(): void {
     const now = Date.now();
     for (const [key, entry] of this.cache.entries()) {
-      if (now > entry.expiresAt) {
+      if (now > entry.timestamp + entry.ttl * 1000) {
         this.cache.delete(key);
       }
     }
@@ -259,11 +250,31 @@ export class CacheService {
 
   // Clear all sports data cache
   public clearSportsData(): void {
-    this.forceRefresh('sports_data:');
+    for (const [key] of this.cache) {
+      if (key.startsWith('oddsapi:') || key.startsWith('espnapi:')) {
+        this.cache.delete(key);
+      }
+    }
   }
 
   // Clear specific sport's cache
   public clearSportCache(sport: SportType): void {
     this.forceRefresh(`sports_data:${sport}`);
+  }
+
+  public has(key: string): boolean {
+    return this.cache.has(key);
+  }
+
+  public size(): number {
+    return this.cache.size;
+  }
+
+  public getApiCallCount(endpoint: string): number {
+    return this.apiCalls.get(endpoint) || 0;
+  }
+
+  public clearApiCalls(): void {
+    this.apiCalls.clear();
   }
 } 

@@ -1,29 +1,37 @@
 import axios from 'axios';
-import { Game, Prediction, PlayerProp, SportType } from '@/models/types';
+import { Game, Prediction, PredictionResponse, SportType } from '@/models/types';
 
 export class SportsApiService {
-  static async getUpcomingGames(sport: string): Promise<Game[]> {
+  private static readonly API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'test-api-key';
+  private static readonly BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+  private static getHeaders() {
+    return {
+      headers: {
+        'x-api-key': this.API_KEY,
+      },
+    };
+  }
+
+  static async getUpcomingGames(sport: SportType): Promise<Game[]> {
     try {
-      const endpoint = sport === 'NBA' ? '/nba/games' : '/mlb/games';
-      const response = await axios.get(endpoint, {
-        headers: {
-          'x-api-key': process.env.NEXT_PUBLIC_SPORTS_DATA_API_KEY
-        }
-      });
+      const response = await axios.get(
+        `${this.BASE_URL}/${sport.toLowerCase()}/games`,
+        this.getHeaders()
+      );
       return response.data;
     } catch (error) {
-      console.error('Error fetching upcoming games:', error);
+      console.error(`Error fetching ${sport} games:`, error);
       return [];
     }
   }
 
   static async getPredictionsForGame(gameId: string): Promise<Prediction[]> {
     try {
-      const response = await axios.get(`/predictions/${gameId}`, {
-        headers: {
-          'x-api-key': process.env.NEXT_PUBLIC_SPORTS_DATA_API_KEY
-        }
-      });
+      const response = await axios.get<Prediction[]>(
+        `${this.BASE_URL}/predictions/${gameId}`,
+        this.getHeaders()
+      );
       return response.data;
     } catch (error) {
       console.error('Error fetching predictions:', error);
@@ -31,14 +39,15 @@ export class SportsApiService {
     }
   }
 
-  static async getPlayerPropsForGame(gameId: string, sport: string): Promise<PlayerProp[]> {
+  static async getPlayerPropsForGame(gameId: string, sport: SportType): Promise<any[]> {
     try {
-      const response = await axios.get(`/player-props/${gameId}`, {
-        params: { sport },
-        headers: {
-          'x-api-key': process.env.NEXT_PUBLIC_SPORTS_DATA_API_KEY
+      const response = await axios.get(
+        `${this.BASE_URL}/player-props/${gameId}`,
+        {
+          ...this.getHeaders(),
+          params: { sport },
         }
-      });
+      );
       return response.data;
     } catch (error) {
       console.error('Error fetching player props:', error);

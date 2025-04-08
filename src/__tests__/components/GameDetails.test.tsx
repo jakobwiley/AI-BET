@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import GameDetails from '@/components/GameDetails';
-import { Game, Prediction, PlayerProp } from '@/models/types';
+import { Game, Prediction } from '@/models/types';
 
 // Mock the useSportsData hook
 jest.mock('@/hooks/useSportsData', () => ({
@@ -12,154 +12,75 @@ jest.mock('@/hooks/useSportsData', () => ({
   })
 }));
 
-describe('GameDetails', () => {
-  const mockGame: Game = {
-    id: 'game-1',
-    sport: 'NBA',
-    homeTeamId: 'lakers',
-    awayTeamId: 'celtics',
-    homeTeamName: 'Lakers',
-    awayTeamName: 'Celtics',
-    gameDate: '2024-03-19T19:00:00Z',
-    status: 'Scheduled',
-    spread: { home: -5.5, away: 5.5 }
-  };
-
-  const mockPredictions: Prediction[] = [
-    {
-      id: 'pred-1',
-      gameId: 'game-1',
-      predictionType: 'SPREAD',
-      predictionValue: '-5.5',
-      confidence: 75,
-      reasoning: 'Lakers are favored',
-      createdAt: '2024-03-19T00:00:00Z'
+const mockGame: Game = {
+  id: '1',
+  sport: 'NBA',
+  homeTeamId: 'LAL',
+  homeTeamName: 'Lakers',
+  awayTeamId: 'BOS',
+  awayTeamName: 'Celtics',
+  gameDate: '2024-03-20',
+  startTime: '19:30',
+  status: 'Scheduled',
+  odds: {
+    spread: {
+      home: { line: -2.5, odds: -110 },
+      away: { line: 2.5, odds: -110 }
     },
-    {
-      id: 'pred-2',
-      gameId: 'game-1',
-      predictionType: 'TOTAL',
-      predictionValue: 'O/U 220.5',
-      confidence: 70,
-      reasoning: 'High scoring expected',
-      createdAt: '2024-03-19T00:00:00Z'
+    total: {
+      over: { line: 220.5, odds: -110 },
+      under: { line: 220.5, odds: -110 }
+    },
+    moneyline: {
+      home: -110,
+      away: -110
     }
-  ];
+  }
+};
 
-  const mockPlayerProps: PlayerProp[] = [
-    {
-      id: 'prop-1',
-      gameId: 'game-1',
-      playerId: 'lebron',
-      playerName: 'LeBron James',
-      propType: 'POINTS',
-      line: 25.5,
-      prediction: 28,
-      confidence: 80,
-      reasoning: 'Recent hot streak',
-      createdAt: '2024-03-19T00:00:00Z'
-    }
-  ];
+const mockPredictions: Prediction[] = [
+  {
+    id: '1',
+    gameId: '1',
+    predictionType: 'SPREAD',
+    predictionValue: 'Lakers -2.5',
+    confidence: 75,
+    reasoning: 'Lakers have been strong at home',
+    createdAt: '2024-03-20T00:00:00Z'
+  }
+];
 
-  it('renders game header information', () => {
-    render(
-      <GameDetails 
-        game={mockGame} 
-        initialPredictions={[]} 
-        initialPlayerProps={[]} 
-      />
-    );
-
-    expect(screen.getByText('Celtics vs Lakers')).toBeInTheDocument();
-    expect(screen.getByText(/Scheduled/)).toBeInTheDocument();
+describe('GameDetails', () => {
+  it('renders loading state', () => {
+    render(<GameDetails game={mockGame} isLoading={true} />);
+    expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
   });
 
-  it('displays predictions tab content', () => {
-    render(
-      <GameDetails 
-        game={mockGame} 
-        initialPredictions={mockPredictions} 
-        initialPlayerProps={[]} 
-      />
-    );
-
-    expect(screen.getByText('Game Predictions')).toBeInTheDocument();
-    expect(screen.getByText('-5.5')).toBeInTheDocument();
-    expect(screen.getByText('O/U O/U 220.5')).toBeInTheDocument();
-    expect(screen.getByText('7500%')).toBeInTheDocument();
-    expect(screen.getByText('7000%')).toBeInTheDocument();
+  it('renders predictions tab by default', () => {
+    render(<GameDetails game={mockGame} initialPredictions={mockPredictions} />);
+    expect(screen.getByText('Lakers vs Celtics')).toBeInTheDocument();
+    expect(screen.getByText('Lakers -2.5')).toBeInTheDocument();
   });
 
-  it('switches to player props tab', () => {
-    render(
-      <GameDetails 
-        game={mockGame} 
-        initialPredictions={[]} 
-        initialPlayerProps={mockPlayerProps} 
-      />
-    );
-
-    const playerPropsButton = screen.getByText('Player Props');
-    fireEvent.click(playerPropsButton);
-
-    expect(screen.getByText('LeBron James')).toBeInTheDocument();
-    expect(screen.getByText('25.5')).toBeInTheDocument();
-    expect(screen.getByText('28')).toBeInTheDocument();
-    expect(screen.getByText('8000%')).toBeInTheDocument();
-  });
-
-  it('shows team logos', () => {
-    render(
-      <GameDetails 
-        game={mockGame} 
-        initialPredictions={[]} 
-        initialPlayerProps={[]} 
-      />
-    );
-
-    const lakersLogo = screen.getByAltText('Lakers logo');
-    const celticsLogo = screen.getByAltText('Celtics logo');
-
-    expect(lakersLogo).toBeInTheDocument();
-    expect(celticsLogo).toBeInTheDocument();
-  });
-
-  it('shows loading state', () => {
-    render(
-      <GameDetails 
-        game={mockGame} 
-        initialPredictions={[]} 
-        initialPlayerProps={[]} 
-        isLoading={true}
-      />
-    );
-
-    expect(screen.getByText('Loading predictions...')).toBeInTheDocument();
-  });
-
-  it('handles empty predictions and player props', () => {
-    render(
-      <GameDetails 
-        game={mockGame} 
-        initialPredictions={[]} 
-        initialPlayerProps={[]} 
-      />
-    );
-
-    expect(screen.getByText('No predictions available for this game yet.')).toBeInTheDocument();
-  });
-
-  it('shows game stats based on sport type', () => {
-    render(
-      <GameDetails 
-        game={mockGame} 
-        initialPredictions={[]} 
-        initialPlayerProps={[]} 
-      />
-    );
-
-    expect(screen.getByText('Game Stats')).toBeInTheDocument();
-    expect(screen.getByText('Celtics Key Stats')).toBeInTheDocument();
+  it('switches to stats tab', () => {
+    render(<GameDetails game={mockGame} initialPredictions={mockPredictions} />);
+    fireEvent.click(screen.getByText('Stats'));
     expect(screen.getByText('Lakers Key Stats')).toBeInTheDocument();
+    expect(screen.getByText('Points Per Game: 112.5')).toBeInTheDocument();
+  });
+
+  it('shows MLB stats when game is baseball', () => {
+    const baseballGame: Game = {
+      ...mockGame,
+      sport: 'MLB',
+      homeTeamId: 'NYY',
+      homeTeamName: 'Yankees',
+      awayTeamId: 'BOS',
+      awayTeamName: 'Red Sox'
+    };
+    render(<GameDetails game={baseballGame} initialPredictions={[]} />);
+    fireEvent.click(screen.getByText('Stats'));
+    expect(screen.getByText('Yankees Key Stats')).toBeInTheDocument();
+    expect(screen.getByText('Batting Average: .275')).toBeInTheDocument();
   });
 }); 

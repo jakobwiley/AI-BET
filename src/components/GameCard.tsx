@@ -1,110 +1,98 @@
 'use client';
 
-import { FaArrowRight, FaBasketballBall, FaBaseballBall } from 'react-icons/fa';
+import React, { memo } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Game, Prediction } from '@/models/types';
+import { formatDate } from '@/utils/formatting';
 
 interface GameCardProps {
-  game: Game;
+  game: Game | null;
   predictions?: Prediction[];
+  loading?: boolean;
 }
 
-const GameCard = ({ game, predictions }: GameCardProps) => {
-  // Find the highest confidence prediction
-  const highestConfidencePrediction = predictions?.reduce((prev, current) => {
-    return (prev?.confidence || 0) > (current?.confidence || 0) ? prev : current;
-  }, predictions[0]);
+const GameCard: React.FC<GameCardProps> = React.memo(({ game, predictions = [], loading = false }) => {
+  if (loading || !game) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 shadow-lg hover:shadow-xl transition-all duration-200">
+        <div className="animate-pulse" data-testid="loading-skeleton">
+          <div className="h-6 bg-gray-700 rounded w-3/4 mb-4" />
+          <div className="h-4 bg-gray-700 rounded w-1/2 mb-4" />
+          <div className="space-y-3">
+            <div className="h-4 bg-gray-700 rounded w-full" />
+            <div className="h-4 bg-gray-700 rounded w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  // Function to format the confidence as a percentage
-  const formatConfidence = (confidence: number) => {
-    return `${Math.round(confidence)}%`;
-  };
+  const formattedDate = formatDate(game.gameDate);
+  const topPrediction = predictions.length > 0 ? predictions.reduce((prev, current) => 
+    (current.confidence > prev.confidence) ? current : prev, predictions[0]
+  ) : null;
 
-  // Function to determine the confidence indicator color
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 80) return 'bg-green-500';
-    if (confidence >= 60) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
-  // Get the appropriate sport icon
-  const SportIcon = game.sport === 'NBA' ? FaBasketballBall : FaBaseballBall;
-
-  // Format date
-  const formatDate = (date: string) => {
-    const dateObj = new Date(date);
-    const options: Intl.DateTimeFormatOptions = { 
-      month: 'short', 
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    };
-    return dateObj.toLocaleDateString('en-US', options);
-  };
+  const spreadValue = typeof game.spread === 'number' ? game.spread : 
+    (game.spread?.home ? game.spread.home : undefined);
 
   return (
-    <motion.div 
-      whileHover={{ scale: 1.02 }}
-      className="bg-gray-800 rounded-xl overflow-hidden shadow-lg mb-4"
-    >
-      <div className="p-5">
-        <div className="flex justify-between items-center mb-3">
-          <div className="flex items-center">
-            <SportIcon className="text-blue-500 mr-2" />
-            <span className="text-gray-400 text-sm">
-              {formatDate(game.gameDate)}
-            </span>
-          </div>
-          <span className="bg-gray-700 text-xs px-2 py-1 rounded-full text-gray-300">
-            {game.status}
-          </span>
+    <div className="bg-gray-800 rounded-lg p-6 shadow-lg hover:shadow-xl transition-all duration-200">
+      <div className="flex justify-between items-center mb-4">
+        <div className="text-lg font-semibold text-white" data-testid="game-teams">
+          {`${game.homeTeamName} vs ${game.awayTeamName}`}
         </div>
-        
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex flex-col">
-            <span className="text-white font-bold text-lg">{game.homeTeamName}</span>
-            <span className="text-gray-400 text-xs">Home</span>
-          </div>
-          <span className="text-gray-500 font-bold">vs</span>
-          <div className="flex flex-col items-end">
-            <span className="text-white font-bold text-lg">{game.awayTeamName}</span>
-            <span className="text-gray-400 text-xs">Away</span>
-          </div>
+      </div>
+      <div className="text-sm text-gray-400 mb-4">{formattedDate}</div>
+      <div className="space-y-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Home</span>
+          <span className="text-gray-300" data-testid="home-team">{game.homeTeamName}</span>
         </div>
-        
-        {highestConfidencePrediction && (
-          <div className="border-t border-gray-700 pt-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Away</span>
+          <span className="text-gray-300" data-testid="away-team">{game.awayTeamName}</span>
+        </div>
+        {spreadValue !== undefined && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Spread</span>
+            <span className="text-gray-300" data-testid="spread-value">{spreadValue}</span>
+          </div>
+        )}
+        {topPrediction && (
+          <div className="mt-4 pt-4 border-t border-gray-700">
+            <div className="text-sm font-medium text-gray-400 mb-2">
+              Top Prediction
+            </div>
             <div className="flex justify-between items-center">
-              <div>
-                <span className="text-gray-400 text-xs">Top Prediction</span>
-                <div className="text-white font-medium">
-                  {highestConfidencePrediction.predictionValue}
-                </div>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-gray-400 text-xs">Confidence</span>
-                <div className="flex items-center">
-                  <span 
-                    data-testid="confidence-indicator"
-                    className={`w-2 h-2 rounded-full mr-1 ${getConfidenceColor(highestConfidencePrediction.confidence || 0)}`}
-                  />
-                  <span className="text-white font-bold">
-                    {formatConfidence(highestConfidencePrediction.confidence || 0)}
-                  </span>
-                </div>
+              <span className="text-gray-300" data-testid="prediction-value">
+                {topPrediction.predictionValue}
+              </span>
+              <div className="flex items-center">
+                <div
+                  className={`w-2 h-2 rounded-full mr-2 ${
+                    topPrediction.confidence >= 70 ? 'bg-green-500' :
+                    topPrediction.confidence >= 40 ? 'bg-yellow-500' :
+                    'bg-red-500'
+                  }`}
+                  data-testid="confidence-indicator"
+                />
+                <span className="text-gray-400">
+                  {Math.round(topPrediction.confidence)}%
+                </span>
               </div>
             </div>
           </div>
         )}
-        
-        <Link href={`/games/${game.id}`} className="mt-3 pt-3 flex justify-center items-center text-blue-500 text-sm hover:text-blue-400 border-t border-gray-700">
-          View All Predictions
-          <FaArrowRight className="ml-1" size={12} />
-        </Link>
       </div>
-    </motion.div>
+      <Link href={`/games/${game.id}`} passHref legacyBehavior>
+        <a className="block mt-4 text-center text-blue-500 hover:text-blue-400 text-sm">
+          View All Predictions
+        </a>
+      </Link>
+    </div>
   );
-};
+});
 
-export default GameCard; 
+GameCard.displayName = 'GameCard';
+
+export default GameCard;

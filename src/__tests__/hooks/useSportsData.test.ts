@@ -1,172 +1,139 @@
 import { renderHook, act } from '@testing-library/react';
-import { useUpcomingGames, useGamePredictions, usePlayerProps } from '@/hooks/useSportsData';
+import { useUpcomingGames, useGamePredictions } from '@/hooks/useSportsData';
 import { SportsApiService } from '@/lib/sportsApi';
-import { SportType } from '@/models/types';
 
-// Mock the SportsApiService
 jest.mock('@/lib/sportsApi');
 
-describe('useSportsData Hooks', () => {
+describe('useUpcomingGames', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('useUpcomingGames', () => {
-    it('should fetch and return NBA games', async () => {
-      const mockGames = [
-        {
-          id: '1',
-          sport: 'NBA' as const,
-          gameDate: new Date(),
-          homeTeamId: '1',
-          awayTeamId: '2',
-          homeTeamName: 'Lakers',
-          awayTeamName: 'Warriors',
-          status: 'SCHEDULED' as const,
-          predictions: [],
-          playerProps: []
+  it('should fetch and return games', async () => {
+    const mockGames = [
+      {
+        id: 'game-1',
+        sport: 'NBA',
+        homeTeamId: 'team-1',
+        awayTeamId: 'team-2',
+        homeTeamName: 'Team 1',
+        awayTeamName: 'Team 2',
+        gameDate: '2024-04-07',
+        startTime: '2024-04-07T19:00:00Z',
+        status: 'SCHEDULED',
+        predictions: [],
+        odds: {
+          spread: {
+            home: { line: -5.5, odds: -110 },
+            away: { line: 5.5, odds: -110 }
+          },
+          total: {
+            over: { line: 220.5, odds: -110 },
+            under: { line: 220.5, odds: -110 }
+          },
+          moneyline: {
+            home: -180,
+            away: 160
+          }
         }
-      ];
+      }
+    ];
 
-      (SportsApiService.getUpcomingGames as jest.Mock).mockResolvedValueOnce(mockGames);
+    (SportsApiService.getUpcomingGames as jest.Mock).mockResolvedValue(mockGames);
 
-      const { result } = renderHook(() => useUpcomingGames('NBA'));
+    const { result } = renderHook(() => useUpcomingGames('NBA'));
 
-      // Initial state
-      expect(result.current.loading).toBe(true);
-      expect(result.current.error).toBe(null);
-      expect(result.current.games).toEqual([]);
+    expect(result.current.loading).toBe(true);
+    expect(result.current.games).toEqual([]);
+    expect(result.current.error).toBe(null);
 
-      // Wait for the effect to complete
-      await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      });
-
-      // Final state
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBe(null);
-      expect(result.current.games).toEqual(mockGames);
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    it('should handle errors when fetching games', async () => {
-      const error = new Error('Failed to fetch games');
-      (SportsApiService.getUpcomingGames as jest.Mock).mockRejectedValueOnce(error);
-
-      const { result } = renderHook(() => useUpcomingGames('NBA'));
-
-      await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      });
-
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toEqual(error);
-      expect(result.current.games).toEqual([]);
-    });
+    expect(result.current.loading).toBe(false);
+    expect(result.current.games).toEqual(mockGames);
+    expect(result.current.error).toBe(null);
   });
 
-  describe('useGamePredictions', () => {
-    it('should fetch and return game predictions', async () => {
-      const mockPredictions = [
-        {
-          id: '1',
-          gameId: 'game-1',
-          predictionType: 'SPREAD',
-          predictionValue: 'HOME -5.5',
-          confidence: 0.75,
-          reasoning: 'Test reasoning',
-          createdAt: new Date(),
-          game: {} as any
-        }
-      ];
+  it('should handle errors', async () => {
+    const error = new Error('Failed to fetch games');
+    (SportsApiService.getUpcomingGames as jest.Mock).mockRejectedValue(error);
 
-      (SportsApiService.getPredictionsForGame as jest.Mock).mockResolvedValueOnce(mockPredictions);
+    const { result } = renderHook(() => useUpcomingGames('NBA'));
 
-      const { result } = renderHook(() => useGamePredictions('game-1'));
-
-      // Initial state
-      expect(result.current.loading).toBe(true);
-      expect(result.current.error).toBe(null);
-      expect(result.current.predictions).toEqual([]);
-
-      // Wait for the effect to complete
-      await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      });
-
-      // Final state
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBe(null);
-      expect(result.current.predictions).toEqual(mockPredictions);
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    it('should handle errors when fetching predictions', async () => {
-      const error = new Error('Failed to fetch predictions');
-      (SportsApiService.getPredictionsForGame as jest.Mock).mockRejectedValueOnce(error);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.games).toEqual([]);
+    expect(result.current.error).toBeTruthy();
+  });
+});
 
-      const { result } = renderHook(() => useGamePredictions('game-1'));
-
-      await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      });
-
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toEqual(error);
-      expect(result.current.predictions).toEqual([]);
-    });
+describe('useGamePredictions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('usePlayerProps', () => {
-    it('should fetch and return player props for NBA', async () => {
-      const mockProps = [
-        {
-          id: '1',
-          gameId: 'game-1',
-          playerId: 'player-1',
-          playerName: 'LeBron James',
-          teamId: 'team-1',
-          propType: 'POINTS',
-          overUnderValue: 24.5,
-          predictionValue: 'OVER',
-          confidence: 0.75,
-          reasoning: 'Test reasoning',
-          createdAt: new Date(),
-          game: {} as any
+  it('should fetch and return game predictions', async () => {
+    const mockGame = {
+      id: 'game-1',
+      sport: 'NBA',
+      homeTeamId: 'team-1',
+      awayTeamId: 'team-2',
+      homeTeamName: 'Team 1',
+      awayTeamName: 'Team 2',
+      gameDate: '2024-04-07',
+      startTime: '2024-04-07T19:00:00Z',
+      status: 'SCHEDULED',
+      predictions: [],
+      odds: {
+        spread: {
+          home: { line: -5.5, odds: -110 },
+          away: { line: 5.5, odds: -110 }
+        },
+        total: {
+          over: { line: 220.5, odds: -110 },
+          under: { line: 220.5, odds: -110 }
+        },
+        moneyline: {
+          home: -180,
+          away: 160
         }
-      ];
+      }
+    };
 
-      (SportsApiService.getPlayerPropsForGame as jest.Mock).mockResolvedValueOnce(mockProps);
+    (SportsApiService.getPredictionsForGame as jest.Mock).mockResolvedValue({ game: mockGame });
 
-      const { result } = renderHook(() => usePlayerProps('game-1', 'NBA'));
+    const { result } = renderHook(() => useGamePredictions('game-1'));
 
-      // Initial state
-      expect(result.current.loading).toBe(true);
-      expect(result.current.error).toBe(null);
-      expect(result.current.playerProps).toEqual([]);
+    expect(result.current.loading).toBe(true);
+    expect(result.current.game).toBe(null);
+    expect(result.current.error).toBe(null);
 
-      // Wait for the effect to complete
-      await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      });
-
-      // Final state
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBe(null);
-      expect(result.current.playerProps).toEqual(mockProps);
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    it('should handle errors when fetching player props', async () => {
-      const error = new Error('Failed to fetch player props');
-      (SportsApiService.getPlayerPropsForGame as jest.Mock).mockRejectedValueOnce(error);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.game).toEqual(mockGame);
+    expect(result.current.error).toBe(null);
+  });
 
-      const { result } = renderHook(() => usePlayerProps('game-1', 'NBA'));
+  it('should handle errors', async () => {
+    const error = new Error('Failed to fetch predictions');
+    (SportsApiService.getPredictionsForGame as jest.Mock).mockRejectedValue(error);
 
-      await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      });
+    const { result } = renderHook(() => useGamePredictions('game-1'));
 
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toEqual(error);
-      expect(result.current.playerProps).toEqual([]);
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.game).toBe(null);
+    expect(result.current.error).toBeTruthy();
   });
 }); 

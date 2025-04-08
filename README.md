@@ -49,6 +49,27 @@ A Next.js application for sports betting analysis, predictions, and odds trackin
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
+## API Integration
+
+### The Odds API
+
+This application uses The Odds API to fetch real sports data. The integration includes:
+
+- `/sports/{sport}/events` - Get upcoming and live games with scores
+- `/sports/{sport}/odds` - Get betting odds for games
+- `/sports/{sport}/odds/?markets=player_props` - Get player props (when available)
+
+Team logos are fetched from league-specific sources:
+- NBA: `https://cdn.nba.com/logos/nba/{teamId}/global/L/logo.svg`
+- MLB: `https://www.mlbstatic.com/team-logos/{teamId}.svg`
+
+### Error Handling
+
+The application implements robust error handling:
+- Automatic fallback to ESPN API when Odds API is unavailable
+- Caching of responses to reduce API calls
+- Clear error messaging to users when APIs are unreachable
+
 ## Project Structure
 
 - `/components` - React components

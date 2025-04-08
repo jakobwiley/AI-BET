@@ -2,7 +2,7 @@
 
 import { FaSpinner, FaFilter, FaSortAmountDown } from "react-icons/fa";
 import { useUpcomingGames } from '@/hooks/useSportsData';
-import { GameList } from '@/components/GameList';
+import GameList from '@/components/GameList';
 
 export default function MLBPage() {
   return (

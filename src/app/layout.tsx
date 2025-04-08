@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { ApiUsage } from "@/components/ApiUsage";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -44,13 +43,13 @@ export default function RootLayout({
                     MLB Games
                   </Link>
                 </li>
+                <li className="mb-2">
+                  <Link href="/insights" className="block py-2 px-4 hover:bg-gray-800 rounded transition-colors">
+                    Insights
+                  </Link>
+                </li>
               </ul>
             </nav>
-            
-            {/* API Usage Widget */}
-            <div className="mt-auto">
-              <ApiUsage className="bg-gray-800 border-gray-700" />
-            </div>
           </div>
           
           {/* Main content */}
