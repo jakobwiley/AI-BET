@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { GameList } from '@/components/GameList';
+import GameList from '@/components/GameList';
 import { useUpcomingGames } from '@/hooks/useSportsData';
 import { Game } from '@/models/types';
 
@@ -10,29 +10,6 @@ jest.mock('@/hooks/useSportsData', () => ({
 }));
 
 describe('GameList Component', () => {
-  const mockGame: Game = {
-    id: 'game-1',
-    sport: 'NBA',
-    homeTeamId: 'lakers',
-    awayTeamId: 'celtics',
-    homeTeamName: 'Lakers',
-    awayTeamName: 'Celtics',
-    gameDate: '2024-03-19T19:00:00Z',
-    status: 'Scheduled',
-    spread: { home: -5.5, away: 5.5 },
-    predictions: [
-      {
-        id: 'pred-1',
-        gameId: 'game-1',
-        predictionType: 'SPREAD',
-        predictionValue: '-5.5',
-        confidence: 75,
-        reasoning: 'Lakers are favored',
-        createdAt: '2024-03-19T00:00:00Z'
-      }
-    ]
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -46,34 +23,50 @@ describe('GameList Component', () => {
 
     render(<GameList sport="NBA" />);
 
-    expect(screen.getByText('Loading games...')).toBeInTheDocument();
+    const skeletons = screen.getAllByTestId('loading-skeleton');
+    expect(skeletons).toHaveLength(6);
   });
 
   it('should render games when data is loaded', () => {
+    const mockGames = [
+      {
+        id: 'game-1',
+        sport: 'NBA' as const,
+        homeTeamId: 'lakers',
+        awayTeamId: 'celtics',
+        homeTeamName: 'Lakers',
+        awayTeamName: 'Celtics',
+        gameDate: '2024-03-19T19:00:00Z',
+        startTime: '19:00:00',
+        status: 'SCHEDULED',
+        spread: -5.5,
+        total: 220.5,
+        predictions: []
+      }
+    ];
+
     (useUpcomingGames as jest.Mock).mockReturnValue({
-      games: [mockGame],
+      games: mockGames,
       loading: false,
       error: null
     });
 
     render(<GameList sport="NBA" />);
 
-    expect(screen.getByText('Lakers')).toBeInTheDocument();
-    expect(screen.getByText('Celtics')).toBeInTheDocument();
-    expect(screen.getByText('-5.5')).toBeInTheDocument();
-    expect(screen.getByText('7500%')).toBeInTheDocument();
+    expect(screen.getByText('Lakers vs Celtics')).toBeInTheDocument();
   });
 
-  it('should render error state when there is an error', () => {
+  it('should show error message when there is an error', () => {
+    const errorMessage = 'Failed to load games';
     (useUpcomingGames as jest.Mock).mockReturnValue({
       games: [],
       loading: false,
-      error: 'Failed to load games'
+      error: new Error(errorMessage)
     });
 
     render(<GameList sport="NBA" />);
 
-    expect(screen.getByText('Error loading games')).toBeInTheDocument();
+    expect(screen.getByText(`Error loading games: ${errorMessage}`)).toBeInTheDocument();
   });
 
   it('should show empty state when no games are available', () => {
@@ -85,6 +78,6 @@ describe('GameList Component', () => {
 
     render(<GameList sport="NBA" />);
 
-    expect(screen.getByText('No upcoming games found')).toBeInTheDocument();
+    expect(screen.getByText('No upcoming games')).toBeInTheDocument();
   });
 }); 

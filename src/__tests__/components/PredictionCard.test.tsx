@@ -8,21 +8,9 @@ describe('PredictionCard Component', () => {
     gameId: 'game-1',
     predictionType: 'SPREAD',
     predictionValue: 'HOME -5.5',
-    confidence: 0.75,
+    confidence: 75,
     reasoning: 'Test reasoning',
-    createdAt: new Date(),
-    game: {
-      id: 'game-1',
-      sport: 'NBA' as const,
-      gameDate: new Date(),
-      homeTeamId: '1',
-      awayTeamId: '2',
-      homeTeamName: 'Lakers',
-      awayTeamName: 'Warriors',
-      status: 'SCHEDULED' as const,
-      predictions: [],
-      playerProps: []
-    }
+    createdAt: '2024-03-20T00:00:00Z'
   };
 
   it('should render prediction details correctly', () => {
@@ -38,8 +26,8 @@ describe('PredictionCard Component', () => {
     // Check reasoning
     expect(screen.getByText('Test reasoning')).toBeInTheDocument();
 
-    // Check game details
-    expect(screen.getByText('Reasoning')).toBeInTheDocument();
+    // Check reasoning label
+    expect(screen.getByText('Reasoning:')).toBeInTheDocument();
   });
 
   it('should render different prediction types correctly', () => {
@@ -58,7 +46,7 @@ describe('PredictionCard Component', () => {
   it('should render confidence level with correct indicator', () => {
     const highConfidencePrediction: Prediction = {
       ...mockPrediction,
-      confidence: 0.85
+      confidence: 85
     };
 
     render(<PredictionCard prediction={highConfidencePrediction} />);
@@ -66,14 +54,13 @@ describe('PredictionCard Component', () => {
     const confidenceElement = screen.getByText('85%');
     expect(confidenceElement).toBeInTheDocument();
     // Check that the indicator dot has the right color class
-    const indicatorDot = document.querySelector('.w-2.h-2.rounded-full.mr-1.bg-green-500');
-    expect(indicatorDot).toBeInTheDocument();
+    expect(screen.getByTestId('confidence-indicator')).toHaveClass('bg-green-500');
   });
 
   it('should render low confidence level with correct indicator', () => {
     const lowConfidencePrediction: Prediction = {
       ...mockPrediction,
-      confidence: 0.55
+      confidence: 55
     };
 
     render(<PredictionCard prediction={lowConfidencePrediction} />);
@@ -81,14 +68,13 @@ describe('PredictionCard Component', () => {
     const confidenceElement = screen.getByText('55%');
     expect(confidenceElement).toBeInTheDocument();
     // Check that the indicator dot has the right color class
-    const indicatorDot = document.querySelector('.w-2.h-2.rounded-full.mr-1.bg-yellow-500');
-    expect(indicatorDot).toBeInTheDocument();
+    expect(screen.getByTestId('confidence-indicator')).toHaveClass('bg-yellow-500');
   });
 
   it('should render very low confidence level with correct indicator', () => {
     const veryLowConfidencePrediction: Prediction = {
       ...mockPrediction,
-      confidence: 0.45
+      confidence: 45
     };
 
     render(<PredictionCard prediction={veryLowConfidencePrediction} />);
@@ -96,7 +82,6 @@ describe('PredictionCard Component', () => {
     const confidenceElement = screen.getByText('45%');
     expect(confidenceElement).toBeInTheDocument();
     // Check that the indicator dot has the right color class
-    const indicatorDot = document.querySelector('.w-2.h-2.rounded-full.mr-1.bg-red-500');
-    expect(indicatorDot).toBeInTheDocument();
+    expect(screen.getByTestId('confidence-indicator')).toHaveClass('bg-red-500');
   });
 }); 

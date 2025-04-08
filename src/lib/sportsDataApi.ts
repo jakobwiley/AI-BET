@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { SportType } from '@/models/types';
+import { SportType, PlayerProp } from '@/models/types';
+import { v4 as uuidv4 } from 'uuid';
 
 // Using free public APIs for NBA and MLB data
 const NBA_API_BASE_URL = 'https://www.balldontlie.io/api/v1';
@@ -75,19 +76,18 @@ export class SportsDataApiService {
     }
   }
   
-  // Get team logos (using free public sources)
+  // Get team logos (using more reliable sources)
   static getTeamLogoUrl(sport: SportType, teamId: string, teamName: string) {
     if (sport === 'NBA') {
-      // NBA logos can be fetched from the NBA website 
-      return `https://cdn.nba.com/logos/nba/${teamId}/global/L/logo.svg`;
+      // Use ESPN CDN format which is more reliable for NBA
+      return `https://a.espncdn.com/i/teamlogos/nba/500/${teamId.toLowerCase()}.png`;
     } else if (sport === 'MLB') {
-      // MLB logos can be fetched from MLB website
-      return `https://www.mlbstatic.com/team-logos/${teamId}.svg`;
+      // Use ESPN CDN for MLB logos
+      return `https://a.espncdn.com/i/teamlogos/mlb/500/${teamId}.png`;
     }
     
-    // Fallback to a generic logo service that maps team names to logos
-    const formattedTeamName = teamName.toLowerCase().replace(/\s+/g, '-');
-    return `https://a.espncdn.com/combiner/i?img=/i/teamlogos/${sport.toLowerCase()}/500/${formattedTeamName}.png`;
+    // Fallback to a generic logo based on team name
+    return `/api/placeholder?text=${encodeURIComponent(teamName.split(' ').map(word => word[0]).join(''))}&color=white`;
   }
   
   // Get player images (using free public sources)
@@ -189,5 +189,14 @@ export class SportsDataApiService {
       console.error(`Error fetching ${sport} game details for game ${gameId}:`, error);
       return null;
     }
+  }
+  
+  // Add getPlayerProps method that returns empty array for now
+  public static async getPlayerProps(gameId: string, sport: SportType): Promise<PlayerProp[]> {
+    console.log(`[SportsDataAPI] Fetching player props for game ${gameId} (${sport})`);
+    
+    // For now, return empty array or mock data
+    // In a real implementation, this would fetch from a sports data provider
+    return [];
   }
 } 

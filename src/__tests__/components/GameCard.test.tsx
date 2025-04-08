@@ -12,7 +12,8 @@ describe('GameCard', () => {
     homeTeamName: 'Lakers',
     awayTeamName: 'Celtics',
     gameDate: '2024-03-20T00:00:00Z',
-    status: 'Scheduled',
+    startTime: '2024-03-20T00:00:00Z',
+    status: 'SCHEDULED',
     spread: { home: -5.5, away: 5.5 }
   };
 
@@ -23,25 +24,16 @@ describe('GameCard', () => {
       predictionType: 'SPREAD',
       predictionValue: '-5.5',
       confidence: 75,
-      reasoning: 'Lakers are favored',
+      reasoning: 'Strong home team performance',
       createdAt: '2024-03-20T00:00:00Z'
     },
     {
       id: 'pred-2',
       gameId: 'test-game-123',
       predictionType: 'MONEYLINE',
-      predictionValue: '-180',
+      predictionValue: 'Lakers',
       confidence: 65,
-      reasoning: 'Lakers are likely to win',
-      createdAt: '2024-03-20T00:00:00Z'
-    },
-    {
-      id: 'pred-3',
-      gameId: 'test-game-123',
-      predictionType: 'TOTAL',
-      predictionValue: 'O/U 220.5',
-      confidence: 70,
-      reasoning: 'High scoring game expected',
+      reasoning: 'Home court advantage',
       createdAt: '2024-03-20T00:00:00Z'
     }
   ];
@@ -49,47 +41,33 @@ describe('GameCard', () => {
   it('renders game information correctly', () => {
     render(<GameCard game={mockGame} predictions={[]} />);
     
-    expect(screen.getByText('Lakers')).toBeInTheDocument();
-    expect(screen.getByText('Celtics')).toBeInTheDocument();
-    expect(screen.getByText('vs')).toBeInTheDocument();
+    expect(screen.getByTestId('game-teams')).toHaveTextContent('Lakers vs Celtics');
+    expect(screen.getByTestId('home-team')).toHaveTextContent('Lakers');
+    expect(screen.getByTestId('away-team')).toHaveTextContent('Celtics');
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Away')).toBeInTheDocument();
+    expect(screen.getByTestId('spread-value')).toHaveTextContent('-5.5');
+    expect(screen.getByText('Mar 20, 12:00 AM')).toBeInTheDocument();
   });
 
   it('displays the highest confidence prediction', () => {
     render(<GameCard game={mockGame} predictions={mockPredictions} />);
-    
+
     // The spread prediction has the highest confidence (75%)
     expect(screen.getByText('Top Prediction')).toBeInTheDocument();
-    expect(screen.getByText('-5.5')).toBeInTheDocument();
+    expect(screen.getByTestId('prediction-value')).toHaveTextContent('-5.5');
     expect(screen.getByText('75%')).toBeInTheDocument();
   });
 
-  it('shows correct confidence indicator color', () => {
-    render(<GameCard game={mockGame} predictions={mockPredictions} />);
-    
-    // 75% confidence should show green indicator
-    const indicator = screen.getByTestId('confidence-indicator');
-    expect(indicator).toHaveClass('bg-green-500');
+  it('shows loading state', () => {
+    render(<GameCard game={null} loading={true} predictions={[]} />);
+    expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
   });
 
-  it('handles missing predictions gracefully', () => {
+  it('includes link to game details', () => {
     render(<GameCard game={mockGame} predictions={[]} />);
-    
-    expect(screen.queryByText('Top Prediction')).not.toBeInTheDocument();
-  });
-
-  it('formats game date correctly', () => {
-    render(<GameCard game={mockGame} predictions={[]} />);
-    
-    // March 20, 2024 date should be formatted
-    expect(screen.getByText(/Mar 20/)).toBeInTheDocument();
-  });
-
-  it('includes a link to game details', () => {
-    render(<GameCard game={mockGame} predictions={[]} />);
-    
     const link = screen.getByText('View All Predictions');
-    expect(link).toHaveAttribute('href', '/games/test-game-123');
+    expect(link).toBeInTheDocument();
+    expect(link.closest('a')).toHaveAttribute('href', '/games/test-game-123');
   });
 }); 

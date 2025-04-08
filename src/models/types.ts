@@ -25,20 +25,25 @@ export interface Game {
   awayTeamId: string;
   homeTeamName: string;
   awayTeamName: string;
-  startTime?: string;
   gameDate: string;
-  status?: string;
+  startTime: string;
+  status: string;
+  spread?: { home: number; away: number };
   predictions?: Prediction[];
-  playerProps?: PlayerProp[];
-  spread?: {
-    home: number;
-    away: number;
+  odds?: {
+    spread: {
+      home: { line: number; odds: number };
+      away: { line: number; odds: number };
+    };
+    total: {
+      over: { line: number; odds: number };
+      under: { line: number; odds: number };
+    };
+    moneyline: {
+      home: number;
+      away: number;
+    };
   };
-  moneyline?: {
-    home: number;
-    away: number;
-  };
-  total?: number;
 }
 
 export interface Prediction {
@@ -91,4 +96,8 @@ export interface Player {
   dateOfBirth?: string;
   imageUrl?: string;
   stats?: Record<string, any>;
+}
+
+export interface PredictionResponse {
+  game: Game;
 } 

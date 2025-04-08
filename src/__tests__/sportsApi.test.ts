@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { SportsApiService } from '@/lib/sportsApi';
 import { SportType } from '@/models/types';
+import { getMockGames, getMockGameOdds, getMockPlayerProps } from '@/lib/testUtils';
 
 // Mock axios
 jest.mock('axios');
@@ -13,19 +14,18 @@ describe('SportsApiService', () => {
 
   describe('getUpcomingGames', () => {
     it('should fetch NBA games successfully', async () => {
+      const mockGames = getMockGames('NBA');
       const mockResponse = {
         status: 200,
-        data: [
-          {
-            GameID: '1',
-            DateTime: '2024-04-06T19:00:00',
-            HomeTeamID: '1',
-            AwayTeamID: '2',
-            HomeTeam: 'Lakers',
-            AwayTeam: 'Warriors',
-            Status: 'Scheduled'
-          }
-        ]
+        data: mockGames.map(game => ({
+          GameID: game.id,
+          DateTime: game.gameDate,
+          HomeTeamID: game.homeTeamId,
+          AwayTeamID: game.awayTeamId,
+          HomeTeam: game.homeTeamName,
+          AwayTeam: game.awayTeamName,
+          Status: game.status
+        }))
       };
 
       mockedAxios.get.mockResolvedValueOnce(mockResponse);
@@ -40,23 +40,22 @@ describe('SportsApiService', () => {
           }
         })
       );
-      expect(games).toHaveLength(1);
+      expect(games).toHaveLength(mockGames.length);
     });
 
     it('should fetch MLB games successfully', async () => {
+      const mockGames = getMockGames('MLB');
       const mockResponse = {
         status: 200,
-        data: [
-          {
-            GameID: '1',
-            DateTime: '2024-04-06T19:00:00',
-            HomeTeamID: '1',
-            AwayTeamID: '2',
-            HomeTeam: 'Yankees',
-            AwayTeam: 'Red Sox',
-            Status: 'Scheduled'
-          }
-        ]
+        data: mockGames.map(game => ({
+          GameID: game.id,
+          DateTime: game.gameDate,
+          HomeTeamID: game.homeTeamId,
+          AwayTeamID: game.awayTeamId,
+          HomeTeam: game.homeTeamName,
+          AwayTeam: game.awayTeamName,
+          Status: game.status
+        }))
       };
 
       mockedAxios.get.mockResolvedValueOnce(mockResponse);
@@ -71,7 +70,7 @@ describe('SportsApiService', () => {
           }
         })
       );
-      expect(games).toHaveLength(1);
+      expect(games).toHaveLength(mockGames.length);
     });
 
     it('should return empty array when API fails', async () => {
@@ -85,25 +84,10 @@ describe('SportsApiService', () => {
 
   describe('getPredictionsForGame', () => {
     it('should fetch predictions successfully', async () => {
+      const mockPredictions = getMockGameOdds('test-game-id', 'NBA');
       const mockResponse = {
         status: 200,
-        data: [
-          {
-            predictionType: 'SPREAD',
-            value: 'HOME -5.5',
-            confidence: 0.75
-          },
-          {
-            predictionType: 'MONEYLINE',
-            value: 'HOME',
-            confidence: 0.8
-          },
-          {
-            predictionType: 'OVER_UNDER',
-            value: 'OVER 220',
-            confidence: 0.65
-          }
-        ]
+        data: mockPredictions
       };
 
       mockedAxios.get.mockResolvedValueOnce(mockResponse);
@@ -118,7 +102,7 @@ describe('SportsApiService', () => {
           }
         })
       );
-      expect(predictions).toHaveLength(3);
+      expect(predictions).toHaveLength(mockPredictions.length);
     });
 
     it('should return empty array when API fails', async () => {
@@ -132,17 +116,10 @@ describe('SportsApiService', () => {
 
   describe('getPlayerPropsForGame', () => {
     it('should fetch player props for NBA successfully', async () => {
+      const mockProps = getMockPlayerProps('test-game-id', 'NBA');
       const mockResponse = {
         status: 200,
-        data: [
-          {
-            playerName: 'LeBron James',
-            propType: 'POINTS',
-            overUnderValue: 24.5,
-            predictionValue: 'OVER',
-            confidence: 0.75
-          }
-        ]
+        data: mockProps
       };
 
       mockedAxios.get.mockResolvedValueOnce(mockResponse);
@@ -158,22 +135,15 @@ describe('SportsApiService', () => {
           }
         })
       );
-      expect(props).toHaveLength(1);
-      expect(props[0].propType).toBe('POINTS');
+      expect(props).toHaveLength(mockProps.length);
+      expect(props[0].propType).toBe(mockProps[0].propType);
     });
 
     it('should fetch player props for MLB successfully', async () => {
+      const mockProps = getMockPlayerProps('test-game-id', 'MLB');
       const mockResponse = {
         status: 200,
-        data: [
-          {
-            playerName: 'Aaron Judge',
-            propType: 'HOME_RUNS',
-            overUnderValue: 0.5,
-            predictionValue: 'OVER',
-            confidence: 0.65
-          }
-        ]
+        data: mockProps
       };
 
       mockedAxios.get.mockResolvedValueOnce(mockResponse);
@@ -189,8 +159,8 @@ describe('SportsApiService', () => {
           }
         })
       );
-      expect(props).toHaveLength(1);
-      expect(props[0].propType).toBe('HOME_RUNS');
+      expect(props).toHaveLength(mockProps.length);
+      expect(props[0].propType).toBe(mockProps[0].propType);
     });
 
     it('should return empty array when API fails', async () => {
