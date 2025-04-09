@@ -1,80 +1,118 @@
 export type SportType = 'NBA' | 'MLB';
 
-export type GameStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'CANCELLED';
+export type PredictionType = 'SPREAD' | 'MONEYLINE' | 'TOTAL';
 
-export type PredictionType = 'SPREAD' | 'MONEYLINE' | 'OVER_UNDER' | 'PLAYER_PROP';
+export enum GameStatus {
+  SCHEDULED = 'SCHEDULED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINAL = 'FINAL',
+  POSTPONED = 'POSTPONED',
+  CANCELLED = 'CANCELLED'
+}
 
-export type PropType = 
-  | 'POINTS' 
-  | 'REBOUNDS' 
-  | 'ASSISTS' 
-  | 'STRIKEOUTS' 
-  | 'HITS' 
-  | 'HOME_RUNS' 
-  | 'TOTAL_BASES' 
-  | 'STOLEN_BASES' 
-  | 'OTHER';
-
-export type PredictionOutcome = 'WIN' | 'LOSS' | 'PUSH' | 'VOID';
+export type PlayerPropType =
+  | 'POINTS'
+  | 'REBOUNDS'
+  | 'ASSISTS'
+  | 'BLOCKS'
+  | 'STEALS'
+  | 'TURNOVERS'
+  | 'THREE_POINTERS'
+  | 'HITS'
+  | 'RUNS'
+  | 'RBI'
+  | 'STRIKEOUTS'
+  | 'HOME_RUNS'
+  | 'STOLEN_BASES'
+  | 'WALKS';
 
 export interface Game {
   id: string;
   sport: SportType;
-  gameDate: Date;
   homeTeamId: string;
   awayTeamId: string;
   homeTeamName: string;
   awayTeamName: string;
-  homeTeamScore?: number;
-  awayTeamScore?: number;
+  gameDate: string;
+  startTime: string;
   status: GameStatus;
-  predictions: Prediction[];
-  playerProps: PlayerProp[];
+  predictions?: Prediction[];
+  odds?: {
+    spread?: {
+      homeSpread: number;
+      awaySpread: number;
+      homeOdds: number;
+      awayOdds: number;
+    };
+    total?: {
+      overUnder: number;
+      overOdds: number;
+      underOdds: number;
+    };
+    moneyline?: {
+      homeOdds: number;
+      awayOdds: number;
+    };
+  };
+  probableHomePitcherId?: number;
+  probableAwayPitcherId?: number;
+  probableHomePitcherName?: string;
+  probableAwayPitcherName?: string;
 }
 
 export interface Prediction {
   id: string;
   gameId: string;
   predictionType: PredictionType;
-  predictionValue: string;
-  confidence: number; // 0-1 value representing confidence
+  predictionValue: number;
+  confidence: number;
+  grade: string;
   reasoning: string;
-  outcome?: PredictionOutcome;
-  createdAt: Date;
-  game: Game;
+  outcome?: 'WIN' | 'LOSS' | 'PUSH';
+  createdAt: string;
 }
 
 export interface PlayerProp {
-  id: string;
-  gameId: string;
-  playerId: string;
-  playerName: string;
-  teamId: string;
-  propType: PropType;
-  overUnderValue: number;
-  predictionValue: string;
-  confidence: number;
-  reasoning: string;
-  outcome?: PredictionOutcome;
-  createdAt: Date;
-  game: Game;
-}
-
-export interface User {
-  id: string;
-  name?: string;
-  email: string;
-  emailVerified?: Date;
-  image?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Favorite {
-  id: string;
-  userId: string;
-  teamId?: string;
+  id?: string;
+  gameId?: string;
   playerId?: string;
-  createdAt: Date;
-  user: User;
+  playerName: string;
+  teamId?: string;
+  propType: PlayerPropType;
+  line: number;
+  prediction: number;
+  confidence?: number;
+  reasoning?: string;
+  createdAt?: string;
+  game?: Game;
+  outcome?: 'WIN' | 'LOSS' | 'PENDING';
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  abbreviation: string;
+  city: string;
+  conference?: string;
+  division?: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  position: string;
+  jerseyNumber?: string;
+  teamId: string;
+  height?: string;
+  weight?: string;
+  dateOfBirth?: string;
+  imageUrl?: string;
+  stats?: Record<string, any>;
+}
+
+export interface PredictionResponse {
+  game: Game;
 } 
