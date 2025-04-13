@@ -1,5 +1,7 @@
 import axios from 'axios';
-import { Game, PlayerProp, Prediction, SportType, PredictionType, PlayerPropType, GameStatus } from '@/models/types';
+import { Game, PlayerProp, Prediction, SportType, PredictionType, GameStatus, PlayerPropType } from '@/models/types';
+import { handleSportsApiError } from '@/lib/errors';
+import { OddsApiService } from './oddsApi';
 
 // API keys from environment variables
 const SPORTS_DATA_API_KEY = process.env.SPORTS_DATA_API_KEY;
@@ -14,17 +16,23 @@ const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
  * Service for fetching sports data from external APIs
  */
 export class SportsApiService {
+  private static oddsService: OddsApiService | null = null;
+
+  private static getOddsService(): OddsApiService {
+    if (!this.oddsService) {
+      this.oddsService = new OddsApiService(THE_ODDS_API_KEY, ODDS_API_BASE_URL);
+    }
+    return this.oddsService;
+  }
+
   /**
    * Fetch upcoming games for a specific sport
    */
   static async getUpcomingGames(sport: SportType): Promise<Game[]> {
     try {
-      // This is a simplified example. In a real app, you would use actual API endpoints
-      // and transform the data into your Game model format
-      const baseUrl = sport === 'NBA' ? NBA_API_BASE_URL : MLB_API_BASE_URL;
-      
-      // Mock implementation - replace with actual API call
-      return this.getMockGames(sport, 5);
+      // Use the real OddsApiService to fetch games
+      const oddsService = this.getOddsService();
+      return await oddsService.getUpcomingGames(sport);
     } catch (error) {
       console.error(`Error fetching ${sport} games:`, error);
       throw error;
@@ -36,11 +44,18 @@ export class SportsApiService {
    */
   static async getPredictionsForGame(gameId: string): Promise<Prediction[]> {
     try {
-      // This would be where you call your prediction algorithm or ML model
-      // For now, we'll return mock data
-      return this.getMockPredictions(gameId);
+      // Use the real OddsApiService to fetch game details
+      const oddsService = this.getOddsService();
+      const game = await oddsService.findGameByIdInUpcoming(gameId);
+      
+      if (!game) {
+        throw new Error(`Game not found: ${gameId}`);
+      }
+
+      // Return the predictions from the game
+      return game.predictions || [];
     } catch (error) {
-      console.error(`Error generating predictions for game ${gameId}:`, error);
+      console.error(`Error fetching predictions for game ${gameId}:`, error);
       throw error;
     }
   }
@@ -75,26 +90,26 @@ export class SportsApiService {
           id: `nba-game-${i}`,
           sport: 'NBA',
           gameDate: gameDate.toISOString(),
+          startTime: gameDate.toISOString(),
           homeTeamId: `home-team-${i}`,
           awayTeamId: `away-team-${i}`,
           homeTeamName: ['Lakers', 'Warriors', 'Celtics', 'Bucks', 'Heat'][i % 5],
           awayTeamName: ['Nets', 'Suns', 'Mavericks', 'Nuggets', '76ers'][i % 5],
           status: GameStatus.SCHEDULED,
-          startTime: gameDate.toLocaleTimeString(),
-          predictions: [],
+          predictions: []
         });
       } else {
         games.push({
           id: `mlb-game-${i}`,
           sport: 'MLB',
           gameDate: gameDate.toISOString(),
+          startTime: gameDate.toISOString(),
           homeTeamId: `home-team-${i}`,
           awayTeamId: `away-team-${i}`,
           homeTeamName: ['Yankees', 'Dodgers', 'Red Sox', 'Cubs', 'Astros'][i % 5],
           awayTeamName: ['Braves', 'Giants', 'Cardinals', 'Mets', 'Blue Jays'][i % 5],
           status: GameStatus.SCHEDULED,
-          startTime: gameDate.toLocaleTimeString(),
-          predictions: [],
+          predictions: []
         });
       }
     }
@@ -109,24 +124,33 @@ export class SportsApiService {
     const predictionTypes: PredictionType[] = ['SPREAD', 'MONEYLINE', 'TOTAL'];
     const predictions: Prediction[] = [];
     
+    // Use gameId to seed some variation
+    const gameNumber = parseInt(gameId.split('-')[2]);
+    const isHomeTeamFavored = (gameNumber % 2) === 0;
+    
     for (const type of predictionTypes) {
-      let predictionValue = 0;
-      let confidence = Math.round((Math.random() * 0.5 + 0.5) * 100); // 50 to 100
+      let value = 0;
+      let confidence = Math.round(Math.random() * 15 + 75); // 75-90%
       let reasoning = '';
-      let grade = 'B';
       
       switch (type) {
         case 'SPREAD':
-          predictionValue = Math.random() > 0.5 ? -5.5 : 5.5;
-          reasoning = `Based on recent performance and historical matchups, we predict ${predictionValue > 0 ? '+' : ''}${predictionValue} with ${confidence}% confidence. The home team has covered the spread in 7 of their last 10 games.`;
+          // Spreads between -12.5 and +12.5
+          value = (isHomeTeamFavored ? -1 : 1) * (Math.floor(Math.random() * 25 + 1) / 2);
+          reasoning = `Based on recent performance and historical matchups, we predict ${value > 0 ? 'AWAY +' + value : 'HOME ' + value} with ${confidence}% confidence. The home team has covered the spread in 7 of their last 10 games.`;
           break;
         case 'MONEYLINE':
-          predictionValue = Math.random() > 0.5 ? -150 : 150;
-          reasoning = `Our models favor the ${predictionValue > 0 ? 'underdog' : 'favorite'} with ${confidence}% confidence based on current form, injuries, and head-to-head statistics.`;
+          // Moneyline between -300 and +250
+          value = isHomeTeamFavored ? 
+            -(Math.floor(Math.random() * 200) + 100) : // -100 to -300
+            (Math.floor(Math.random() * 150) + 100);   // +100 to +250
+          reasoning = `Our models give the ${value < 0 ? 'HOME' : 'AWAY'} team a ${confidence}% chance of winning based on current form, injuries, and head-to-head statistics.`;
           break;
         case 'TOTAL':
-          predictionValue = Math.floor(Math.random() * 30) + 200; // 200-230 for NBA
-          reasoning = `For the total points, we predict ${predictionValue} with ${confidence}% confidence. Recent games between these teams have averaged ${predictionValue - 10} points.`;
+          // Totals between 210 and 240 for NBA
+          value = Math.floor(Math.random() * 30) + 210;
+          const prediction = Math.random() > 0.5 ? 'OVER' : 'UNDER';
+          reasoning = `For the total points, we predict ${prediction} ${value} with ${confidence}% confidence. Recent games between these teams have averaged ${value - 5} points.`;
           break;
       }
       
@@ -134,11 +158,11 @@ export class SportsApiService {
         id: `prediction-${gameId}-${type}`,
         gameId,
         predictionType: type,
-        predictionValue,
-        confidence,
-        grade,
+        predictionValue: value,
+        confidence: confidence / 100, // Store as decimal but display as percentage
         reasoning,
         createdAt: new Date().toISOString(),
+        grade: 'PENDING'
       });
     }
     
@@ -159,8 +183,8 @@ export class SportsApiService {
     ];
     
     const propTypes: Record<SportType, PlayerPropType[]> = {
-      'NBA': ['POINTS', 'REBOUNDS', 'ASSISTS'],
-      'MLB': ['HITS', 'HOME_RUNS', 'STOLEN_BASES']
+      'NBA': [PlayerPropType.POINTS, PlayerPropType.REBOUNDS, PlayerPropType.ASSISTS],
+      'MLB': [PlayerPropType.HITS, PlayerPropType.HOME_RUNS, PlayerPropType.STOLEN_BASES]
     };
     
     const relevantPlayers = players.slice(0, sport === 'NBA' ? 3 : 2);
@@ -170,40 +194,44 @@ export class SportsApiService {
       for (const propType of relevantProps) {
         let line = 0;
         let prediction = 0;
-        let confidence = Math.round((Math.random() * 0.3 + 0.6) * 100); // 60 to 90
+        let confidence = Math.round((Math.random() * 30 + 60)); // 60-90
         let reasoning = '';
         
         switch (propType) {
-          case 'POINTS':
+          case PlayerPropType.POINTS:
             line = 24.5;
-            prediction = Math.random() > 0.5 ? 26 : 22;
-            reasoning = `${player.name} has averaged 26.3 points in the last 10 games. We predict ${prediction} points with ${confidence}% confidence.`;
+            prediction = 26.3;
+            reasoning = `${player.name} has averaged ${prediction} points in the last 10 games.`;
             break;
-          case 'REBOUNDS':
+          case PlayerPropType.REBOUNDS:
             line = 8.5;
-            prediction = Math.random() > 0.5 ? 10 : 7;
-            reasoning = `${player.name} has averaged 9.1 rebounds in the last 10 games. We predict ${prediction} rebounds with ${confidence}% confidence.`;
+            prediction = 9.1;
+            reasoning = `${player.name} has averaged ${prediction} rebounds in the last 10 games.`;
             break;
-          case 'ASSISTS':
+          case PlayerPropType.ASSISTS:
             line = 6.5;
-            prediction = Math.random() > 0.5 ? 8 : 5;
-            reasoning = `${player.name} has averaged 7.2 assists in the last 10 games. We predict ${prediction} assists with ${confidence}% confidence.`;
+            prediction = 7.2;
+            reasoning = `${player.name} has averaged ${prediction} assists in the last 10 games.`;
             break;
-          case 'HITS':
+          case PlayerPropType.HITS:
             line = 1.5;
-            prediction = Math.random() > 0.5 ? 2 : 1;
-            reasoning = `${player.name} has averaged 1.8 hits per game. We predict ${prediction} hits with ${confidence}% confidence.`;
+            prediction = 1.8;
+            reasoning = `${player.name} has averaged ${prediction} hits per game.`;
             break;
-          case 'HOME_RUNS':
+          case PlayerPropType.HOME_RUNS:
             line = 0.5;
-            prediction = Math.random() > 0.5 ? 1 : 0;
-            reasoning = `${player.name} has hit home runs in 4 of the last 10 games. We predict ${prediction} home runs with ${confidence}% confidence.`;
+            prediction = 0.4;
+            reasoning = `${player.name} has hit home runs in 4 of the last 10 games.`;
             break;
-          case 'STOLEN_BASES':
+          case PlayerPropType.STOLEN_BASES:
             line = 0.5;
-            prediction = Math.random() > 0.5 ? 1 : 0;
-            reasoning = `${player.name} has stolen bases in 3 of the last 10 games. We predict ${prediction} stolen bases with ${confidence}% confidence.`;
+            prediction = 0.3;
+            reasoning = `${player.name} has stolen bases in 3 of the last 10 games.`;
             break;
+          default:
+            line = 0;
+            prediction = 0;
+            reasoning = 'No specific reasoning available for this prop.';
         }
         
         props.push({
@@ -218,6 +246,7 @@ export class SportsApiService {
           confidence,
           reasoning,
           createdAt: new Date().toISOString(),
+          outcome: 'PENDING'
         });
       }
     }

@@ -143,6 +143,58 @@ interface MLBPersonResponse {
 const BASE_URL = 'https://statsapi.mlb.com/api/v1';
 const CURRENT_MLB_SEASON = 2023; // Use 2023 season data since 2024 hasn't started
 
+interface TeamStats {
+  wins: number;
+  losses: number;
+  homeWins: number;
+  homeLosses: number;
+  awayWins: number;
+  awayLosses: number;
+  runsScored: number;
+  runsAllowed: number;
+  lastTenGames: string;
+  streak: number;
+  winPercentage: number;
+  lastTenWins: number;
+  battingAvgVsLHP: number;
+  battingAvgVsRHP: number;
+  opsVsLHP: number;
+  opsVsRHP: number;
+  teamERA: number;
+  teamWHIP: number;
+}
+
+interface MLBStatsResponse {
+  stats: Array<{
+    group?: string;
+    splits: Array<{
+      stat: {
+        runs?: number;
+        runsScoredAgainst?: number;
+        avg?: number;
+        ops?: number;
+        era?: number;
+        whip?: number;
+        vsLHP?: boolean;
+        vsRHP?: boolean;
+      };
+    }>;
+  }>;
+}
+
+interface TeamRecord {
+  wins: number;
+  losses: number;
+  homeWins: number;
+  homeLosses: number;
+  awayWins: number;
+  awayLosses: number;
+  lastTenGames: string;
+  streak: number;
+  winPercentage: number;
+  lastTenWins: number;
+}
+
 export class MLBStatsService {
   private static teamIdMap: Map<string, number> | null = null;
   private static teamFetchPromise: Promise<void> | null = null;
@@ -347,6 +399,47 @@ export class MLBStatsService {
     } catch (error: any) {
       console.error(`[MLBStatsService] Error fetching MLB schedule with pitchers:`, error.message);
       return []; 
+    }
+  }
+
+  private static async fetchTeamRecord(teamId: number, season: string): Promise<TeamRecord | null> {
+    try {
+      const url = `${BASE_URL}/teams/${teamId}/stats/record`;
+      const params = {
+        season,
+        gameType: 'R',
+      };
+
+      const response = await axios.get(url, {
+        params,
+        headers: {
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'User-Agent': 'Mozilla/5.0',
+        },
+      });
+
+      const record = response.data.records[0];
+      if (!record) {
+        console.warn(`[MLBStatsService] No record found for team ID ${teamId}`);
+        return null;
+      }
+
+      return {
+        wins: record.wins || 0,
+        losses: record.losses || 0,
+        homeWins: record.homeWins || 0,
+        homeLosses: record.homeLosses || 0,
+        awayWins: record.awayWins || 0,
+        awayLosses: record.awayLosses || 0,
+        lastTenGames: record.lastTenGames || "0-0",
+        streak: record.streak || 0,
+        winPercentage: record.winPercentage || 0,
+        lastTenWins: record.lastTenWins || 0,
+      };
+    } catch (error) {
+      console.error(`[MLBStatsService] Error fetching record for team ${teamId}:`, error);
+      return null;
     }
   }
 }

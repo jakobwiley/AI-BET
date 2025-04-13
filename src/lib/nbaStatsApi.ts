@@ -188,23 +188,87 @@ export class NBAStatsService {
       if (!teamId) return null;
 
       const currentSeason = '2023-24';
-      const advancedStats = await this.fetchAdvancedTeamStats(teamId, currentSeason);
-      if (!advancedStats) return null;
+      
+      // Fetch both basic and advanced stats
+      const [basicStats, advancedStats] = await Promise.all([
+        this.fetchBasicTeamStats(teamId, currentSeason),
+        this.fetchAdvancedTeamStats(teamId, currentSeason)
+      ]);
 
+      if (!basicStats || !advancedStats) return null;
+
+      // Combine basic and advanced stats
       return {
-        wins: 0,
-        losses: 0,
-        homeWins: 0,
-        homeLosses: 0,
-        awayWins: 0,
-        awayLosses: 0,
-        lastTenWins: 0,
+        wins: basicStats.wins || 0,
+        losses: basicStats.losses || 0,
+        homeWins: basicStats.homeWins || 0,
+        homeLosses: basicStats.homeLosses || 0,
+        awayWins: basicStats.awayWins || 0,
+        awayLosses: basicStats.awayLosses || 0,
+        pointsFor: basicStats.pointsFor || 0,
+        pointsAgainst: basicStats.pointsAgainst || 0,
+        lastTenGames: basicStats.lastTenGames || "0-0",
+        streak: basicStats.streak || 0,
+        winPercentage: basicStats.winPercentage || 0,
+        lastTenWins: basicStats.lastTenWins || 0,
         pace: advancedStats.pace,
         offensiveRating: advancedStats.offensiveRating,
         defensiveRating: advancedStats.defensiveRating,
       };
     } catch (error) {
       console.error(`[NBAStatsService] Error getting team stats for ${teamName}:`, error);
+      return null;
+    }
+  }
+
+  private static async fetchBasicTeamStats(teamId: number, season: string): Promise<Partial<TeamStats> | null> {
+    try {
+      const url = `${BASE_URL}/leaguedashteamstats`;
+      const params = {
+        MeasureType: 'Base',
+        PerMode: 'PerGame',
+        Season: season,
+        SeasonType: 'Regular Season',
+        TeamID: teamId,
+      };
+
+      const response = await axios.get<NBAStatsResponse>(url, {
+        params,
+        headers: {
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Host': 'stats.nba.com',
+          'User-Agent': 'Mozilla/5.0',
+          'Referer': 'https://www.nba.com/',
+          'Connection': 'keep-alive',
+        },
+      });
+
+      const stats = response.data.resultSets[0];
+      if (!stats || !stats.rowSet || stats.rowSet.length === 0) {
+        console.warn(`[NBAStatsService] No basic stats found for team ID ${teamId}`);
+        return null;
+      }
+
+      const row = stats.rowSet[0];
+      const headers = stats.headers;
+      
+      return {
+        wins: this.getStatValue(row, headers, 'W'),
+        losses: this.getStatValue(row, headers, 'L'),
+        homeWins: this.getStatValue(row, headers, 'W_HOME'),
+        homeLosses: this.getStatValue(row, headers, 'L_HOME'),
+        awayWins: this.getStatValue(row, headers, 'W_AWAY'),
+        awayLosses: this.getStatValue(row, headers, 'L_AWAY'),
+        pointsFor: this.getStatValue(row, headers, 'PTS'),
+        pointsAgainst: this.getStatValue(row, headers, 'OPP_PTS'),
+        lastTenGames: `${this.getStatValue(row, headers, 'L10_W')}-${this.getStatValue(row, headers, 'L10_L')}`,
+        streak: this.getStatValue(row, headers, 'STREAK'),
+        winPercentage: this.getStatValue(row, headers, 'W_PCT'),
+        lastTenWins: this.getStatValue(row, headers, 'L10_W'),
+      };
+    } catch (error) {
+      console.error(`[NBAStatsService] Error fetching basic stats for team ${teamId}:`, error);
       return null;
     }
   }
@@ -222,6 +286,11 @@ export class NBAStatsService {
         homeTeamWins: 0,
         awayTeamWins: 0,
         averagePointsDiff: 0,
+        averagePointsHome: 0,
+        averagePointsAway: 0,
+        averageTotalPoints: 0,
+        lastMeetingDate: '',
+        lastMeetingResult: 'No previous meetings'
       };
     } catch (error) {
       console.error(`[NBAStatsService] Error getting H2H stats for ${team1Name} vs ${team2Name}:`, error);

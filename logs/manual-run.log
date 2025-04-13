@@ -1,0 +1,166 @@
+🔄 Starting odds update and picks generation process...
+📊 Fetching fresh odds data...
+🏀 🏈 ⚾ Starting odds refresh...
+Fetching odds for MLB...
+Fetching odds for NBA...
+✅ Received 15 MLB games from API
+✅ Received 6 NBA games from API
+Found odds for 21 games in total.
+Game not found in database: mlb-game-9d50919466bee6461e872169c1d26945 (Colorado Rockies @ San Diego Padres)
+Game not found in database: nba-game-2e9da98e76a5b665386f10ebc840883a (Dallas Mavericks @ Memphis Grizzlies)
+Game not found in database: nba-game-85d8ce495d552918d4ac47c5116c9c3b (Los Angeles Clippers @ Golden State Warriors)
+Game not found in database: nba-game-12b46f184c1fdead46e57fbcea9406ad (Atlanta Hawks @ Orlando Magic)
+Game not found in database: nba-game-bd807e6a63c25eaf7a43a16336214448 (Miami Heat @ Chicago Bulls)
+Game not found in database: nba-game-c4de550e514303c8312d6220eb4e7b81 (Detroit Pistons @ New York Knicks)
+Game not found in database: nba-game-dd4fe49dffbd03c82bc2ab06ea1caaac (Milwaukee Bucks @ Indiana Pacers)
+✅ Updated odds for Philadelphia Phillies @ St. Louis Cardinals
+✅ Updated odds for San Francisco Giants @ New York Yankees
+✅ Updated odds for Boston Red Sox @ Chicago White Sox
+✅ Updated odds for New York Mets @ Oakland Athletics
+✅ Updated odds for Washington Nationals @ Miami Marlins
+✅ Updated odds for Los Angeles Angels @ Houston Astros
+✅ Updated odds for Detroit Tigers @ Minnesota Twins
+✅ Updated odds for Pittsburgh Pirates @ Cincinnati Reds
+✅ Updated odds for Atlanta Braves @ Tampa Bay Rays
+✅ Updated odds for Chicago Cubs @ Los Angeles Dodgers
+✅ Updated odds for Toronto Blue Jays @ Baltimore Orioles
+✅ Updated odds for Texas Rangers @ Seattle Mariners
+✅ Updated odds for Kansas City Royals @ Cleveland Guardians
+✅ Updated odds for Milwaukee Brewers @ Arizona Diamondbacks
+✅ Successfully updated odds for 14 games.
+🎲 Generating daily picks with updated odds...
+🔍 Starting daily picks generation...
+✅ Server is already running
+🎮 Generating today's game predictions...
+📊 Today's picks:
+====================
+TODAY'S TOP PREDICTIONS (Apr 12, 2025)
+==============================================
+
+MLB GAMES
+--------------
+
+Philadelphia Phillies @ St. Louis Cardinals - 1:15 PM
+  (No odds available for this game)
+  SPREAD:    Philadelphia Phillies -0  | Confidence: 82.0% | Grade: B
+    Analysis: Strong value on run line based on pitching matchup and significant team strength differentials.
+  MONEYLINE: St. Louis Cardinals +100  | Confidence: 85.0% | Grade: A
+    Analysis: Very high win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     UNDER 0                   | Confidence: 80.0% | Grade: B
+    Analysis: Solid trend indicates pitching will contain scoring below the line.
+
+San Francisco Giants @ New York Yankees - 2:05 PM
+  (No odds available for this game)
+  SPREAD:    San Francisco Giants -0   | Confidence: 77.0% | Grade: B
+    Analysis: Strong value on run line based on pitching matchup and notable team strength differentials.
+  MONEYLINE: New York Yankees -110     | Confidence: 77.0% | Grade: B
+    Analysis: High win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     UNDER 0                   | Confidence: 72.0% | Grade: B
+
+Toronto Blue Jays @ Baltimore Orioles - 3:05 PM
+  (No odds available for this game)
+  SPREAD:    Toronto Blue Jays -0      | Confidence: 90.0% | Grade: A
+    Analysis: Strong value on run line based on pitching matchup and significant team strength differentials.
+  TOTAL:     UNDER 0                   | Confidence: 90.0% | Grade: A
+    Analysis: Strong trend indicates pitching will contain scoring below the line.
+  MONEYLINE: Baltimore Orioles -110    | Confidence: 90.0% | Grade: A
+    Analysis: Very high win probability factoring in pitching advantage, batting metrics, and home/away splits.
+
+New York Mets @ Oakland Athletics - 3:06 PM
+  (No odds available for this game)
+  SPREAD:    New York Mets -0          | Confidence: 74.0% | Grade: B
+  MONEYLINE: Oakland Athletics -110    | Confidence: 76.0% | Grade: B
+    Analysis: High win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     UNDER 0                   | Confidence: 71.0% | Grade: B
+
+Washington Nationals @ Miami Marlins - 3:10 PM
+  (No odds available for this game)
+  SPREAD:    Washington Nationals -0   | Confidence: 86.0% | Grade: A
+    Analysis: Strong value on run line based on pitching matchup and significant team strength differentials.
+  MONEYLINE: Miami Marlins -110        | Confidence: 84.0% | Grade: B
+    Analysis: High win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     UNDER 0                   | Confidence: 88.0% | Grade: A
+    Analysis: Strong trend indicates pitching will contain scoring below the line.
+
+Boston Red Sox @ Chicago White Sox - 3:10 PM
+  (No odds available for this game)
+  SPREAD:    Boston Red Sox -0         | Confidence: 77.0% | Grade: B
+    Analysis: Strong value on run line based on pitching matchup and notable team strength differentials.
+  TOTAL:     UNDER 0                   | Confidence: 74.0% | Grade: B
+  MONEYLINE: Chicago White Sox +100    | Confidence: 77.0% | Grade: B
+    Analysis: High win probability factoring in pitching advantage, batting metrics, and home/away splits.
+
+Atlanta Braves @ Tampa Bay Rays - 3:10 PM
+  (No odds available for this game)
+  SPREAD:    Atlanta Braves -0         | Confidence: 78.0% | Grade: B
+    Analysis: Strong value on run line based on pitching matchup and notable team strength differentials.
+  MONEYLINE: Tampa Bay Rays -142       | Confidence: 78.0% | Grade: B
+    Analysis: High win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     UNDER 0                   | Confidence: 75.0% | Grade: B
+    Analysis: Solid trend indicates pitching will contain scoring below the line.
+
+Kansas City Royals @ Cleveland Guardians - 5:10 PM
+  (No odds available for this game)
+  SPREAD:    Kansas City Royals -0     | Confidence: 75.0% | Grade: B
+    Analysis: Strong value on run line based on pitching matchup and notable team strength differentials.
+  MONEYLINE: Cleveland Guardians -110  | Confidence: 81.0% | Grade: B
+    Analysis: High win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     UNDER 0                   | Confidence: 83.0% | Grade: B
+    Analysis: Solid trend indicates pitching will contain scoring below the line.
+
+Pittsburgh Pirates @ Cincinnati Reds - 5:41 PM
+  (No odds available for this game)
+  SPREAD:    Pittsburgh Pirates -0     | Confidence: 73.0% | Grade: B
+  TOTAL:     UNDER 0                   | Confidence: 72.0% | Grade: B
+  MONEYLINE: Cincinnati Reds -110      | Confidence: 72.0% | Grade: B
+
+Los Angeles Angels @ Houston Astros - 6:10 PM
+  (No odds available for this game)
+  SPREAD:    Los Angeles Angels -0     | Confidence: 90.0% | Grade: A
+    Analysis: Strong value on run line based on pitching matchup and significant team strength differentials.
+  MONEYLINE: Houston Astros -142       | Confidence: 90.0% | Grade: A
+    Analysis: Very high win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     UNDER 0                   | Confidence: 90.0% | Grade: A
+    Analysis: Strong trend indicates pitching will contain scoring below the line.
+
+Milwaukee Brewers @ Arizona Diamondbacks - 7:10 PM
+  (No odds available for this game)
+  SPREAD:    Milwaukee Brewers -0      | Confidence: 78.0% | Grade: B
+    Analysis: Strong value on run line based on pitching matchup and notable team strength differentials.
+  MONEYLINE: Arizona Diamondbacks -110 | Confidence: 78.0% | Grade: B
+    Analysis: High win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     UNDER 0                   | Confidence: 77.0% | Grade: B
+    Analysis: Solid trend indicates pitching will contain scoring below the line.
+
+Chicago Cubs @ Los Angeles Dodgers - 8:10 PM
+  (No odds available for this game)
+  SPREAD:    Chicago Cubs -0           | Confidence: 86.0% | Grade: A
+    Analysis: Strong value on run line based on pitching matchup and significant team strength differentials.
+  TOTAL:     UNDER 0                   | Confidence: 86.0% | Grade: A
+    Analysis: Strong trend indicates pitching will contain scoring below the line.
+  MONEYLINE: Los Angeles Dodgers -110  | Confidence: 85.0% | Grade: A
+    Analysis: Very high win probability factoring in pitching advantage, batting metrics, and home/away splits.
+
+Texas Rangers @ Seattle Mariners - 8:40 PM
+  (No odds available for this game)
+  SPREAD:    Texas Rangers -0          | Confidence: 88.0% | Grade: A
+    Analysis: Strong value on run line based on pitching matchup and significant team strength differentials.
+  MONEYLINE: Seattle Mariners -110     | Confidence: 87.0% | Grade: A
+    Analysis: Very high win probability factoring in pitching advantage, batting metrics, and home/away splits.
+  TOTAL:     OVER 0                    | Confidence: 90.0% | Grade: A
+    Analysis: Strong trend indicates offensive output will exceed the line.
+
+
+📧 Sending email to jakobwiley@gmail.com...
+Reading predictions file...
+Sending email...
+Sending email to jakobwiley@gmail.com with subject "AI-BET Predictions for Apr 12, 2025"
+Email body length: 7173 characters
+Email sent successfully to jakobwiley@gmail.com
+📧 Email sent!
+
+✅ Done! You can find the picks in todays-picks.txt
+🛑 The development server is running in the background. To stop it, run: pkill -f next
+✅ Process completed successfully!
+📝 You can find your picks in todays-picks.txt
+📧 An email with your picks has been sent to the configured address.

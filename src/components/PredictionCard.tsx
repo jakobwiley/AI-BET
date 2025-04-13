@@ -1,80 +1,93 @@
+'use client';
+
+import React from 'react';
 import { Prediction } from '@/models/types';
-import { motion } from 'framer-motion';
+import { formatPredictionType } from '@/utils/formatting';
 
 interface PredictionCardProps {
   prediction: Prediction;
 }
 
-const PredictionCard = ({ prediction }: PredictionCardProps) => {
-  // Function to format the confidence as a percentage
-  const formatConfidence = (confidence: number) => {
-    return `${Math.round(confidence * 100)}%`;
+const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
+  // Format confidence value
+  const formatConfidence = (confidence: number | null | undefined): string => {
+    if (confidence === null || confidence === undefined) {
+      return 'PENDING';
+    }
+    const clampedConfidence = Math.min(100, Math.max(0, confidence));
+    return `${clampedConfidence.toFixed(1)}%`;
   };
 
-  // Function to determine the confidence indicator color
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'bg-green-500';
-    if (confidence >= 0.6) return 'bg-yellow-500';
+  // Get confidence color classes
+  const getConfidenceColor = (confidence: number | null | undefined): string => {
+    if (confidence === null || confidence === undefined) {
+      return 'bg-gray-500'; // Gray for pending
+    }
+    const clampedConfidence = Math.min(100, Math.max(0, confidence));
+    if (clampedConfidence >= 70) return 'bg-green-500';
+    if (clampedConfidence >= 50) return 'bg-yellow-500';
     return 'bg-red-500';
   };
 
-  // Format prediction type for display
-  const formatPredictionType = (type: string) => {
-    switch (type) {
+  // Format prediction value
+  const formatPredictionValue = (prediction: Prediction): string => {
+    switch (prediction.predictionType) {
       case 'SPREAD':
-        return 'Point Spread';
+        return `${prediction.predictionValue > 0 ? '+' : ''}${prediction.predictionValue}`;
       case 'MONEYLINE':
-        return 'Moneyline';
-      case 'OVER_UNDER':
-        return 'Over/Under';
+        return `${prediction.predictionValue > 0 ? '+' : ''}${prediction.predictionValue}`;
+      case 'TOTAL':
+        return `O/U ${prediction.predictionValue}`;
       default:
-        return type.replace('_', ' ').toLowerCase();
+        return prediction.predictionValue?.toString() || 'N/A';
+    }
+  };
+
+  // Get grade display
+  const getGradeDisplay = (prediction: Prediction): string => {
+    return prediction.grade || 'PENDING';
+  }
+
+  // Get grade background color
+  const getGradeColor = (grade: string | null | undefined): string => {
+    if (!grade || grade === 'PENDING') return 'bg-gray-500';
+    switch (grade) {
+      case 'A': return 'bg-green-500';
+      case 'B': return 'bg-blue-500';
+      case 'C': return 'bg-yellow-500';
+      default: return 'bg-red-500';
     }
   };
 
   return (
-    <motion.div 
-      whileHover={{ scale: 1.01 }}
-      className="bg-gray-800 rounded-xl overflow-hidden shadow-lg mb-4 p-4"
-    >
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h3 className="text-white font-bold text-lg">{formatPredictionType(prediction.predictionType)}</h3>
-          <p className="text-blue-400 text-lg font-medium">
-            {prediction.predictionValue}
-          </p>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-gray-400 text-xs">Confidence</span>
-          <div className="flex items-center">
-            <span className={`w-2 h-2 rounded-full mr-1 ${getConfidenceColor(prediction.confidence)}`}></span>
-            <span className="text-white font-bold">
-              {formatConfidence(prediction.confidence)}
-            </span>
-          </div>
-        </div>
+    <div className="bg-gray-800 rounded-xl overflow-hidden shadow-lg">
+      <div className="bg-gray-700 px-4 py-2 border-b border-gray-600">
+        <h3 className="font-medium text-gray-200">{formatPredictionType(prediction.predictionType)}</h3>
       </div>
       
-      <div className="bg-gray-700 rounded-lg p-3 mb-3">
-        <h4 className="text-gray-300 text-sm mb-1">Reasoning</h4>
-        <p className="text-gray-200 text-sm">{prediction.reasoning}</p>
-      </div>
-      
-      {prediction.outcome && (
-        <div className="mt-2 pt-2 border-t border-gray-700">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-300">Outcome</span>
-            <span className={`font-medium ${
-              prediction.outcome === 'WIN' ? 'text-green-500' : 
-              prediction.outcome === 'LOSS' ? 'text-red-500' : 
-              'text-yellow-500'
-            }`}>
-              {prediction.outcome}
-            </span>
-          </div>
+      <div className="p-4">
+        <div className="text-2xl font-bold mb-2 text-white">
+          {formatPredictionValue(prediction)}
         </div>
-      )}
-    </motion.div>
+        
+        <div className="flex items-center mb-3">
+          <span data-testid="confidence-indicator" className={`w-2 h-2 rounded-full mr-1 ${getConfidenceColor(prediction.confidence)}`} />
+          <span className="text-white font-bold">
+            {formatConfidence(prediction.confidence)}
+          </span>
+          <span className={`ml-2 px-2 py-0.5 text-xs text-white rounded-full ${getGradeColor(prediction.grade)}`}>
+            Grade: {getGradeDisplay(prediction)}
+          </span>
+        </div>
+        
+        {prediction.reasoning && (
+          <div className="text-sm text-gray-300 mt-3">
+            <div className="font-medium mb-1">Reasoning:</div>
+            <p>{prediction.reasoning}</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

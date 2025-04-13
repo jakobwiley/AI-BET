@@ -66,17 +66,17 @@ export class PredictorModel {
     // Calculate standard factors
     const homeWinPct = homeStats.wins / (homeStats.wins + homeStats.losses || 1);
     const awayWinPct = awayStats.wins / (awayStats.wins + awayStats.losses || 1);
-    const homeHomeWinPct = homeStats.homeWins / (homeStats.homeWins + homeStats.homeLosses || 1);
-    const awayAwayWinPct = awayStats.awayWins / (awayStats.awayWins + awayStats.awayLosses || 1);
+    const homeHomeWinPct = homeStats.homeWinPercentage ?? 0.5;
+    const awayAwayWinPct = awayStats.awayWinPercentage ?? 0.5;
     
     // Calculate normalized factors (0.5 means neutral, >0.5 favors home, <0.5 favors away)
     const overallRecordFactor = (homeWinPct - awayWinPct + 1) / 2;
     const homeAwaySplitFactor = (homeHomeWinPct - awayAwayWinPct + 1) / 2;
     
     // Recent form (last 10 games)
-    const homeRecentWinPct = homeStats.lastTenWins / 10;
-    const awayRecentWinPct = awayStats.lastTenWins / 10;
-    const recentFormFactor = (homeRecentWinPct - awayRecentWinPct + 1) / 2;
+    const homeRecentWins = parseInt(homeStats.lastTenGames?.split('-')[0] ?? '0');
+    const awayRecentWins = parseInt(awayStats.lastTenGames?.split('-')[0] ?? '0');
+    const recentFormFactor = (homeRecentWins - awayRecentWins + 10) / 20;
     
     // Head-to-head factor
     let headToHeadFactor = 0.5; // Default to neutral
@@ -87,16 +87,14 @@ export class PredictorModel {
     
     // Scoring differential factor
     let scoringDiffFactor = 0.5; // Default to neutral
-    if (sport === 'NBA' && homeStats.avgPointsScored && homeStats.avgPointsAllowed && 
-        awayStats.avgPointsScored && awayStats.avgPointsAllowed) {
-      const homeNetRating = homeStats.avgPointsScored - homeStats.avgPointsAllowed;
-      const awayNetRating = awayStats.avgPointsScored - awayStats.avgPointsAllowed;
+    if (sport === 'NBA') {
+      const homeNetRating = (homeStats.pointsFor ?? 0) - (homeStats.pointsAgainst ?? 0);
+      const awayNetRating = (awayStats.pointsFor ?? 0) - (awayStats.pointsAgainst ?? 0);
       // Normalize to 0-1 range (assuming reasonable NBA scoring differences)
       scoringDiffFactor = ((homeNetRating - awayNetRating) / 20) + 0.5;
-    } else if (sport === 'MLB' && homeStats.avgRunsScored && homeStats.avgRunsAllowed &&
-               awayStats.avgRunsScored && awayStats.avgRunsAllowed) {
-      const homeRunDiff = homeStats.avgRunsScored - homeStats.avgRunsAllowed;
-      const awayRunDiff = awayStats.avgRunsScored - awayStats.avgRunsAllowed;
+    } else if (sport === 'MLB') {
+      const homeRunDiff = (homeStats.runsScored ?? 0) - (homeStats.runsAllowed ?? 0);
+      const awayRunDiff = (awayStats.runsScored ?? 0) - (awayStats.runsAllowed ?? 0);
       // Normalize to 0-1 range (assuming reasonable MLB run differences)
       scoringDiffFactor = ((homeRunDiff - awayRunDiff) / 3) + 0.5;
     }
@@ -127,7 +125,6 @@ export class PredictorModel {
       };
     } else if (sport === 'MLB') {
       // MLB specific factors
-      // These would need to be implemented with real data
       const pitcherMatchupFactor = 0.5; // Placeholder
       const teamPitchingFactor = this.calculateMlbTeamPitchingFactor(homeStats, awayStats);
       const batterHandednessFactor = 0.5; // Placeholder
@@ -172,8 +169,8 @@ export class PredictorModel {
       confidence = 0.5 + (confidence - 0.5) * (1 / totalWeight);
     }
     
-    // Bound confidence to 0.05-0.95 range
-    confidence = Math.max(0.05, Math.min(0.95, confidence));
+    // Bound confidence to 0-1 range
+    confidence = Math.max(0, Math.min(1, confidence));
     
     // Convert to 0-100 scale
     return Math.round(confidence * 100);
@@ -225,18 +222,13 @@ export class PredictorModel {
    * MLB specific calculation functions
    */
   private static calculateMlbTeamPitchingFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.teamERA || !homeStats.teamWHIP || 
-        !awayStats.teamERA || !awayStats.teamWHIP) return 0.5;
+    if (!homeStats.era || !awayStats.era) return 0.5;
     
-    // For ERA and WHIP, lower is better
-    const eraDiff = awayStats.teamERA - homeStats.teamERA;
-    const whipDiff = awayStats.teamWHIP - homeStats.teamWHIP;
+    // For ERA, lower is better
+    const eraDiff = (awayStats.era ?? 0) - (homeStats.era ?? 0);
     
-    // Normalize and combine
-    const eraNormalized = Math.max(0, Math.min(1, (eraDiff / 2) + 0.5)); // 2 ERA difference is significant
-    const whipNormalized = Math.max(0, Math.min(1, (whipDiff / 0.4) + 0.5)); // 0.4 WHIP difference is significant
-    
-    return (eraNormalized * 0.6) + (whipNormalized * 0.4); // Weight ERA slightly more
+    // Normalize ERA difference (2 ERA difference is significant)
+    return Math.max(0, Math.min(1, (eraDiff / 2) + 0.5));
   }
   
   private static calculateMlbBallparkFactor(homeTeam: string): number {

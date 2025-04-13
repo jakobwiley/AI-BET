@@ -1,5 +1,6 @@
 import { Game, SportType, GameStatus } from '../models/types';
 import axios from 'axios';
+import { handleSportsApiError } from './errors';
 
 interface OddsOutcome {
   name: string;
@@ -63,11 +64,27 @@ export class OddsApiService {
   }
 
   private transformEventToGame(event: OddsEvent, sport: SportType): Game {
+    // Generate a consistent game ID with sport prefix
+    const sportPrefix = sport.toLowerCase();
+    const gameId = `${sportPrefix}-game-${event.id}`;
+    
     // Specifically look for DraftKings odds
     const bookmaker = event.bookmakers?.find(b => b.key === 'draftkings') || event.bookmakers?.[0];
+    
+    // Determine game status based on commence_time
+    const gameTime = new Date(event.commence_time);
+    const now = new Date();
+    let status = GameStatus.SCHEDULED;
+    
+    if (gameTime < now) {
+      status = GameStatus.FINAL;
+    } else if (Math.abs(gameTime.getTime() - now.getTime()) < 3 * 60 * 60 * 1000) { // Within 3 hours
+      status = GameStatus.IN_PROGRESS;
+    }
+
     if (!bookmaker) {
       return {
-        id: event.id,
+        id: gameId,
         sport,
         homeTeamId: event.home_team.toLowerCase().replace(/\s+/g, '-'),
         awayTeamId: event.away_team.toLowerCase().replace(/\s+/g, '-'),
@@ -75,7 +92,7 @@ export class OddsApiService {
         awayTeamName: event.away_team,
         gameDate: event.commence_time,
         startTime: new Date(event.commence_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }),
-        status: GameStatus.SCHEDULED,
+        status,
         odds: { spread: undefined, total: undefined, moneyline: undefined },
         probableHomePitcherName: undefined,
         probableAwayPitcherName: undefined
@@ -88,7 +105,7 @@ export class OddsApiService {
     const totalsMarket = markets.find(m => m.key === 'totals');
 
     return {
-      id: event.id,
+      id: gameId,
       sport,
       homeTeamId: event.home_team.toLowerCase().replace(/\s+/g, '-'),
       awayTeamId: event.away_team.toLowerCase().replace(/\s+/g, '-'),
@@ -96,7 +113,7 @@ export class OddsApiService {
       awayTeamName: event.away_team,
       gameDate: event.commence_time,
       startTime: new Date(event.commence_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }),
-      status: GameStatus.SCHEDULED,
+      status,
       odds: {
         spread: spreadsMarket?.outcomes?.length === 2 ? {
           homeSpread: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0,
@@ -137,7 +154,8 @@ export class OddsApiService {
             regions: 'us',
             markets: 'spreads,totals,h2h',
             oddsFormat: 'american',
-            bookmakers: 'draftkings'  // Specifically request DraftKings odds
+            bookmakers: 'draftkings',  // Specifically request DraftKings odds
+            dateFormat: 'iso'
           }
         });
 
@@ -151,7 +169,19 @@ export class OddsApiService {
           return [];
         }
         
-        const games = response.data.map(event => this.transformEventToGame(event, sport));
+        // Filter for games happening today or tomorrow
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(23, 59, 59, 999);
+
+        const games = response.data
+          .filter(event => {
+            const gameDate = new Date(event.commence_time);
+            return gameDate >= now && gameDate <= tomorrow;
+          })
+          .map(event => this.transformEventToGame(event, sport));
+
         console.log(`[OddsApiService] Fetched and transformed ${games.length} ${sport} games.`);
         this.setCache(cacheKey, games);
         return games;
@@ -167,15 +197,8 @@ export class OddsApiService {
       return [...nbaGames, ...mlbGames];
     } catch (error) {
       console.error(`[OddsApiService] Error fetching games for ${sport || 'all'}:`, error);
-      if (axios.isAxiosError(error)) {
-        console.error('[OddsApiService] Axios error details:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          headers: error.response?.headers,
-          config: error.config,
-        });
-      }
-      return [];
+      handleSportsApiError(error, `fetching games for ${sport || 'all'}`);
+      return []; // This line will never be reached due to handleSportsApiError throwing
     }
   }
 
@@ -199,7 +222,7 @@ export class OddsApiService {
     const sportKey = this.sportMapping[sport];
     
     try {
-      const response = await axios.get(`${this.BASE_URL}/sports/${sportKey}/events/${gameId}/odds`, {
+      const response = await axios.get<OddsEvent>(`${this.BASE_URL}/sports/${sportKey}/events/${gameId}/odds`, {
         params: {
           apiKey: this.API_KEY,
           dateFormat: 'iso',
@@ -221,8 +244,8 @@ export class OddsApiService {
 
     } catch (error) {
       console.error(`[OddsApiService] Error fetching external game ${gameId}:`, error);
-      // Handle 404 specifically?
-      return null;
+      handleSportsApiError(error, `fetching external game ${gameId}`);
+      return null; // This line will never be reached due to handleSportsApiError throwing
     }
   }
 } 

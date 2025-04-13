@@ -2,9 +2,10 @@ import axios from 'axios';
 import { TeamStats, H2HStats } from './predictionService';
 import { CacheService } from './cacheService';
 
-const NBA_API_BASE_URL = process.env.NBA_API_URL || 'http://localhost:5000';
+const NBA_API_BASE_URL = 'https://stats.nba.com/stats';
 const FALLBACK_TO_BALLDONTLIE = process.env.USE_BALLDONTLIE_FALLBACK === 'true';
 const BALLDONTLIE_BASE_URL = 'https://www.balldontlie.io/api/v1';
+const CURRENT_NBA_SEASON = 2024;
 
 interface NbaApiTeam {
   id: number;
@@ -14,6 +15,107 @@ interface NbaApiTeam {
   city: string;
   state: string;
   year_founded: number;
+  conference: string;
+  division: string;
+}
+
+interface BallDontLieTeam {
+  id: number;
+  full_name: string;
+  name: string;
+  city: string;
+  conference: string;
+  division: string;
+  abbreviation: string;
+}
+
+interface BallDontLieResponse<T> {
+  data: T[];
+  meta: {
+    total_pages: number;
+    current_page: number;
+    next_page: number;
+    per_page: number;
+    total_count: number;
+  };
+}
+
+interface NbaTeamStats {
+  teamSitesOnly: {
+    teamName: string;
+  };
+  win: string;
+  loss: string;
+  winPct: string;
+  homeWin: string;
+  homeLoss: string;
+  awayWin: string;
+  awayLoss: string;
+  lastTenWin: string;
+  lastTenLoss: string;
+  streak: string;
+  pointsFor: string;
+  pointsAgainst: string;
+}
+
+interface NbaStatsResponse {
+  league: {
+    standard: NbaTeamStats[];
+  };
+}
+
+interface NbaGame {
+  gameId: string;
+  gameDate: string;
+  status: {
+    abstractGameState: string;
+  };
+  teams: {
+    home: {
+      team: {
+        id: number;
+      };
+      score: number;
+    };
+    away: {
+      team: {
+        id: number;
+      };
+      score: number;
+    };
+  };
+}
+
+interface NbaScheduleResponse {
+  dates: Array<{
+    games: NbaGame[];
+  }>;
+}
+
+interface GameResponse {
+  data: Array<{
+    id: number;
+    status: string;
+    home_team_score: number;
+    visitor_team_score: number;
+    season: number;
+    period: number;
+    home_team: {
+      id: number;
+      name: string;
+    };
+    visitor_team: {
+      id: number;
+      name: string;
+    };
+  }>;
+  meta: {
+    total_pages: number;
+    current_page: number;
+    next_page: number;
+    per_page: number;
+    total_count: number;
+  };
 }
 
 export class NBAApiService {
@@ -84,21 +186,23 @@ export class NBAApiService {
       if (FALLBACK_TO_BALLDONTLIE) {
         try {
           console.log('[NBAApiService] Falling back to BallDontLie for teams');
-          const bdlResponse = await axios.get(`${BALLDONTLIE_BASE_URL}/teams`);
-          const bdlTeams = bdlResponse.data.data.map((t: any) => ({
+          const bdlResponse = await axios.get<BallDontLieResponse<BallDontLieTeam>>(`${BALLDONTLIE_BASE_URL}/teams`);
+          const bdlTeams: NbaApiTeam[] = bdlResponse.data.data.map((t: BallDontLieTeam) => ({
             id: t.id,
             full_name: t.full_name,
             name: t.name,
             abbreviation: t.abbreviation,
             city: t.city,
             state: '', // BallDontLie doesn't provide state
-            year_founded: 0 // BallDontLie doesn't provide year_founded
+            year_founded: 0, // BallDontLie doesn't provide year_founded
+            conference: t.conference,
+            division: t.division
           }));
           this.cacheService.set(cacheKey, bdlTeams, 24 * 60 * 60); // Cache for 24 hours
           return bdlTeams;
-        } catch (bdlError) {
-          console.error('[NBAApiService] Fallback to BallDontLie also failed:', bdlError);
-          throw bdlError;
+        } catch (error) {
+          console.error('[NBAApiService] Error fetching teams from BallDontLie:', error);
+          return [];
         }
       }
       
@@ -107,87 +211,41 @@ export class NBAApiService {
   }
   
   public static async getTeamStats(teamName: string): Promise<TeamStats | null> {
-    const teamId = await this.getTeamId(teamName);
-    if (!teamId) {
-      console.error(`[NBAApiService] Cannot fetch stats for ${teamName} due to missing ID.`);
-      return null;
-    }
-    
-    const cacheKey = `nba_team_stats_${teamId}`;
-    const cachedStats = this.cacheService.get<TeamStats>(cacheKey);
-    if (cachedStats) {
-      return cachedStats;
-    }
-    
     try {
-      // Fetch team stats from our NBA API
-      const response = await axios.get(`${NBA_API_BASE_URL}/teams/${teamId}/stats`);
-      const statsData = response.data;
-      
-      // Process the raw stats data into our TeamStats interface
-      const basicData = statsData.basic.resultSets[0];
-      const advancedData = statsData.advanced.resultSets[0];
-      
-      // Find the headers and the row data
-      const headers = basicData.headers;
-      const row = basicData.rowSet[0];
-      
-      // Map header names to indices
-      const headerMap: Record<string, number> = {};
-      headers.forEach((header: string, index: number) => {
-        headerMap[header] = index;
-      });
-      
-      // Extract advanced metrics
-      const advHeaderMap: Record<string, number> = {};
-      advancedData.headers.forEach((header: string, index: number) => {
-        advHeaderMap[header] = index;
-      });
-      const advRow = advancedData.rowSet[0];
-      
-      // Calculate derived fields
-      const wins = row[headerMap.W] || 0;
-      const losses = row[headerMap.L] || 0;
-      const homeWins = row[headerMap.HOME_WINS] || 0;
-      const homeLosses = row[headerMap.HOME_LOSSES] || 0;
-      const awayWins = row[headerMap.ROAD_WINS] || 0;
-      const awayLosses = row[headerMap.ROAD_LOSSES] || 0;
-      // NBA API doesn't directly provide last 10, we'd need to compute it
-      const lastTenWins = Math.floor(Math.random() * 11); // Placeholder - would need separate API call
-      
-      // Build TeamStats object
-      const teamStats: TeamStats = {
-        wins,
-        losses,
-        homeWins,
-        homeLosses,
-        awayWins,
-        awayLosses,
-        lastTenWins,
-        avgPointsScored: row[headerMap.PTS] || 0,
-        avgPointsAllowed: row[headerMap.OPP_PTS] || 0,
-        pace: advRow ? advRow[advHeaderMap.PACE] : undefined,
-        offensiveRating: advRow ? advRow[advHeaderMap.OFF_RATING] : undefined,
-        defensiveRating: advRow ? advRow[advHeaderMap.DEF_RATING] : undefined
-      };
-      
-      this.cacheService.set(cacheKey, teamStats, 6 * 60 * 60); // Cache for 6 hours
-      return teamStats;
-    } catch (error) {
-      console.error(`[NBAApiService] Error fetching stats for ${teamName}:`, error);
-      
-      // Fall back to BallDontLie if enabled
-      if (FALLBACK_TO_BALLDONTLIE) {
-        try {
-          console.log(`[NBAApiService] Falling back to BallDontLie for ${teamName} stats`);
-          // Call the legacy implementation or a simplified version of it
-          return this.getTeamStatsFromBallDontLie(teamName, teamId);
-        } catch (bdlError) {
-          console.error(`[NBAApiService] Fallback to BallDontLie also failed for ${teamName}:`, bdlError);
-          return null;
-        }
+      const response = await axios.get<NbaStatsResponse>(`${NBA_API_BASE_URL}/standings/standard/${CURRENT_NBA_SEASON}`);
+      const statsData = response.data.league.standard;
+      if (!statsData || !Array.isArray(statsData)) {
+        console.error('[NBAApiService] Invalid stats data format');
+        return null;
       }
-      
+
+      const teamData = statsData.find(team => team.teamSitesOnly?.teamName?.toLowerCase() === teamName.toLowerCase());
+      if (!teamData) {
+        console.error(`[NBAApiService] Stats not found for team: ${teamName}`);
+        return null;
+      }
+
+      // Convert string values to numbers
+      const stats: TeamStats = {
+        wins: parseInt(teamData.win),
+        losses: parseInt(teamData.loss),
+        homeWins: parseInt(teamData.homeWin),
+        homeLosses: parseInt(teamData.homeLoss),
+        awayWins: parseInt(teamData.awayWin),
+        awayLosses: parseInt(teamData.awayLoss),
+        pointsFor: parseInt(teamData.pointsFor),
+        pointsAgainst: parseInt(teamData.pointsAgainst),
+        lastTenGames: `${teamData.lastTenWin}-${teamData.lastTenLoss}`,
+        streak: parseInt(teamData.streak),
+        winPercentage: parseFloat(teamData.winPct),
+        homeWinPercentage: parseInt(teamData.homeWin) / (parseInt(teamData.homeWin) + parseInt(teamData.homeLoss) || 1),
+        awayWinPercentage: parseInt(teamData.awayWin) / (parseInt(teamData.awayWin) + parseInt(teamData.awayLoss) || 1),
+        lastTenWins: parseInt(teamData.lastTenWin)
+      };
+
+      return stats;
+    } catch (error) {
+      console.error(`[NBAApiService] Error fetching team stats for ${teamName}:`, error);
       return null;
     }
   }
@@ -198,20 +256,32 @@ export class NBAApiService {
       console.log(`[NBAApiService] Fetching BDL games for ${teamName} (ID: ${teamId}) for season ${season}`);
       
       // Fetch games to calculate W/L record
-      const response = await axios.get(`${BALLDONTLIE_BASE_URL}/games`, {
+      const response = await axios.get<GameResponse>(`${BALLDONTLIE_BASE_URL}/games`, {
         params: {
-          'seasons[]': [season],
-          'team_ids[]': [teamId],
-          per_page: 100,
-          postseason: false
+          seasons: [season],
+          team_ids: [teamId],
+          per_page: 100
         }
       });
       
-      const games = response.data.data.filter((g: any) => g.status === 'Final');
+      const games = response.data.data.filter(g => g.status === 'Final');
       if (games.length === 0) {
         console.warn(`[NBAApiService] No completed games found for ${teamName} in season ${season}`);
         return {
-          wins: 0, losses: 0, homeWins: 0, homeLosses: 0, awayWins: 0, awayLosses: 0, lastTenWins: 0
+          wins: 0,
+          losses: 0,
+          homeWins: 0,
+          homeLosses: 0,
+          awayWins: 0,
+          awayLosses: 0,
+          lastTenWins: 0,
+          pointsFor: 0,
+          pointsAgainst: 0,
+          lastTenGames: '0-0',
+          streak: 0,
+          winPercentage: 0,
+          homeWinPercentage: 0,
+          awayWinPercentage: 0
         };
       }
       
@@ -253,8 +323,13 @@ export class NBAApiService {
         awayWins,
         awayLosses,
         lastTenWins,
-        avgPointsScored: totalPointsScored / games.length,
-        avgPointsAllowed: totalPointsAllowed / games.length
+        pointsFor: totalPointsScored,
+        pointsAgainst: totalPointsAllowed,
+        lastTenGames: `${lastTenWins}-${10 - lastTenWins}`,
+        streak: 0, // TODO: Calculate actual streak
+        winPercentage: wins / (wins + losses || 1),
+        homeWinPercentage: homeWins / (homeWins + homeLosses || 1),
+        awayWinPercentage: awayWins / (awayWins + awayLosses || 1)
       };
     } catch (error) {
       console.error(`[NBAApiService] Error in BallDontLie fallback for ${teamName}:`, error);
@@ -262,14 +337,83 @@ export class NBAApiService {
     }
   }
   
-  public static async getH2HStats(team1Name: string, team2Name: string): Promise<H2HStats | null> {
-    // The NBA API doesn't have a direct H2H endpoint, we'd need to calculate this manually
-    // This is a placeholder implementation
-    console.warn(`[NBAApiService] getH2HStats is not fully implemented - returning placeholder data.`);
-    return {
-      totalGames: 0,
-      homeTeamWins: 0,
-      awayTeamWins: 0
-    };
+  public static async getH2HStats(homeTeamName: string, awayTeamName: string): Promise<H2HStats | null> {
+    try {
+      interface ScheduleResponse {
+        dates: Array<{
+          games: Array<{
+            gameId: string;
+            gameDate: string;
+            status: {
+              abstractGameState: string;
+            };
+            teams: {
+              home: {
+                team: {
+                  id: number;
+                };
+                score: number;
+              };
+              away: {
+                team: {
+                  id: number;
+                };
+                score: number;
+              };
+            };
+          }>;
+        }>;
+      }
+
+      const response = await axios.get(`${NBA_API_BASE_URL}/schedule`, {
+        params: { teamId: homeTeamName, opponentId: awayTeamName, season: CURRENT_NBA_SEASON }
+      });
+
+      const scheduleData = response.data as ScheduleResponse;
+      const h2hGames = scheduleData.dates.flatMap(date => date.games).filter(game => game.status.abstractGameState === 'Final');
+      if (h2hGames.length === 0) {
+        return {
+          totalGames: 0,
+          homeTeamWins: 0,
+          awayTeamWins: 0,
+          averagePointsDiff: 0,
+          lastMeetingDate: '',
+          lastMeetingResult: 'No previous meetings'
+        };
+      }
+
+      const stats: H2HStats = {
+        totalGames: h2hGames.length,
+        homeTeamWins: 0,
+        awayTeamWins: 0,
+        averagePointsDiff: 0,
+        lastMeetingDate: new Date(h2hGames[h2hGames.length - 1].gameDate).toISOString(),
+        lastMeetingResult: ''
+      };
+
+      let totalPointsDiff = 0;
+      h2hGames.forEach((game, index) => {
+        const homeScore = game.teams.home.score;
+        const awayScore = game.teams.away.score;
+        
+        if (homeScore > awayScore) {
+          stats.homeTeamWins++;
+        } else {
+          stats.awayTeamWins++;
+        }
+        
+        totalPointsDiff += (homeScore - awayScore);
+        
+        if (index === h2hGames.length - 1) {
+          stats.lastMeetingResult = `${homeTeamName} ${homeScore} - ${awayTeamName} ${awayScore}`;
+        }
+      });
+      
+      stats.averagePointsDiff = totalPointsDiff / stats.totalGames;
+      return stats;
+    } catch (error) {
+      console.error(`[NBAApiService] Error fetching H2H stats for ${homeTeamName} vs ${awayTeamName}:`, error);
+      return null;
+    }
   }
 } 
