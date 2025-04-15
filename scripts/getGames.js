@@ -1,49 +1,42 @@
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
+
 const prisma = new PrismaClient();
 
-async function main() {
+async function getGames() {
   try {
-    // Get today's date
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Get tomorrow's date
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    // Fetch NBA games for today
-    const nbaGames = await prisma.game.findMany({
+    const games = await prisma.game.findMany({
       where: {
-        sport: 'NBA',
         gameDate: {
-          gte: today,
-          lt: tomorrow
+          gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          lt: new Date(new Date().setHours(23, 59, 59, 999))
         }
       },
       include: {
         predictions: true
       }
     });
-    
-    // Fetch MLB games for today
-    const mlbGames = await prisma.game.findMany({
-      where: {
-        sport: 'MLB',
-        gameDate: {
-          gte: today,
-          lt: tomorrow
-        }
-      },
-      include: {
-        predictions: true
+
+    console.log('Today\'s Games:');
+    games.forEach(game => {
+      const odds = game.oddsJson ? JSON.parse(game.oddsJson) : {};
+      console.log(`\n${game.homeTeamName} vs ${game.awayTeamName}`);
+      console.log(`Status: ${game.status}`);
+      if (odds.spread) {
+        console.log(`Spread: ${odds.spread}`);
       }
+      if (odds.total) {
+        console.log(`Total: ${odds.total}`);
+      }
+      if (odds.moneyline) {
+        console.log(`Moneyline: Home ${odds.moneyline.home}, Away ${odds.moneyline.away}`);
+      }
+      console.log('Predictions:');
+      game.predictions.forEach(pred => {
+        console.log(`- Type: ${pred.predictionType}`);
+        console.log(`  Confidence: ${pred.confidence}`);
+        console.log(`  Outcome: ${pred.outcome}`);
+      });
     });
-    
-    console.log('NBA Games:');
-    console.log(JSON.stringify(nbaGames, null, 2));
-    
-    console.log('\nMLB Games:');
-    console.log(JSON.stringify(mlbGames, null, 2));
   } catch (error) {
     console.error('Error fetching games:', error);
   } finally {
@@ -51,4 +44,4 @@ async function main() {
   }
 }
 
-main(); 
+getGames(); 

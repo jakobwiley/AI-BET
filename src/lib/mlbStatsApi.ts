@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { TeamStats, H2HStats } from './predictionService';
 
 interface MLBTeam {
@@ -143,45 +143,6 @@ interface MLBPersonResponse {
 const BASE_URL = 'https://statsapi.mlb.com/api/v1';
 const CURRENT_MLB_SEASON = 2023; // Use 2023 season data since 2024 hasn't started
 
-interface TeamStats {
-  wins: number;
-  losses: number;
-  homeWins: number;
-  homeLosses: number;
-  awayWins: number;
-  awayLosses: number;
-  runsScored: number;
-  runsAllowed: number;
-  lastTenGames: string;
-  streak: number;
-  winPercentage: number;
-  lastTenWins: number;
-  battingAvgVsLHP: number;
-  battingAvgVsRHP: number;
-  opsVsLHP: number;
-  opsVsRHP: number;
-  teamERA: number;
-  teamWHIP: number;
-}
-
-interface MLBStatsResponse {
-  stats: Array<{
-    group?: string;
-    splits: Array<{
-      stat: {
-        runs?: number;
-        runsScoredAgainst?: number;
-        avg?: number;
-        ops?: number;
-        era?: number;
-        whip?: number;
-        vsLHP?: boolean;
-        vsRHP?: boolean;
-      };
-    }>;
-  }>;
-}
-
 interface TeamRecord {
   wins: number;
   losses: number;
@@ -195,6 +156,12 @@ interface TeamRecord {
   lastTenWins: number;
 }
 
+interface MLBScheduleResponse {
+  dates: Array<{
+    games: MLBGame[];
+  }>;
+}
+
 export class MLBStatsService {
   private static teamIdMap: Map<string, number> | null = null;
   private static teamFetchPromise: Promise<void> | null = null;
@@ -204,32 +171,24 @@ export class MLBStatsService {
   private static PITCHER_DETAILS_CACHE_DURATION = 24 * 60 * 60 * 1000; // Cache details for 24 hours
 
   private static async initializeTeamIdMap(): Promise<void> {
-    if (this.teamIdMap) return;
-    if (this.teamFetchPromise) return this.teamFetchPromise;
-
-    console.log("[MLBStatsService] Initializing team ID map...");
-    this.teamFetchPromise = axios.get<{ teams: MLBTeam[] }>(`${BASE_URL}/teams`, {
-      params: { sportId: 1, season: CURRENT_MLB_SEASON }
-    })
-      .then(response => {
-        const map = new Map<string, number>();
-        response.data.teams.forEach(team => {
-          const lowerCaseName = team.name.toLowerCase();
-          map.set(lowerCaseName, team.id);
-          if (lowerCaseName === "oakland athletics") map.set("oakland athletics", team.id);
-          if (lowerCaseName === "arizona diamondbacks") map.set("d-backs", team.id);
+    try {
+        const response = await axios.get(`${BASE_URL}/teams`, {
+            params: { sportId: 1, season: CURRENT_MLB_SEASON }
         });
-        this.teamIdMap = map;
-        console.log(`[MLBStatsService] Team ID Map Initialized with ${this.teamIdMap.size} entries.`);
-      })
-      .catch(err => {
-        console.error("[MLBStatsService] Failed to fetch MLB team IDs:", err);
+        
+        const data = response.data as { teams: MLBTeam[] };
         this.teamIdMap = new Map();
-      })
-      .finally(() => {
-        this.teamFetchPromise = null;
-      });
-    return this.teamFetchPromise;
+        data.teams.forEach(team => {
+            this.teamIdMap?.set(team.name.toLowerCase(), team.id);
+            this.teamIdMap?.set(team.teamName.toLowerCase(), team.id);
+            this.teamIdMap?.set(team.locationName.toLowerCase(), team.id);
+        });
+        
+        console.log(`[MLBStatsService] Initialized team ID map with ${this.teamIdMap.size} entries.`);
+    } catch (error) {
+        console.error('[MLBStatsService] Error initializing team ID map:', error);
+        this.teamIdMap = null;
+    }
   }
 
   private static async getTeamId(teamName: string): Promise<number | null> {
@@ -288,6 +247,10 @@ export class MLBStatsService {
       const wins = overallHittingSplit?.wins ?? overallPitchingSplit?.wins ?? 0;
       const losses = overallHittingSplit?.losses ?? overallPitchingSplit?.losses ?? 0;
       const gamesPlayed = overallHittingSplit?.gamesPlayed ?? overallPitchingSplit?.gamesPlayed ?? (wins + losses);
+      const runsScored = overallHittingSplit?.runsScored ?? 0;
+      const runsAllowed = overallPitchingSplit?.runsAllowed ?? 0;
+      const lastTenWins = lastTenHittingSplit?.wins ?? 0;
+      const lastTenLosses = lastTenHittingSplit?.losses ?? 0;
 
       const stats: TeamStats = {
         wins: wins,
@@ -296,9 +259,14 @@ export class MLBStatsService {
         homeLosses: homeHittingSplit?.losses ?? 0,
         awayWins: awayHittingSplit?.wins ?? 0,
         awayLosses: awayHittingSplit?.losses ?? 0,
-        lastTenWins: lastTenHittingSplit?.wins ?? 0,
-        avgRunsScored: (overallHittingSplit?.runsScored ?? 0) / (gamesPlayed || 1),
-        avgRunsAllowed: (overallPitchingSplit?.runsAllowed ?? 0) / (gamesPlayed || 1),
+        pointsFor: runsScored,
+        pointsAgainst: runsAllowed,
+        lastTenGames: `${lastTenWins}-${lastTenLosses}`,
+        streak: 0, // We'll calculate this from the last 10 games
+        winPercentage: gamesPlayed > 0 ? wins / gamesPlayed : 0,
+        lastTenWins: lastTenWins,
+        avgRunsScored: runsScored / (gamesPlayed || 1),
+        avgRunsAllowed: runsAllowed / (gamesPlayed || 1),
         teamERA: this.parseFloatStat(overallPitchingSplit?.era),
         teamWHIP: this.parseFloatStat(overallPitchingSplit?.whip),
         avgVsLHP: this.parseFloatStat(vsLeftSplit?.avg),
@@ -312,10 +280,11 @@ export class MLBStatsService {
 
     } catch (error: any) {
       console.error(`[MLBStatsService] Error in getTeamStats API call for ${teamName}:`, error.message);
-      if (axios.isAxiosError(error)) {
-         console.error(`[MLBStatsService] URL: ${error.config?.url}`);
-         console.error(`[MLBStatsService] Params: ${JSON.stringify(error.config?.params)}`);
-         console.error(`[MLBStatsService] Response Status: ${error.response?.status}`);
+      if (error instanceof Error && 'isAxiosError' in error) {
+         const axiosError = error as any;
+         console.error(`[MLBStatsService] URL: ${axiosError.config?.url}`);
+         console.error(`[MLBStatsService] Params: ${JSON.stringify(axiosError.config?.params)}`);
+         console.error(`[MLBStatsService] Response Status: ${axiosError.response?.status}`);
       }
       return null;
     }
@@ -329,24 +298,57 @@ export class MLBStatsService {
     if (!homeTeamId || !awayTeamId) return null;
     console.log(`[MLBStatsService] Fetching H2H stats for ${homeTeamName} vs ${awayTeamName} for season ${CURRENT_MLB_SEASON}`);
     try {
-      const response = await axios.get<{ dates: { games: MLBGame[] }[] }>(`${BASE_URL}/schedule`, {
+      const response = await axios.get(`${BASE_URL}/schedule`, {
         params: { teamId: homeTeamId, opponentId: awayTeamId, season: CURRENT_MLB_SEASON, sportId: 1, gameType: 'R', fields: 'dates,games,status,teams,score' }
       });
-      const h2hGames = response.data.dates.flatMap(date => date.games).filter(game => game.status.abstractGameState === 'Final');
-       if (h2hGames.length === 0) {
+      const data = response.data as MLBScheduleResponse;
+      const h2hGames = data.dates.flatMap(date => date.games).filter(game => game.status.abstractGameState === 'Final');
+      if (h2hGames.length === 0) {
           console.warn(`[MLBStatsService] No completed H2H games found between ${homeTeamName} and ${awayTeamName} in season ${CURRENT_MLB_SEASON}`);
-          return { totalGames: 0, homeTeamWins: 0, awayTeamWins: 0, averageRunsDiff: 0 };
+          return {
+              totalGames: 0,
+              homeTeamWins: 0,
+              awayTeamWins: 0,
+              averageRunsDiff: 0,
+              lastMeetingDate: '',
+              lastMeetingResult: 'No previous meetings'
+          };
       }
-      const stats: H2HStats = { totalGames: h2hGames.length, homeTeamWins: 0, awayTeamWins: 0, averageRunsDiff: 0 };
+      const stats: H2HStats = {
+          totalGames: h2hGames.length,
+          homeTeamWins: 0,
+          awayTeamWins: 0,
+          averageRunsDiff: 0,
+          lastMeetingDate: h2hGames[h2hGames.length - 1].gameDate,
+          lastMeetingResult: ''
+      };
       let totalRunsDiff = 0;
       h2hGames.forEach(game => {
         const gameHomeTeamId = game.teams.home.team.id;
         const gameHomeScore = game.teams.home.score;
         const gameAwayScore = game.teams.away.score;
         let currentHomeTeamScore, currentAwayTeamScore;
-        if (gameHomeTeamId === homeTeamId) { currentHomeTeamScore = gameHomeScore; currentAwayTeamScore = gameAwayScore; }
-        else { currentHomeTeamScore = gameAwayScore; currentAwayTeamScore = gameHomeScore; }
-        if (currentHomeTeamScore > currentAwayTeamScore) stats.homeTeamWins++; else stats.awayTeamWins++;
+        if (gameHomeTeamId === homeTeamId) {
+            currentHomeTeamScore = gameHomeScore;
+            currentAwayTeamScore = gameAwayScore;
+            if (currentHomeTeamScore > currentAwayTeamScore) {
+                stats.homeTeamWins++;
+                stats.lastMeetingResult = `${homeTeamName} won ${currentHomeTeamScore}-${currentAwayTeamScore}`;
+            } else {
+                stats.awayTeamWins++;
+                stats.lastMeetingResult = `${awayTeamName} won ${currentAwayTeamScore}-${currentHomeTeamScore}`;
+            }
+        } else {
+            currentHomeTeamScore = gameAwayScore;
+            currentAwayTeamScore = gameHomeScore;
+            if (currentHomeTeamScore > currentAwayTeamScore) {
+                stats.homeTeamWins++;
+                stats.lastMeetingResult = `${homeTeamName} won ${currentHomeTeamScore}-${currentAwayTeamScore}`;
+            } else {
+                stats.awayTeamWins++;
+                stats.lastMeetingResult = `${awayTeamName} won ${currentAwayTeamScore}-${currentHomeTeamScore}`;
+            }
+        }
         totalRunsDiff += (currentHomeTeamScore - currentAwayTeamScore);
       });
       stats.averageRunsDiff = totalRunsDiff / stats.totalGames;

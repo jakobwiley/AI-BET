@@ -4,7 +4,7 @@ import { NBAStatsService } from '../src/lib/nbaStatsApi';
 import { MLBStatsService } from '../src/lib/mlbStatsApi';
 import { prisma } from '../src/lib/prisma';
 import { Game, GameStatus } from '../src/models/types';
-import { Prisma, SportType, PredictionType } from '@prisma/client';
+import { PrismaClient, SportType, PredictionType, Prisma } from '@prisma/client';
 import { parseISO } from 'date-fns';
 
 async function fetchInitialData() {

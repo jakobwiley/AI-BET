@@ -356,13 +356,16 @@ Overall prediction: ${game.homeTeamName} ${predictionValue > 0 ? '+' : ''}${pred
 
   // Enhanced grade calculation with more granular grades
   private static calculateGrade(confidence: number): string {
-    if (confidence >= 0.90) return 'A+';
-    if (confidence >= 0.85) return 'A';
-    if (confidence >= 0.80) return 'A-';
-    if (confidence >= 0.75) return 'B+';
-    if (confidence >= 0.70) return 'B';
-    if (confidence >= 0.65) return 'B-';
-    if (confidence >= 0.60) return 'C+';
+    // Convert to percentage if in decimal form
+    const confidencePercent = confidence > 1 ? confidence : confidence * 100;
+    
+    if (confidencePercent >= 90) return 'A+';
+    if (confidencePercent >= 85) return 'A';
+    if (confidencePercent >= 80) return 'A-';
+    if (confidencePercent >= 75) return 'B+';
+    if (confidencePercent >= 70) return 'B';
+    if (confidencePercent >= 65) return 'B-';
+    if (confidencePercent >= 60) return 'C+';
     return 'C';
   }
 

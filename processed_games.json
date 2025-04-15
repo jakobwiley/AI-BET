@@ -1,0 +1,702 @@
+[
+  {
+    "homeTeam": "Los Angeles Dodgers",
+    "awayTeam": "Chicago Cubs",
+    "homeScore": "4",
+    "awayScore": "12",
+    "date": "2025-02-20"
+  },
+  {
+    "homeTeam": "San Diego Padres",
+    "awayTeam": "Seattle Mariners",
+    "homeScore": "5",
+    "awayScore": "2",
+    "date": "2025-02-21"
+  },
+  {
+    "homeTeam": "Arizona Diamondbacks",
+    "awayTeam": "Colorado Rockies",
+    "homeScore": "8",
+    "awayScore": "12",
+    "date": "2025-02-21"
+  },
+  {
+    "homeTeam": "Chicago Cubs",
+    "awayTeam": "Los Angeles Dodgers",
+    "homeScore": "7",
+    "awayScore": "3",
+    "date": "2025-02-21"
+  },
+  {
+    "homeTeam": "New York Yankees",
+    "awayTeam": "Tampa Bay Rays",
+    "homeScore": "4",
+    "awayScore": "0",
+    "date": "2025-02-21"
+  },
+  {
+    "homeTeam": "San Diego Padres",
+    "awayTeam": "Athletics",
+    "homeScore": "10",
+    "awayScore": "3",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Los Angeles Dodgers",
+    "awayTeam": "Kansas City Royals",
+    "homeScore": "10",
+    "awayScore": "11",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Milwaukee Brewers",
+    "awayTeam": "Cincinnati Reds",
+    "homeScore": "8",
+    "awayScore": "7",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Los Angeles Angels",
+    "awayTeam": "Seattle Mariners",
+    "homeScore": "11",
+    "awayScore": "10",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Colorado Rockies",
+    "awayTeam": "Arizona Diamondbacks",
+    "homeScore": "9",
+    "awayScore": "3",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Cincinnati Reds",
+    "awayTeam": "Cleveland Guardians",
+    "homeScore": "6",
+    "awayScore": "3",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Chicago Cubs",
+    "awayTeam": "Chicago White Sox",
+    "homeScore": "7",
+    "awayScore": "3",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Miami Marlins",
+    "awayTeam": "St. Louis Cardinals",
+    "homeScore": "7",
+    "awayScore": "6",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "New York Mets",
+    "awayTeam": "Houston Astros",
+    "homeScore": "6",
+    "awayScore": "2",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Toronto Blue Jays",
+    "awayTeam": "New York Yankees",
+    "homeScore": "6",
+    "awayScore": "4",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Tampa Bay Rays",
+    "awayTeam": "Boston Red Sox",
+    "homeScore": "4",
+    "awayScore": "6",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Minnesota Twins",
+    "awayTeam": "Atlanta Braves",
+    "homeScore": "3",
+    "awayScore": "1",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Houston Astros",
+    "awayTeam": "Washington Nationals",
+    "homeScore": "3",
+    "awayScore": "6",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Detroit Tigers",
+    "awayTeam": "Philadelphia Phillies",
+    "homeScore": "7",
+    "awayScore": "6",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Baltimore Orioles",
+    "awayTeam": "Pittsburgh Pirates",
+    "homeScore": "5",
+    "awayScore": "10",
+    "date": "2025-02-22"
+  },
+  {
+    "homeTeam": "Athletics",
+    "awayTeam": "Colorado Rockies",
+    "homeScore": "4",
+    "awayScore": "0",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Seattle Mariners",
+    "awayTeam": "Arizona Diamondbacks",
+    "homeScore": "11",
+    "awayScore": "5",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Colorado Rockies",
+    "awayTeam": "Milwaukee Brewers",
+    "homeScore": "6",
+    "awayScore": "1",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "San Francisco Giants",
+    "awayTeam": "Cincinnati Reds",
+    "homeScore": "5",
+    "awayScore": "2",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Los Angeles Dodgers",
+    "awayTeam": "San Diego Padres",
+    "homeScore": "8",
+    "awayScore": "3",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Kansas City Royals",
+    "awayTeam": "Chicago White Sox",
+    "homeScore": "4",
+    "awayScore": "3",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Cleveland Guardians",
+    "awayTeam": "Los Angeles Angels",
+    "homeScore": "14",
+    "awayScore": "2",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "New York Mets",
+    "awayTeam": "Miami Marlins",
+    "homeScore": "1",
+    "awayScore": "1",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "New York Yankees",
+    "awayTeam": "Detroit Tigers",
+    "homeScore": "0",
+    "awayScore": "4",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Atlanta Braves",
+    "awayTeam": "Tampa Bay Rays",
+    "homeScore": "2",
+    "awayScore": "4",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Boston Red Sox",
+    "awayTeam": "Toronto Blue Jays",
+    "homeScore": "7",
+    "awayScore": "8",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Philadelphia Phillies",
+    "awayTeam": "Baltimore Orioles",
+    "homeScore": "3",
+    "awayScore": "7",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "St. Louis Cardinals",
+    "awayTeam": "Houston Astros",
+    "homeScore": "6",
+    "awayScore": "11",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Washington Nationals",
+    "awayTeam": "New York Mets",
+    "homeScore": "11",
+    "awayScore": "6",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Pittsburgh Pirates",
+    "awayTeam": "Minnesota Twins",
+    "homeScore": "5",
+    "awayScore": "1",
+    "date": "2025-02-23"
+  },
+  {
+    "homeTeam": "Kansas City Royals",
+    "awayTeam": "Athletics",
+    "homeScore": "1",
+    "awayScore": "1",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Boston Red Sox",
+    "awayTeam": "New York Yankees",
+    "homeScore": null,
+    "awayScore": null,
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "San Diego Padres",
+    "awayTeam": "Chicago Cubs",
+    "homeScore": "5",
+    "awayScore": "10",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Milwaukee Brewers",
+    "awayTeam": "Seattle Mariners",
+    "homeScore": "8",
+    "awayScore": "12",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Los Angeles Angels",
+    "awayTeam": "San Francisco Giants",
+    "homeScore": "7",
+    "awayScore": "4",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Baltimore Orioles",
+    "awayTeam": "Atlanta Braves",
+    "homeScore": null,
+    "awayScore": null,
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Arizona Diamondbacks",
+    "awayTeam": "Cleveland Guardians",
+    "homeScore": "4",
+    "awayScore": "3",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "San Francisco Giants",
+    "awayTeam": "Colorado Rockies",
+    "homeScore": "2",
+    "awayScore": "2",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Cincinnati Reds",
+    "awayTeam": "Los Angeles Dodgers",
+    "homeScore": "8",
+    "awayScore": "1",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Houston Astros",
+    "awayTeam": "Miami Marlins",
+    "homeScore": null,
+    "awayScore": null,
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Detroit Tigers",
+    "awayTeam": "Toronto Blue Jays",
+    "homeScore": null,
+    "awayScore": null,
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "St. Louis Cardinals",
+    "awayTeam": "New York Mets",
+    "homeScore": "7",
+    "awayScore": "4",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Tampa Bay Rays",
+    "awayTeam": "Minnesota Twins",
+    "homeScore": "1",
+    "awayScore": "1",
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Philadelphia Phillies",
+    "awayTeam": "Pittsburgh Pirates",
+    "homeScore": null,
+    "awayScore": null,
+    "date": "2025-02-24"
+  },
+  {
+    "homeTeam": "Athletics",
+    "awayTeam": "San Francisco Giants",
+    "homeScore": "7",
+    "awayScore": "5",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "San Diego Padres",
+    "awayTeam": "Los Angeles Angels",
+    "homeScore": "1",
+    "awayScore": "2",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Colorado Rockies",
+    "awayTeam": "Chicago White Sox",
+    "homeScore": "14",
+    "awayScore": "3",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Los Angeles Dodgers",
+    "awayTeam": "Seattle Mariners",
+    "homeScore": "5",
+    "awayScore": "11",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Cleveland Guardians",
+    "awayTeam": "Milwaukee Brewers",
+    "homeScore": "6",
+    "awayScore": "9",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Chicago Cubs",
+    "awayTeam": "Arizona Diamondbacks",
+    "homeScore": "4",
+    "awayScore": "2",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Miami Marlins",
+    "awayTeam": "Washington Nationals",
+    "homeScore": "7",
+    "awayScore": "14",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Toronto Blue Jays",
+    "awayTeam": "St. Louis Cardinals",
+    "homeScore": "3",
+    "awayScore": "2",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Atlanta Braves",
+    "awayTeam": "Boston Red Sox",
+    "homeScore": "6",
+    "awayScore": "1",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Baltimore Orioles",
+    "awayTeam": "Detroit Tigers",
+    "homeScore": "8",
+    "awayScore": "7",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Minnesota Twins",
+    "awayTeam": "New York Yankees",
+    "homeScore": "5",
+    "awayScore": "4",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Houston Astros",
+    "awayTeam": "New York Mets",
+    "homeScore": "8",
+    "awayScore": "5",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Pittsburgh Pirates",
+    "awayTeam": "Atlanta Braves",
+    "homeScore": "1",
+    "awayScore": "2",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Tampa Bay Rays",
+    "awayTeam": "Philadelphia Phillies",
+    "homeScore": "4",
+    "awayScore": "5",
+    "date": "2025-02-25"
+  },
+  {
+    "homeTeam": "Seattle Mariners",
+    "awayTeam": "Athletics",
+    "homeScore": "5",
+    "awayScore": "8",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Chicago White Sox",
+    "awayTeam": "San Diego Padres",
+    "homeScore": "1",
+    "awayScore": "3",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Miami Marlins",
+    "awayTeam": "New York Mets",
+    "homeScore": "4",
+    "awayScore": "1",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Los Angeles Angels",
+    "awayTeam": "Cincinnati Reds",
+    "homeScore": "4",
+    "awayScore": "9",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Arizona Diamondbacks",
+    "awayTeam": "Milwaukee Brewers",
+    "homeScore": "7",
+    "awayScore": "1",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Milwaukee Brewers",
+    "awayTeam": "Los Angeles Dodgers",
+    "homeScore": "3",
+    "awayScore": "9",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "San Francisco Giants",
+    "awayTeam": "Chicago Cubs",
+    "homeScore": "4",
+    "awayScore": "4",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Toronto Blue Jays",
+    "awayTeam": "Philadelphia Phillies",
+    "homeScore": "6",
+    "awayScore": "9",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Atlanta Braves",
+    "awayTeam": "Pittsburgh Pirates",
+    "homeScore": "9",
+    "awayScore": "4",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Detroit Tigers",
+    "awayTeam": "Minnesota Twins",
+    "homeScore": "0",
+    "awayScore": "4",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "New York Yankees",
+    "awayTeam": "St. Louis Cardinals",
+    "homeScore": "7",
+    "awayScore": "0",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Boston Red Sox",
+    "awayTeam": "Tampa Bay Rays",
+    "homeScore": "2",
+    "awayScore": "8",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Washington Nationals",
+    "awayTeam": "Houston Astros",
+    "homeScore": "0",
+    "awayScore": "3",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Pittsburgh Pirates",
+    "awayTeam": "Baltimore Orioles",
+    "homeScore": "7",
+    "awayScore": "3",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Kansas City Royals",
+    "awayTeam": "Colorado Rockies",
+    "homeScore": "6",
+    "awayScore": "7",
+    "date": "2025-02-26"
+  },
+  {
+    "homeTeam": "Athletics",
+    "awayTeam": "San Diego Padres",
+    "homeScore": "6",
+    "awayScore": "4",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Colorado Rockies",
+    "awayTeam": "Los Angeles Dodgers",
+    "homeScore": "2",
+    "awayScore": "0",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Seattle Mariners",
+    "awayTeam": "San Francisco Giants",
+    "homeScore": "4",
+    "awayScore": "6",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Cincinnati Reds",
+    "awayTeam": "Arizona Diamondbacks",
+    "homeScore": "3",
+    "awayScore": "3",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Chicago White Sox",
+    "awayTeam": "Cleveland Guardians",
+    "homeScore": "4",
+    "awayScore": "2",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Washington Nationals",
+    "awayTeam": "Atlanta Braves",
+    "homeScore": "3",
+    "awayScore": "4",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Milwaukee Brewers",
+    "awayTeam": "Kansas City Royals",
+    "homeScore": "12",
+    "awayScore": "5",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Chicago Cubs",
+    "awayTeam": "Los Angeles Angels",
+    "homeScore": "4",
+    "awayScore": "4",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "New York Mets",
+    "awayTeam": "Houston Astros",
+    "homeScore": "5",
+    "awayScore": "0",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Tampa Bay Rays",
+    "awayTeam": "Detroit Tigers",
+    "homeScore": "7",
+    "awayScore": "7",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "St. Louis Cardinals",
+    "awayTeam": "Miami Marlins",
+    "homeScore": "8",
+    "awayScore": "4",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Philadelphia Phillies",
+    "awayTeam": "New York Yankees",
+    "homeScore": "7",
+    "awayScore": "7",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Minnesota Twins",
+    "awayTeam": "Pittsburgh Pirates",
+    "homeScore": "1",
+    "awayScore": "12",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Detroit Tigers",
+    "awayTeam": "Boston Red Sox",
+    "homeScore": "5",
+    "awayScore": "6",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Baltimore Orioles",
+    "awayTeam": "Toronto Blue Jays",
+    "homeScore": "11",
+    "awayScore": "8",
+    "date": "2025-02-27"
+  },
+  {
+    "homeTeam": "Minnesota Twins",
+    "awayTeam": "Baltimore Orioles",
+    "homeScore": "10",
+    "awayScore": "13",
+    "date": "2025-02-28"
+  },
+  {
+    "homeTeam": "Athletics",
+    "awayTeam": "Cincinnati Reds",
+    "homeScore": "13",
+    "awayScore": "1",
+    "date": "2025-02-28"
+  },
+  {
+    "homeTeam": "Miami Marlins",
+    "awayTeam": "Atlanta Braves",
+    "homeScore": "2",
+    "awayScore": "7",
+    "date": "2025-02-28"
+  },
+  {
+    "homeTeam": "Toronto Blue Jays",
+    "awayTeam": "Detroit Tigers",
+    "homeScore": "10",
+    "awayScore": "7",
+    "date": "2025-02-28"
+  },
+  {
+    "homeTeam": "Pittsburgh Pirates",
+    "awayTeam": "Tampa Bay Rays",
+    "homeScore": "3",
+    "awayScore": "2",
+    "date": "2025-02-28"
+  },
+  {
+    "homeTeam": "Houston Astros",
+    "awayTeam": "St. Louis Cardinals",
+    "homeScore": "3",
+    "awayScore": "2",
+    "date": "2025-02-28"
+  },
+  {
+    "homeTeam": "Philadelphia Phillies",
+    "awayTeam": "Boston Red Sox",
+    "homeScore": "7",
+    "awayScore": "5",
+    "date": "2025-02-28"
+  }
+]

@@ -248,4 +248,40 @@ export class OddsApiService {
       return null; // This line will never be reached due to handleSportsApiError throwing
     }
   }
+
+  async getGameScores(sport: SportType, gameId: string): Promise<{ home: number; away: number } | null> {
+    try {
+      const sportKey = this.sportMapping[sport];
+      // Strip the sport prefix from the game ID if it exists
+      const strippedGameId = gameId.replace(/^(nba|mlb)-game-/, '');
+      
+      console.log(`[OddsApiService] Fetching scores for ${sport} game ${strippedGameId}`);
+      const response = await axios.get(`${this.BASE_URL}/sports/${sportKey}/scores`, {
+        params: {
+          apiKey: this.API_KEY,
+          eventIds: strippedGameId,
+          daysFrom: 3  // Look back up to 3 days
+        }
+      });
+
+      if (!Array.isArray(response.data) || response.data.length === 0) {
+        console.log(`[OddsApiService] No scores found for game ${strippedGameId}`);
+        return null;
+      }
+
+      const game = response.data[0];
+      if (!game.scores) {
+        console.log(`[OddsApiService] No scores available for game ${strippedGameId}`);
+        return null;
+      }
+
+      return {
+        home: parseInt(game.scores.home),
+        away: parseInt(game.scores.away)
+      };
+    } catch (error) {
+      console.error(`[OddsApiService] Error fetching scores for game ${gameId}:`, error);
+      return null;
+    }
+  }
 } 

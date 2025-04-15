@@ -4,33 +4,32 @@ import { dirname, join } from 'path';
 import { writeFile } from 'fs/promises';
 import { format } from 'date-fns';
 import { getConfidenceGrade } from '../lib/prediction.ts';
-import sgMail from '@sendgrid/mail';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import EmailService from '../lib/emailService.ts';
 
 const prisma = new PrismaClient();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Configure SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
 const seenPicks = new Set();
 
 function formatPrediction(prediction) {
   const grade = getConfidenceGrade(prediction.confidence);
-  const confidencePercentage = Math.round(prediction.confidence * 100);
+  const confidencePercentage = Math.round(prediction.confidence);
   
   let betDescription = '';
   let uniqueKey = '';
   
-  if (prediction.type === 'SPREAD') {
-    const direction = prediction.prediction > 0 ? '+' : '';
-    betDescription = `${prediction.team} ${direction}${prediction.prediction}`;
-    uniqueKey = `${prediction.gameId}-${prediction.team}-SPREAD-${prediction.prediction}`;
-  } else if (prediction.type === 'TOTAL') {
-    const direction = prediction.prediction === 'OVER' ? 'O' : 'U';
-    betDescription = `${direction}${prediction.total}`;
-    uniqueKey = `${prediction.gameId}-TOTAL-${direction}${prediction.total}`;
-  } else if (prediction.type === 'MONEYLINE') {
+  if (prediction.predictionType === 'SPREAD') {
+    const direction = prediction.predictionValue > 0 ? '+' : '';
+    betDescription = `${prediction.team} ${direction}${prediction.predictionValue}`;
+    uniqueKey = `${prediction.gameId}-${prediction.team}-SPREAD-${prediction.predictionValue}`;
+  } else if (prediction.predictionType === 'TOTAL') {
+    const direction = prediction.predictionValue > 0 ? 'O' : 'U';
+    betDescription = `${direction}${Math.abs(prediction.predictionValue)}`;
+    uniqueKey = `${prediction.gameId}-TOTAL-${direction}${prediction.predictionValue}`;
+  } else if (prediction.predictionType === 'MONEYLINE') {
     betDescription = `${prediction.team} ML`;
     uniqueKey = `${prediction.gameId}-${prediction.team}-ML`;
   }
@@ -47,15 +46,29 @@ async function sendEmail(to, subject, body) {
   try {
     console.log(`Sending email to ${to} with subject: ${subject}`);
     
-    const msg = {
-      to,
-      from: process.env.SENDGRID_FROM_EMAIL || 'picks@ai-bet.com',
-      subject,
-      text: body,
-    };
-
-    await sgMail.send(msg);
-    console.log('Email sent successfully');
+    // Escape the body for terminal
+    const escapedBody = body.replace(/"/g, '\\"').replace(/`/g, '\\`');
+    
+    // Create the email command
+    const command = `echo "${escapedBody}" | mail -s "${subject}" ${to}`;
+    
+    // Execute the command
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error sending email: ${error.message}`);
+        console.error(`You might need to install mailx or configure your mail system.`);
+        console.error(`On macOS, try: brew install mailutils`);
+        console.error(`On Ubuntu/Debian, try: sudo apt-get install mailutils`);
+        return;
+      }
+      
+      if (stderr) {
+        console.error(`Email command stderr: ${stderr}`);
+        return;
+      }
+      
+      console.log(`Email sent successfully to ${to}`);
+    });
   } catch (error) {
     console.error('Error sending email:', error);
     throw error;
@@ -69,16 +82,18 @@ async function generatePicks() {
     
     console.log(`Fetching games for date: ${today.toISOString().split('T')[0]}`);
     
+    // Lower confidence threshold to 0.6 (60%)
     const games = await prisma.game.findMany({
       where: {
-        date: {
+        gameDate: {
           gte: today,
           lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
         },
+        sport: 'MLB',
         predictions: {
           some: {
             confidence: {
-              gte: 0.75
+              gte: 0.6
             }
           }
         }
@@ -87,47 +102,78 @@ async function generatePicks() {
         predictions: {
           where: {
             confidence: {
-              gte: 0.75
+              gte: 0.6
             }
           }
         }
       }
     });
 
-    console.log(`Found ${games.length} games`);
+    console.log(`Found ${games.length} games with predictions`);
+    console.log('Game details:', games.map(g => ({
+      id: g.id,
+      teams: `${g.homeTeamName} vs ${g.awayTeamName}`,
+      predictionCount: g.predictions.length
+    })));
 
     const picksBySportAndGrade = {
-      MLB: { A: [], B: [], C: [] },
-      NBA: { A: [], B: [], C: [] }
+      MLB: { 'A+': [], A: [], B: [], C: [] }
     };
 
     for (const game of games) {
+      console.log(`\nProcessing game ${game.id}: ${game.homeTeamName} vs ${game.awayTeamName}`);
+      console.log(`Game has ${game.predictions.length} predictions`);
+      
       for (const prediction of game.predictions) {
+        prediction.team = prediction.predictionValue > 0 ? game.awayTeamName : game.homeTeamName;
+        console.log(`Processing prediction:`, {
+          type: prediction.predictionType,
+          value: prediction.predictionValue,
+          confidence: prediction.confidence,
+          team: prediction.team
+        });
+        
         const formattedPick = formatPrediction(prediction);
         if (formattedPick) {
           const grade = getConfidenceGrade(prediction.confidence);
-          picksBySportAndGrade[game.sport][grade].push({
+          console.log(`Adding pick: ${formattedPick} (Grade ${grade})`);
+          
+          // Ensure the grade array exists
+          if (!picksBySportAndGrade.MLB[grade]) {
+            picksBySportAndGrade.MLB[grade] = [];
+          }
+          
+          picksBySportAndGrade.MLB[grade].push({
             pick: formattedPick,
             confidence: prediction.confidence
           });
+        } else {
+          console.log('Pick was filtered out (duplicate)');
         }
       }
     }
 
     // Sort picks by confidence within each grade
     for (const sport in picksBySportAndGrade) {
+      console.log(`\nProcessing ${sport} picks:`);
       for (const grade in picksBySportAndGrade[sport]) {
-        picksBySportAndGrade[sport][grade].sort((a, b) => b.confidence - a.confidence);
-        picksBySportAndGrade[sport][grade] = picksBySportAndGrade[sport][grade].map(p => p.pick);
+        const picks = picksBySportAndGrade[sport][grade];
+        console.log(`Grade ${grade}: ${picks.length} picks before sorting`);
+        
+        picks.sort((a, b) => b.confidence - a.confidence);
+        picksBySportAndGrade[sport][grade] = picks.map(p => p.pick);
+        
+        console.log(`Grade ${grade} picks after sorting:`, picksBySportAndGrade[sport][grade]);
       }
     }
 
     let output = '';
-    const date = today.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+    const date = format(today, 'M/d/yyyy');
     
+    console.log('\nGenerating final output...');
     for (const sport in picksBySportAndGrade) {
       if (Object.values(picksBySportAndGrade[sport]).some(picks => picks.length > 0)) {
-        output += `\n${sport} Picks for ${date}\n`;
+        output += `\nDaily ${sport} Picks - ${date}\n`;
         output += '='.repeat(40) + '\n\n';
         
         for (const grade in picksBySportAndGrade[sport]) {
@@ -139,9 +185,20 @@ async function generatePicks() {
             for (const pick of picks) {
               output += `${pick}\n`;
             }
+            output += '\n';
           }
         }
       }
+    }
+
+    if (!output.trim()) {
+      output = `No picks available for ${date}. This could be due to:\n`;
+      output += `- No games scheduled\n`;
+      output += `- No predictions meeting the confidence threshold\n`;
+      output += `- All predictions being filtered as duplicates\n`;
+      console.log('No picks were generated');
+    } else {
+      console.log('Generated picks:', output);
     }
 
     // Save picks to file
@@ -150,13 +207,13 @@ async function generatePicks() {
     console.log(`Picks saved to ${picksPath}`);
 
     // Send email if recipient is set
-    const emailRecipients = process.env.EMAIL_RECIPIENTS;
-    if (emailRecipients) {
-      const subject = `Daily Sports Picks - ${format(today, 'M/d/yyyy')}`;
-      await sendEmail(emailRecipients, subject, output);
+    const emailRecipient = process.env.RECIPIENT_EMAIL;
+    if (emailRecipient) {
+      const subject = `Daily MLB Picks - ${format(today, 'M/d/yyyy')}`;
+      await sendEmail(emailRecipient, subject, output);
     }
 
-    console.log('All picks generated successfully');
+    console.log('Pick generation process completed');
   } catch (error) {
     console.error('Error generating picks:', error);
     throw error;

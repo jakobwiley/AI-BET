@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const { exec } = require('child_process');
-const { format } = require('date-fns');
+import fs from 'fs';
+import path from 'path';
+import { exec } from 'child_process';
+import { format } from 'date-fns';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configuration
 const EMAIL_RECIPIENTS = process.env.EMAIL_RECIPIENTS || '';
@@ -124,7 +129,7 @@ function printSetupInstructions() {
 }
 
 // Run the main function
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   if (process.argv.includes('--help')) {
     printSetupInstructions();
   } else {

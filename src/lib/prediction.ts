@@ -1,9 +1,12 @@
-export type Grade = 'A+' | 'A' | 'A-' | 'B+';
+export type Grade = 'A+' | 'A' | 'B+' | 'C';
 
-export function getConfidenceGrade(confidence: number): Grade | null {
-  if (confidence >= 0.95) return 'A+';
-  if (confidence >= 0.90) return 'A';
-  if (confidence >= 0.85) return 'A-';
-  if (confidence >= 0.75) return 'B+';
-  return null;
+export function getConfidenceGrade(confidence: number): Grade {
+  // Normalize confidence to percentage (0-100)
+  const confidencePercent = confidence > 1 ? confidence : confidence * 100;
+  
+  if (confidencePercent >= 85) return 'A+';
+  if (confidencePercent >= 80) return 'A';
+  if (confidencePercent >= 75) return 'B+';
+  if (confidencePercent >= 60) return 'C';
+  return 'C';
 } 

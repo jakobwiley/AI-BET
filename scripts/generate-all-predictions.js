@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 // Script to generate predictions for all games in the database
-const { PrismaClient } = require('@prisma/client');
-const { execSync } = require('child_process');
+import { PrismaClient } from '@prisma/client';
+import { execSync } from 'child_process';
+import dotenv from 'dotenv';
 
 // Make sure environment variables are loaded
-require('dotenv').config();
+dotenv.config();
 
 const prisma = new PrismaClient();
 

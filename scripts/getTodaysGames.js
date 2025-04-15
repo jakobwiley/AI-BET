@@ -1,24 +1,20 @@
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
+import { format } from 'date-fns';
 
 const prisma = new PrismaClient();
 
 // Helper function to properly format team names
 function formatTeamName(game) {
-  return {
-    homeTeam: game.homeTeamName || 'Unknown Home Team',
-    awayTeam: game.awayTeamName || 'Unknown Away Team'
-  };
+  return `${game.awayTeamName} @ ${game.homeTeamName}`;
 }
 
 // Helper function to properly format prediction details
 function formatPrediction(pred) {
   return {
-    type: pred.predictionType || 'UNKNOWN',
-    value: pred.predictionValue || 0,
-    confidence: typeof pred.confidence === 'number' ? 
-      pred.confidence <= 1 ? Math.round(pred.confidence * 100) : Math.round(pred.confidence) 
-      : 0,
-    grade: calculateGrade(pred.confidence) 
+    type: pred.predictionType,
+    value: pred.predictionValue,
+    confidence: Math.round(pred.confidence * 100),
+    grade: pred.grade || 'N/A'
   };
 }
 
@@ -92,42 +88,18 @@ async function main() {
     } else {
       nbaGames.forEach((game, index) => {
         const teams = formatTeamName(game);
-        console.log(`Game ${index + 1}: ${teams.awayTeam} @ ${teams.homeTeam}`);
-        console.log(`ID: ${game.id}`);
-        console.log(`Time: ${new Date(game.gameDate).toLocaleTimeString()}`);
-        console.log(`Status: ${game.status}`);
+        console.log(`\nGame ${index + 1}: ${teams}`);
+        console.log(`Time: ${game.startTime || 'TBD'}`);
         
-        // Parse and display odds if available
-        let odds = {};
-        try {
-          // Check if oddsJson is a string that needs parsing, or already an object
-          if (game.oddsJson) {
-            if (typeof game.oddsJson === 'string') {
-              odds = JSON.parse(game.oddsJson);
-            } else {
-              odds = game.oddsJson;
-            }
-          }
-        } catch (e) {
-          console.log(`Error parsing odds: ${e.message}`);
-        }
-        
-        // Display the odds in a more detailed way
-        console.log('Odds: ');
-        if (Object.keys(odds).length === 0) {
-          console.log('  No odds available');
+        // Display odds if available
+        if (game.oddsJson) {
+          console.log('Odds:');
+          const odds = typeof game.oddsJson === 'string' ? JSON.parse(game.oddsJson) : game.oddsJson;
+          if (odds.spread) console.log(`  Spread: ${odds.spread}`);
+          if (odds.total) console.log(`  Total: ${odds.total}`);
+          if (odds.moneyline) console.log(`  Moneyline: ${odds.moneyline}`);
         } else {
-          if (odds.spread) {
-            console.log(`  Spread: ${teams.homeTeam} ${odds.spread.value || 'N/A'} (${odds.spread.odds || 'N/A'})`);
-          }
-          
-          if (odds.moneyline) {
-            console.log(`  Moneyline: ${teams.homeTeam} ${odds.moneyline?.home || 'N/A'}, ${teams.awayTeam} ${odds.moneyline?.away || 'N/A'}`);
-          }
-          
-          if (odds.total) {
-            console.log(`  Total: O/U ${odds.total?.value || 'N/A'} (Over: ${odds.total?.over || 'N/A'}, Under: ${odds.total?.under || 'N/A'})`);
-          }
+          console.log('No odds available');
         }
         
         // Display predictions if available
@@ -153,42 +125,18 @@ async function main() {
     } else {
       mlbGames.forEach((game, index) => {
         const teams = formatTeamName(game);
-        console.log(`Game ${index + 1}: ${teams.awayTeam} @ ${teams.homeTeam}`);
-        console.log(`ID: ${game.id}`);
-        console.log(`Time: ${new Date(game.gameDate).toLocaleTimeString()}`);
-        console.log(`Status: ${game.status}`);
+        console.log(`\nGame ${index + 1}: ${teams}`);
+        console.log(`Time: ${game.startTime || 'TBD'}`);
         
-        // Parse and display odds if available
-        let odds = {};
-        try {
-          // Check if oddsJson is a string that needs parsing, or already an object
-          if (game.oddsJson) {
-            if (typeof game.oddsJson === 'string') {
-              odds = JSON.parse(game.oddsJson);
-            } else {
-              odds = game.oddsJson;
-            }
-          }
-        } catch (e) {
-          console.log(`Error parsing odds: ${e.message}`);
-        }
-        
-        // Display the odds in a more detailed way
-        console.log('Odds: ');
-        if (Object.keys(odds).length === 0) {
-          console.log('  No odds available');
+        // Display odds if available
+        if (game.oddsJson) {
+          console.log('Odds:');
+          const odds = typeof game.oddsJson === 'string' ? JSON.parse(game.oddsJson) : game.oddsJson;
+          if (odds.spread) console.log(`  Spread: ${odds.spread}`);
+          if (odds.total) console.log(`  Total: ${odds.total}`);
+          if (odds.moneyline) console.log(`  Moneyline: ${odds.moneyline}`);
         } else {
-          if (odds.spread) {
-            console.log(`  Spread (Run Line): ${teams.homeTeam} ${odds.spread.value || 'N/A'} (${odds.spread.odds || 'N/A'})`);
-          }
-          
-          if (odds.moneyline) {
-            console.log(`  Moneyline: ${teams.homeTeam} ${odds.moneyline?.home || 'N/A'}, ${teams.awayTeam} ${odds.moneyline?.away || 'N/A'}`);
-          }
-          
-          if (odds.total) {
-            console.log(`  Total: O/U ${odds.total?.value || 'N/A'} (Over: ${odds.total?.over || 'N/A'}, Under: ${odds.total?.under || 'N/A'})`);
-          }
+          console.log('No odds available');
         }
         
         // Display predictions if available
@@ -213,4 +161,4 @@ async function main() {
   }
 }
 
-main(); 
+main().catch(console.error); 
