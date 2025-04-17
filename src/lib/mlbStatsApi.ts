@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
+import axios from 'axios';
 import { TeamStats, H2HStats } from './predictionService';
 
 interface MLBTeam {
@@ -141,19 +141,21 @@ interface MLBPersonResponse {
 }
 
 const BASE_URL = 'https://statsapi.mlb.com/api/v1';
-const CURRENT_MLB_SEASON = 2023; // Use 2023 season data since 2024 hasn't started
+const CURRENT_MLB_SEASON = 2024; // Use current season data
 
-interface TeamRecord {
-  wins: number;
-  losses: number;
-  homeWins: number;
-  homeLosses: number;
-  awayWins: number;
-  awayLosses: number;
-  lastTenGames: string;
-  streak: number;
-  winPercentage: number;
-  lastTenWins: number;
+interface MLBTeamRecord {
+  records: Array<{
+    wins: number;
+    losses: number;
+    homeWins: number;
+    homeLosses: number;
+    awayWins: number;
+    awayLosses: number;
+    lastTenGames: string;
+    streak: number;
+    winPercentage: number;
+    lastTenWins: number;
+  }>;
 }
 
 interface MLBScheduleResponse {
@@ -217,65 +219,46 @@ export class MLBStatsService {
 
     console.log(`[MLBStatsService] Fetching stats for ${teamName} (ID: ${teamId}) for season ${CURRENT_MLB_SEASON}`);
     try {
-      const statsResponse = await axios.get<MLBTeamStatsResponse>(`${BASE_URL}/teams/${teamId}/stats`, {
+      const standingsResponse = await axios.get<any>(`${BASE_URL}/standings`, {
         params: {
-          stats: 'season,homeAway,lastXGames,vsLeft,vsRight',
+          leagueId: '103,104',
           season: CURRENT_MLB_SEASON,
-          group: 'hitting,pitching'
+          teamId: teamId,
+          standingsTypes: 'regularSeason'
         }
       });
       
-      console.log(`[MLBStatsService] Raw stats response for ${teamName} (ID: ${teamId}):`, JSON.stringify(statsResponse.data, null, 2));
+      const teamRecord = standingsResponse.data.records.find((r: any) => 
+        r.teamRecords.some((tr: any) => tr.team.id === teamId)
+      )?.teamRecords.find((tr: any) => tr.team.id === teamId);
 
-      const hittingStatsEntry = statsResponse.data.stats?.find(s => s.group?.displayName === 'hitting');
-      const pitchingStatsEntry = statsResponse.data.stats?.find(s => s.group?.displayName === 'pitching');
-
-      const overallHittingSplit = hittingStatsEntry?.splits?.[0]?.stat || {}; 
-      const overallPitchingSplit = pitchingStatsEntry?.splits?.[0]?.stat || {};
-
-      const homeHittingSplit = hittingStatsEntry?.splits?.find(s => s.split?.isHome)?.stat || {}; 
-      const awayHittingSplit = hittingStatsEntry?.splits?.find(s => s.split?.isAway)?.stat || {};
-      const lastTenHittingSplit = hittingStatsEntry?.splits?.find(s => s.split?.statType === 'lastXGames' && s.split?.numGames === 10)?.stat || {};
-      const vsLeftSplit = hittingStatsEntry?.splits?.find(s => s.split?.type === 'vsLeft')?.stat || {};
-      const vsRightSplit = hittingStatsEntry?.splits?.find(s => s.split?.type === 'vsRight')?.stat || {};
-
-      if (Object.keys(overallHittingSplit).length === 0 && Object.keys(overallPitchingSplit).length === 0) {
-          console.warn(`[MLBStatsService] Could not parse overall hitting/pitching stats from API response for ${teamName}`);
-          return null; 
+      if (!teamRecord) {
+        console.warn(`[MLBStatsService] Could not find team record for ${teamName}`);
+        return null;
       }
-      
-      const wins = overallHittingSplit?.wins ?? overallPitchingSplit?.wins ?? 0;
-      const losses = overallHittingSplit?.losses ?? overallPitchingSplit?.losses ?? 0;
-      const gamesPlayed = overallHittingSplit?.gamesPlayed ?? overallPitchingSplit?.gamesPlayed ?? (wins + losses);
-      const runsScored = overallHittingSplit?.runsScored ?? 0;
-      const runsAllowed = overallPitchingSplit?.runsAllowed ?? 0;
-      const lastTenWins = lastTenHittingSplit?.wins ?? 0;
-      const lastTenLosses = lastTenHittingSplit?.losses ?? 0;
+
+      const splitRecords = teamRecord.records?.splitRecords || [];
+      const homeRecord = splitRecords.find((r: any) => r.type === 'home') || {};
+      const awayRecord = splitRecords.find((r: any) => r.type === 'away') || {};
+      const lastTenRecord = splitRecords.find((r: any) => r.type === 'lastTen') || {};
 
       const stats: TeamStats = {
-        wins: wins,
-        losses: losses,
-        homeWins: homeHittingSplit?.wins ?? 0,
-        homeLosses: homeHittingSplit?.losses ?? 0,
-        awayWins: awayHittingSplit?.wins ?? 0,
-        awayLosses: awayHittingSplit?.losses ?? 0,
-        pointsFor: runsScored,
-        pointsAgainst: runsAllowed,
-        lastTenGames: `${lastTenWins}-${lastTenLosses}`,
-        streak: 0, // We'll calculate this from the last 10 games
-        winPercentage: gamesPlayed > 0 ? wins / gamesPlayed : 0,
-        lastTenWins: lastTenWins,
-        avgRunsScored: runsScored / (gamesPlayed || 1),
-        avgRunsAllowed: runsAllowed / (gamesPlayed || 1),
-        teamERA: this.parseFloatStat(overallPitchingSplit?.era),
-        teamWHIP: this.parseFloatStat(overallPitchingSplit?.whip),
-        avgVsLHP: this.parseFloatStat(vsLeftSplit?.avg),
-        opsVsLHP: this.parseFloatStat(vsLeftSplit?.ops),
-        avgVsRHP: this.parseFloatStat(vsRightSplit?.avg),
-        opsVsRHP: this.parseFloatStat(vsRightSplit?.ops),
+        wins: teamRecord.wins || 0,
+        losses: teamRecord.losses || 0,
+        homeWins: homeRecord.wins || 0,
+        homeLosses: homeRecord.losses || 0,
+        awayWins: awayRecord.wins || 0,
+        awayLosses: awayRecord.losses || 0,
+        pointsFor: teamRecord.runsScored || 0,
+        pointsAgainst: teamRecord.runsAllowed || 0,
+        lastTenGames: `${lastTenRecord.wins || 0}-${lastTenRecord.losses || 0}`,
+        streak: teamRecord.streak?.streakNumber || 0,
+        winPercentage: teamRecord.winningPercentage || 0,
+        lastTenWins: lastTenRecord.wins || 0,
+        avgRunsScored: (teamRecord.runsScored || 0) / (teamRecord.gamesPlayed || 1),
+        avgRunsAllowed: (teamRecord.runsAllowed || 0) / (teamRecord.gamesPlayed || 1)
       };
 
-      console.log(`[MLBStatsService] Successfully processed stats for ${teamName}.`);
       return stats;
 
     } catch (error: any) {
@@ -404,7 +387,7 @@ export class MLBStatsService {
     }
   }
 
-  private static async fetchTeamRecord(teamId: number, season: string): Promise<TeamRecord | null> {
+  private static async fetchTeamRecord(teamId: number, season: string): Promise<MLBTeamRecord | null> {
     try {
       const url = `${BASE_URL}/teams/${teamId}/stats/record`;
       const params = {
@@ -412,7 +395,7 @@ export class MLBStatsService {
         gameType: 'R',
       };
 
-      const response = await axios.get(url, {
+      const response = await axios.get<MLBTeamRecord>(url, {
         params,
         headers: {
           'Accept': '*/*',
@@ -421,24 +404,13 @@ export class MLBStatsService {
         },
       });
 
-      const record = response.data.records[0];
-      if (!record) {
+      const records = response.data.records;
+      if (!records || records.length === 0) {
         console.warn(`[MLBStatsService] No record found for team ID ${teamId}`);
         return null;
       }
 
-      return {
-        wins: record.wins || 0,
-        losses: record.losses || 0,
-        homeWins: record.homeWins || 0,
-        homeLosses: record.homeLosses || 0,
-        awayWins: record.awayWins || 0,
-        awayLosses: record.awayLosses || 0,
-        lastTenGames: record.lastTenGames || "0-0",
-        streak: record.streak || 0,
-        winPercentage: record.winPercentage || 0,
-        lastTenWins: record.lastTenWins || 0,
-      };
+      return response.data;
     } catch (error) {
       console.error(`[MLBStatsService] Error fetching record for team ${teamId}:`, error);
       return null;

@@ -58,7 +58,7 @@
     "@types/axios": "^0.9.36",
     "@types/jest": "^29.5.12",
     "@types/jsdom": "^21.1.6",
-    "@types/node": "^20.11.19",
+    "@types/node": "^20.17.30",
     "@types/react": "^18.2.57",
     "@types/react-dom": "^18.2.19",
     "@types/uuid": "^9.0.8",
@@ -72,6 +72,7 @@
     "prisma": "^5.10.0",
     "tailwindcss": "^3.4.17",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.3.3"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

@@ -1,91 +1,75 @@
-import { PrismaClient, PredictionOutcome } from '@prisma/client';
+import { PrismaClient, PredictionOutcome, GameStatus } from '@prisma/client';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const prisma = new PrismaClient();
 
+function getConfidenceGrade(confidence: number): string | null {
+  if (confidence >= 0.90) return 'A+';
+  if (confidence >= 0.85) return 'A';
+  if (confidence >= 0.80) return 'A-';
+  if (confidence >= 0.75) return 'B+';
+  return null;
+}
+
 async function analyzePastPredictions() {
   try {
-    // Get all past predictions
+    console.log('🔍 Analyzing past predictions with high confidence grades...\n');
+
+    // Get all completed games with predictions
     const predictions = await prisma.prediction.findMany({
+      where: {
+        confidence: {
+          gte: 0.75 // B+ or better
+        },
+        game: {
+          AND: [
+            { homeScore: { not: null } },
+            { awayScore: { not: null } },
+            { status: GameStatus.FINAL }
+          ]
+        }
+      },
       include: {
         game: true
-      },
-      where: {
-        game: {
-          gameDate: {
-            lt: new Date()
-          }
+      }
+    });
+
+    console.log(`Found ${predictions.length} completed predictions with scores\n`);
+
+    // Group predictions by grade
+    const resultsByGrade: Record<string, { wins: number; losses: number }> = {
+      'A+': { wins: 0, losses: 0 },
+      'A': { wins: 0, losses: 0 },
+      'A-': { wins: 0, losses: 0 },
+      'B+': { wins: 0, losses: 0 }
+    };
+
+    predictions.forEach(prediction => {
+      const grade = getConfidenceGrade(prediction.confidence);
+      if (grade && prediction.outcome !== PredictionOutcome.PENDING) {
+        if (prediction.outcome === PredictionOutcome.WIN) {
+          resultsByGrade[grade].wins++;
+        } else {
+          resultsByGrade[grade].losses++;
         }
       }
     });
 
-    console.log(`\n📊 Analysis of Past Predictions`);
-    console.log(`================================`);
-    console.log(`Total predictions analyzed: ${predictions.length}`);
+    // Print results
+    console.log('Results by Confidence Grade:');
+    console.log('============================\n');
 
-    // Analyze by outcome
-    const outcomeStats = predictions.reduce((acc, pred) => {
-      acc[pred.outcome] = (acc[pred.outcome] || 0) + 1;
-      return acc;
-    }, {} as Record<PredictionOutcome, number>);
-
-    console.log('\nOutcome Distribution:');
-    Object.entries(outcomeStats).forEach(([outcome, count]) => {
-      const percentage = ((count / predictions.length) * 100).toFixed(1);
-      console.log(`${outcome}: ${count} (${percentage}%)`);
-    });
-
-    // Analyze by prediction type
-    const typeStats = predictions.reduce((acc, pred) => {
-      acc[pred.predictionType] = acc[pred.predictionType] || { total: 0, wins: 0 };
-      acc[pred.predictionType].total++;
-      if (pred.outcome === 'WIN') {
-        acc[pred.predictionType].wins++;
-      }
-      return acc;
-    }, {} as Record<string, { total: number; wins: number }>);
-
-    console.log('\nPerformance by Prediction Type:');
-    Object.entries(typeStats).forEach(([type, stats]) => {
-      const winRate = ((stats.wins / stats.total) * 100).toFixed(1);
-      console.log(`${type}:`);
-      console.log(`  Total: ${stats.total}`);
-      console.log(`  Wins: ${stats.wins}`);
-      console.log(`  Win Rate: ${winRate}%`);
-    });
-
-    // Analyze by confidence level
-    const confidenceBuckets = predictions.reduce((acc, pred) => {
-      const bucket = Math.floor(pred.confidence * 10) / 10;
-      acc[bucket] = acc[bucket] || { total: 0, wins: 0 };
-      acc[bucket].total++;
-      if (pred.outcome === 'WIN') {
-        acc[bucket].wins++;
-      }
-      return acc;
-    }, {} as Record<number, { total: number; wins: number }>);
-
-    console.log('\nPerformance by Confidence Level:');
-    Object.entries(confidenceBuckets)
-      .sort(([a], [b]) => Number(b) - Number(a))
-      .forEach(([confidence, stats]) => {
-        const winRate = ((stats.wins / stats.total) * 100).toFixed(1);
-        console.log(`${(Number(confidence) * 100).toFixed(0)}%:`);
-        console.log(`  Total: ${stats.total}`);
-        console.log(`  Wins: ${stats.wins}`);
-        console.log(`  Win Rate: ${winRate}%`);
-      });
-
-    // Recent performance (last 20 predictions)
-    const recentPredictions = predictions
-      .sort((a, b) => b.game.gameDate.getTime() - a.game.gameDate.getTime())
-      .slice(0, 20);
-
-    console.log('\nRecent Performance (Last 20 Predictions):');
-    recentPredictions.forEach(pred => {
-      const result = pred.outcome === 'WIN' ? '✅' : pred.outcome === 'LOSS' ? '❌' : '⏳';
-      console.log(`${result} ${pred.game.homeTeamName} vs ${pred.game.awayTeamName}`);
-      console.log(`   Type: ${pred.predictionType}, Confidence: ${(pred.confidence * 100).toFixed(1)}%`);
-      console.log(`   Reasoning: ${pred.reasoning}`);
+    Object.entries(resultsByGrade).forEach(([grade, results]) => {
+      const total = results.wins + results.losses;
+      const winRate = total > 0 ? (results.wins / total * 100).toFixed(1) : '0.0';
+      
+      console.log(`Grade ${grade}:`);
+      console.log(`Total Predictions: ${total}`);
+      console.log(`Wins: ${results.wins}`);
+      console.log(`Losses: ${results.losses}`);
+      console.log(`Win Rate: ${winRate}%\n`);
     });
 
   } catch (error) {
@@ -95,4 +79,4 @@ async function analyzePastPredictions() {
   }
 }
 
-analyzePastPredictions(); 
+analyzePastPredictions().catch(console.error); 

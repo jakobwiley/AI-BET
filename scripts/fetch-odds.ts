@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { PrismaClient } from '@prisma/client';
-import { OddsApiService } from '../src/lib/oddsApi.ts';
+import { PrismaClient, SportType, Prisma } from '@prisma/client';
 import dotenv from 'dotenv';
 import axios from 'axios';
+
+dotenv.config();
 
 const prisma = new PrismaClient();
 
@@ -15,17 +16,83 @@ const SPORT_KEYS = {
   NBA: 'basketball_nba'
 };
 
+type SportKey = 'NBA' | 'MLB';
+
+interface OddsResponse {
+  id: string;
+  sport_key: string;
+  commence_time: string;
+  home_team: string;
+  away_team: string;
+  bookmakers?: Array<{
+    key: string;
+    markets: Array<{
+      key: string;
+      outcomes: Array<{
+        name: string;
+        price: number;
+        point?: number;
+      }>;
+    }>;
+  }>;
+}
+
+interface TransformedOdds {
+  sport: SportKey;
+  homeTeam: string;
+  awayTeam: string;
+  startTime: Date;
+  odds: {
+    moneyline?: {
+      home: number | null;
+      away: number | null;
+      draw?: number | null;
+    };
+    spread?: {
+      home: number | null;
+      away: number | null;
+      point: number | null;
+    };
+    total?: {
+      over: number | null;
+      under: number | null;
+      point: number | null;
+    };
+  };
+}
+
+interface Market {
+  key: string;
+  outcomes: Array<{
+    name: string;
+    price: number;
+    point?: number;
+  }>;
+}
+
+interface Bookmaker {
+  key: string;
+  markets: Market[];
+}
+
+interface Event {
+  home_team: string;
+  away_team: string;
+  commence_time: string;
+  bookmakers?: Bookmaker[];
+}
+
 async function fetchOddsForSport(sport: SportKey): Promise<TransformedOdds[]> {
   console.log(`Fetching odds for ${sport}...`);
   
   try {
     const sportKey = SPORT_KEYS[sport];
-    const response = await axios.get<OddsResponse[]>(`${BASE_URL}/${sportKey}/odds`, {
+    const response = await axios.get<OddsResponse[]>(`${BASE_URL}/sports/${sportKey}/odds`, {
       params: {
         apiKey: API_KEY,
         regions: 'us',
         markets: 'h2h,spreads,totals',
-        oddsFormat: 'decimal',
+        oddsFormat: 'american',
         dateFormat: 'iso'
       }
     });
@@ -34,17 +101,28 @@ async function fetchOddsForSport(sport: SportKey): Promise<TransformedOdds[]> {
       console.log(`No odds available for ${sport}`);
       return [];
     }
+
+    // Filter for games today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     
     return response.data
+      .filter(event => {
+        const gameDate = new Date(event.commence_time);
+        return gameDate >= today && gameDate < tomorrow;
+      })
       .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
       .map((event) => {
-        const bookmaker = event.bookmakers?.find(b => b.key === 'draftkings') || event.bookmakers?.[0];
+        const bookmaker = event.bookmakers?.find(b => b.key === 'fanduel') || event.bookmakers?.[0];
         
         if (!bookmaker) {
           return {
-            id: event.id,
+            sport: sport,
             homeTeam: event.home_team,
             awayTeam: event.away_team,
+            startTime: new Date(event.commence_time),
             odds: {}
           };
         }
@@ -55,128 +133,162 @@ async function fetchOddsForSport(sport: SportKey): Promise<TransformedOdds[]> {
         const totalsMarket = markets.find(m => m.key === 'totals');
         
         const transformedOdds: TransformedOdds = {
-          id: event.id,
+          sport: sport,
           homeTeam: event.home_team,
           awayTeam: event.away_team,
+          startTime: new Date(event.commence_time),
           odds: {}
         };
         
         if (spreadsMarket?.outcomes?.length === 2) {
           transformedOdds.odds.spread = {
-            homeSpread: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0,
-            awaySpread: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.point || 0,
-            homeOdds: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.price || -110,
-            awayOdds: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.price || -110
+            home: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0,
+            away: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.point || 0,
+            point: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.price || -110
           };
         }
         
         if (totalsMarket?.outcomes?.length === 2) {
           transformedOdds.odds.total = {
-            overUnder: totalsMarket.outcomes[0]?.point || 0,
-            overOdds: totalsMarket.outcomes.find(o => o.name === 'Over')?.price || -110,
-            underOdds: totalsMarket.outcomes.find(o => o.name === 'Under')?.price || -110
+            over: totalsMarket.outcomes[0]?.point || 0,
+            under: totalsMarket.outcomes.find(o => o.name === 'Under')?.price || -110,
+            point: totalsMarket.outcomes.find(o => o.name === 'Over')?.price || -110
           };
         }
         
         if (h2hMarket?.outcomes?.length === 2) {
           transformedOdds.odds.moneyline = {
-            homeOdds: h2hMarket.outcomes.find(o => o.name === event.home_team)?.price || 0,
-            awayOdds: h2hMarket.outcomes.find(o => o.name === event.away_team)?.price || 0
+            home: h2hMarket.outcomes.find(o => o.name === event.home_team)?.price || 0,
+            away: h2hMarket.outcomes.find(o => o.name === event.away_team)?.price || 0
           };
         }
         
         return transformedOdds;
       });
-    
   } catch (error) {
-    console.error(`❌ Error fetching odds for ${sport}:`, error instanceof Error ? error.message : String(error));
+    console.error(`Error in fetchOddsForSport: ${error}`);
     return [];
   }
 }
 
-async function updateGameOdds(gameData) {
-  if (gameData.noOdds) {
-    console.log(`Skipping update for game ID ${gameData.id} (no odds available)`);
-    return null;
+function transformOdds(event: Event, sport: SportKey): TransformedOdds {
+  const bookmaker = event.bookmakers?.find((b: Bookmaker) => b.key === 'fanduel');
+  
+  const defaultOdds = {
+    moneyline: {
+      home: 0,
+      away: 0
+    },
+    spread: {
+      home: 0,
+      away: 0,
+      point: -110
+    },
+    total: {
+      over: 0,
+      under: -110,
+      point: 0
+    }
+  };
+
+  if (!bookmaker) {
+    return {
+      sport: sport,
+      homeTeam: event.home_team,
+      awayTeam: event.away_team,
+      startTime: new Date(event.commence_time),
+      odds: defaultOdds
+    };
+  }
+
+  const transformedOdds: TransformedOdds = {
+    sport: sport,
+    homeTeam: event.home_team,
+    awayTeam: event.away_team,
+    startTime: new Date(event.commence_time),
+    odds: { ...defaultOdds }
+  };
+
+  const markets = bookmaker.markets;
+  const h2hMarket = markets.find((m: Market) => m.key === 'h2h');
+  const spreadsMarket = markets.find((m: Market) => m.key === 'spreads');
+  const totalsMarket = markets.find((m: Market) => m.key === 'totals');
+  
+  if (spreadsMarket?.outcomes?.length === 2) {
+    transformedOdds.odds.spread = {
+      home: spreadsMarket.outcomes.find((o: { name: string; point?: number }) => o.name === event.home_team)?.point || 0,
+      away: spreadsMarket.outcomes.find((o: { name: string; point?: number }) => o.name === event.away_team)?.point || 0,
+      point: spreadsMarket.outcomes.find((o: { name: string; price?: number }) => o.name === event.home_team)?.price || -110
+    };
   }
   
-  try {
-    // Check if game exists in our database
-    const existingGame = await prisma.game.findUnique({
-      where: { id: gameData.id }
-    });
-    
-    if (!existingGame) {
-      console.log(`Game not found in database: ${gameData.id} (${gameData.awayTeam} @ ${gameData.homeTeam})`);
-      return null;
-    }
-    
-    // Update the game with new odds
-    const updatedGame = await prisma.game.update({
-      where: { id: gameData.id },
-      data: {
-        oddsJson: gameData.odds
-      }
-    });
-    
-    console.log(`✅ Updated odds for ${gameData.awayTeam} @ ${gameData.homeTeam}`);
-    
-    // Log the structure of how odds are stored
-    console.log(`  - Odds stored as:`, typeof updatedGame.oddsJson);
-    if (updatedGame.oddsJson) {
-      // Log a sample of the odds format
-      const sample = JSON.stringify(updatedGame.oddsJson).substring(0, 100) + '...';
-      console.log(`  - Sample: ${sample}`);
-      
-      // Log specific values
-      if (updatedGame.oddsJson.spread) {
-        console.log(`  - Spread: homeSpread=${updatedGame.oddsJson.spread.homeSpread}, homeOdds=${updatedGame.oddsJson.spread.homeOdds}`);
-      }
-      if (updatedGame.oddsJson.total) {
-        console.log(`  - Total: overUnder=${updatedGame.oddsJson.total.overUnder}, overOdds=${updatedGame.oddsJson.total.overOdds}`);
-      }
-      if (updatedGame.oddsJson.moneyline) {
-        console.log(`  - Moneyline: homeOdds=${updatedGame.oddsJson.moneyline.homeOdds}, awayOdds=${updatedGame.oddsJson.moneyline.awayOdds}`);
-      }
-    }
-    
-    return updatedGame;
-  } catch (error) {
-    console.error(`❌ Error updating game ${gameData.id}:`, error.message);
-    return null;
+  if (totalsMarket?.outcomes?.length === 2) {
+    transformedOdds.odds.total = {
+      over: totalsMarket.outcomes[0]?.point || 0,
+      under: totalsMarket.outcomes.find((o: { name: string; price?: number }) => o.name === 'Under')?.price || -110,
+      point: totalsMarket.outcomes.find((o: { name: string; price?: number }) => o.name === 'Over')?.price || -110
+    };
   }
+  
+  if (h2hMarket?.outcomes?.length === 2) {
+    transformedOdds.odds.moneyline = {
+      home: h2hMarket.outcomes.find((o: { name: string; price?: number }) => o.name === event.home_team)?.price || 0,
+      away: h2hMarket.outcomes.find((o: { name: string; price?: number }) => o.name === event.away_team)?.price || 0
+    };
+  }
+  
+  return transformedOdds;
+}
+
+async function updateGameOdds(game: Prisma.GameGetPayload<{}>, odds: TransformedOdds): Promise<void> {
+  await prisma.game.update({
+    where: { id: game.id },
+    data: {
+      oddsJson: odds.odds
+    }
+  });
 }
 
 async function main() {
-  if (!API_KEY) {
-    console.error('❌ Error: THE_ODDS_API_KEY environment variable is not set.');
-    process.exit(1);
-  }
-  
-  console.log('🏀 🏈 ⚾ Starting odds refresh...');
-  
   try {
-    // Fetch odds for both sports in parallel
-    const [mlbOdds, nbaOdds] = await Promise.all([
-      fetchOddsForSport('MLB'),
-      fetchOddsForSport('NBA')
-    ]);
+    console.log('Starting odds fetch for today...');
+
+    // Fetch MLB odds
+    const mlbOdds = await fetchOddsForSport('MLB');
+    console.log(`Found ${mlbOdds.length} MLB games`);
     
-    const allGames = [...mlbOdds, ...nbaOdds];
-    console.log(`Found odds for ${allGames.length} games in total.`);
-    
-    // Update database with fresh odds
-    const updatePromises = allGames.map(game => updateGameOdds(game));
-    const updateResults = await Promise.all(updatePromises);
-    
-    const successCount = updateResults.filter(Boolean).length;
-    console.log(`✅ Successfully updated odds for ${successCount} games.`);
-    
+    // Fetch NBA odds
+    const nbaOdds = await fetchOddsForSport('NBA');
+    console.log(`Found ${nbaOdds.length} NBA games`);
+
+    // Update games in database
+    for (const odds of [...mlbOdds, ...nbaOdds]) {
+      const game = await prisma.game.findFirst({
+        where: {
+          homeTeamName: odds.homeTeam,
+          awayTeamName: odds.awayTeam,
+          gameDate: {
+            gte: new Date(new Date(odds.startTime).setHours(0, 0, 0, 0)),
+            lt: new Date(new Date(odds.startTime).setHours(23, 59, 59, 999))
+          }
+        }
+      });
+
+      if (game) {
+        await updateGameOdds(game, odds);
+        console.log(`Updated odds for ${game.homeTeamName} vs ${game.awayTeamName}`);
+      } else {
+        console.log(`No matching game found for ${odds.homeTeam} vs ${odds.awayTeam}`);
+      }
+    }
+
+    console.log('Completed successfully');
   } catch (error) {
-    console.error('❌ Error in odds refresh process:', error.message);
+    console.error('Error in main:', error);
+    process.exit(1);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-main(); 
+main().catch(console.error);
