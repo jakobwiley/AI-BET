@@ -3,15 +3,15 @@
 import React, { memo } from 'react';
 import Link from 'next/link';
 import { Game, Prediction } from '@/models/types';
-import { formatDate } from '@/utils/formatting';
+import { formatDate, formatPredictionType } from '@/utils/formatting';
 
 interface GameCardProps {
   game: Game | null;
-  predictions?: Prediction[];
   loading?: boolean;
+  predictions?: Prediction[];
 }
 
-const GameCard: React.FC<GameCardProps> = React.memo(({ game, predictions = [], loading = false }) => {
+const GameCard: React.FC<GameCardProps> = React.memo(({ game, loading = false, predictions }) => {
   if (loading || !game) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 shadow-lg hover:shadow-xl transition-all duration-200">
@@ -28,12 +28,43 @@ const GameCard: React.FC<GameCardProps> = React.memo(({ game, predictions = [], 
   }
 
   const formattedDate = formatDate(game.gameDate);
-  const topPrediction = predictions.length > 0 ? predictions.reduce((prev, current) => 
-    (current.confidence > prev.confidence) ? current : prev, predictions[0]
-  ) : null;
+  const gamePredictions = predictions || game.predictions || [];
 
-  const spreadValue = typeof game.spread === 'number' ? game.spread : 
-    (game.spread?.home ? game.spread.home : undefined);
+  const getConfidenceColor = (confidence: number): string => {
+    if (confidence >= 70) return 'bg-green-500';
+    if (confidence >= 50) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const getGradeColor = (grade: string): string => {
+    switch (grade) {
+      case 'A': return 'bg-green-500';
+      case 'B': return 'bg-blue-500';
+      case 'C': return 'bg-yellow-500';
+      default: return 'bg-red-500';
+    }
+  };
+
+  const formatPredictionValue = (prediction: Prediction): string => {
+    switch (prediction.predictionType) {
+      case 'SPREAD':
+        return `${prediction.predictionValue > 0 ? '+' : ''}${prediction.predictionValue}`;
+      case 'MONEYLINE':
+        return `${prediction.predictionValue > 0 ? '+' : ''}${prediction.predictionValue}`;
+      case 'TOTAL':
+        return `O/U ${prediction.predictionValue}`;
+      default:
+        return prediction.predictionValue.toString();
+    }
+  };
+
+  const getPredictionByType = (type: 'SPREAD' | 'MONEYLINE' | 'TOTAL'): Prediction | undefined => {
+    return gamePredictions.find(p => p.predictionType === type);
+  };
+
+  const spreadPrediction = getPredictionByType('SPREAD');
+  const moneylinePrediction = getPredictionByType('MONEYLINE');
+  const totalPrediction = getPredictionByType('TOTAL');
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg hover:shadow-xl transition-all duration-200">
@@ -41,54 +72,70 @@ const GameCard: React.FC<GameCardProps> = React.memo(({ game, predictions = [], 
         <div className="text-lg font-semibold text-white" data-testid="game-teams">
           {`${game.homeTeamName} vs ${game.awayTeamName}`}
         </div>
+        <div className="text-sm text-gray-400">{formattedDate}</div>
       </div>
-      <div className="text-sm text-gray-400 mb-4">{formattedDate}</div>
-      <div className="space-y-3">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Home</span>
-          <span className="text-gray-300" data-testid="home-team">{game.homeTeamName}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Away</span>
-          <span className="text-gray-300" data-testid="away-team">{game.awayTeamName}</span>
-        </div>
-        {spreadValue !== undefined && (
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Spread</span>
-            <span className="text-gray-300" data-testid="spread-value">{spreadValue}</span>
-          </div>
-        )}
-        {topPrediction && (
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <div className="text-sm font-medium text-gray-400 mb-2">
-              Top Prediction
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-300" data-testid="prediction-value">
-                {topPrediction.predictionValue}
-              </span>
-              <div className="flex items-center">
-                <div
-                  className={`w-2 h-2 rounded-full mr-2 ${
-                    topPrediction.confidence >= 70 ? 'bg-green-500' :
-                    topPrediction.confidence >= 40 ? 'bg-yellow-500' :
-                    'bg-red-500'
-                  }`}
-                  data-testid="confidence-indicator"
-                />
-                <span className="text-gray-400">
-                  {Math.round(topPrediction.confidence)}%
+
+      <div className="grid grid-cols-3 gap-4 mt-4">
+        {/* Spread */}
+        <div className="flex flex-col space-y-2">
+          <span className="text-gray-400 text-sm">Spread</span>
+          {spreadPrediction && (
+            <>
+              <span className="text-white font-medium">{formatPredictionValue(spreadPrediction)}</span>
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${getConfidenceColor(spreadPrediction.confidence)}`} />
+                <span className="text-white">{spreadPrediction.confidence}%</span>
+                <span className={`ml-2 px-2 py-0.5 text-xs text-white rounded-full ${getGradeColor(spreadPrediction.grade)}`}>
+                  {spreadPrediction.grade}
                 </span>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
+
+        {/* Moneyline */}
+        <div className="flex flex-col space-y-2">
+          <span className="text-gray-400 text-sm">Moneyline</span>
+          {moneylinePrediction && (
+            <>
+              <span className="text-white font-medium">{formatPredictionValue(moneylinePrediction)}</span>
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${getConfidenceColor(moneylinePrediction.confidence)}`} />
+                <span className="text-white">{moneylinePrediction.confidence}%</span>
+                <span className={`ml-2 px-2 py-0.5 text-xs text-white rounded-full ${getGradeColor(moneylinePrediction.grade)}`}>
+                  {moneylinePrediction.grade}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Total */}
+        <div className="flex flex-col space-y-2">
+          <span className="text-gray-400 text-sm">Total</span>
+          {totalPrediction && (
+            <>
+              <span className="text-white font-medium">{formatPredictionValue(totalPrediction)}</span>
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${getConfidenceColor(totalPrediction.confidence)}`} />
+                <span className="text-white">{totalPrediction.confidence}%</span>
+                <span className={`ml-2 px-2 py-0.5 text-xs text-white rounded-full ${getGradeColor(totalPrediction.grade)}`}>
+                  {totalPrediction.grade}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-      <Link href={`/games/${game.id}`} passHref legacyBehavior>
-        <a className="block mt-4 text-center text-blue-500 hover:text-blue-400 text-sm">
+
+      <div className="mt-4 text-center">
+        <Link 
+          href={`/games/${game.id.replace(/^(nba|mlb)-game-/, '')}`} 
+          className="text-blue-500 hover:text-blue-400 text-sm"
+        >
           View All Predictions
-        </a>
-      </Link>
+        </Link>
+      </div>
     </div>
   );
 });

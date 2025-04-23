@@ -1,85 +1,72 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Game, Prediction } from '@/models/types';
-import PredictionCard from './PredictionCard';
-import GameStats from './GameStats';
-import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate } from '@/lib/utils';
+import React from 'react';
+import { Game } from '@/models/types';
+import { formatDate } from '@/utils/formatting';
 
 interface GameDetailsProps {
-  game?: Game;
-  initialPredictions?: Prediction[];
-  isLoading?: boolean;
+  game: Game;
 }
 
-export default function GameDetails({ game, initialPredictions = [], isLoading = false }: GameDetailsProps) {
-  const [activeTab, setActiveTab] = useState<'predictions' | 'stats'>('predictions');
-
-  if (isLoading) {
-    return (
-      <div className="animate-pulse" data-testid="loading-skeleton">
-        <div className="h-8 bg-gray-700 rounded w-3/4 mb-4"></div>
-        <div className="h-4 bg-gray-700 rounded w-1/2 mb-2"></div>
-        <div className="h-4 bg-gray-700 rounded w-1/3 mb-4"></div>
-        <div className="space-y-3">
-          <div className="h-10 bg-gray-700 rounded"></div>
-          <div className="h-10 bg-gray-700 rounded"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!game) {
-    return <div className="text-center text-gray-500">Game not found</div>;
-  }
-
+export default function GameDetails({ game }: GameDetailsProps) {
   return (
-    <div className="space-y-4">
-      <div className="bg-card p-4 rounded-lg">
-        <h1 className="text-2xl font-bold mb-2">
+    <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-white">
           {game.homeTeamName} vs {game.awayTeamName}
         </h1>
-        <p className="text-muted-foreground">{formatDate(game.gameDate)}</p>
-        <p className="text-muted-foreground">{game.status}</p>
+        <div className="text-gray-400">{formatDate(game.gameDate)}</div>
       </div>
 
-      <div className="flex space-x-4">
-        <button
-          className={`px-4 py-2 rounded-lg ${
-            activeTab === 'predictions'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground'
-          }`}
-          onClick={() => setActiveTab('predictions')}
-        >
-          Predictions
-        </button>
-        <button
-          className={`px-4 py-2 rounded-lg ${
-            activeTab === 'stats'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground'
-          }`}
-          onClick={() => setActiveTab('stats')}
-        >
-          Stats
-        </button>
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h2 className="text-lg font-semibold text-white mb-3">Game Info</h2>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Status:</span>
+              <span className="text-white">{game.status}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Sport:</span>
+              <span className="text-white">{game.sport}</span>
+            </div>
+          </div>
+        </div>
 
-      {activeTab === 'predictions' && (
-        <div className="space-y-4">
-          {initialPredictions.length > 0 ? (
-            initialPredictions.map((prediction) => (
-              <PredictionCard key={prediction.id} prediction={prediction} />
-            ))
+        <div>
+          <h2 className="text-lg font-semibold text-white mb-3">Odds</h2>
+          {game.odds ? (
+            <div className="space-y-2">
+              {game.odds.spread && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Spread:</span>
+                  <span className="text-white">
+                    {game.odds.spread.homeSpread > 0 ? '+' : ''}{game.odds.spread.homeSpread} ({game.odds.spread.homeOdds})
+                  </span>
+                </div>
+              )}
+              {game.odds.moneyline && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Moneyline:</span>
+                  <span className="text-white">
+                    {game.odds.moneyline.homeOdds > 0 ? '+' : ''}{game.odds.moneyline.homeOdds}
+                  </span>
+                </div>
+              )}
+              {game.odds.total && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Total:</span>
+                  <span className="text-white">
+                    O/U {game.odds.total.overUnder} ({game.odds.total.overOdds})
+                  </span>
+                </div>
+              )}
+            </div>
           ) : (
-            <p className="text-muted-foreground">No predictions available.</p>
+            <div className="text-gray-500">Odds not available</div>
           )}
         </div>
-      )}
-
-      {activeTab === 'stats' && <GameStats game={game} />}
+      </div>
     </div>
   );
 } 

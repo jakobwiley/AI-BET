@@ -1,31 +1,41 @@
-# AI-BET
+# BetAI - Sports Betting Prediction App
 
-A Next.js application for sports betting analysis, predictions, and odds tracking for NBA and MLB games.
+BetAI is a modern, AI-powered sports betting prediction platform that provides high-confidence predictions for NBA and MLB games, including both game outcomes and player props.
+
+![BetAI Screenshot](https://via.placeholder.com/800x400?text=BetAI+Screenshot)
 
 ## Features
 
-- Real-time game data from The Odds API
-- Game predictions and analysis
-- Player props and statistics
-- Team information and logos
-- Game details with odds and spread information
-- Beautiful, responsive UI built with Tailwind CSS
+- **NBA & MLB Predictions**: Get AI-powered predictions for all NBA and MLB games
+- **Player Props**: Detailed player prop predictions with confidence ratings
+- **Confidence Ratings**: Each prediction includes a confidence percentage to help you make smarter bets
+- **Detailed Insights**: Reasoning behind each prediction to understand the AI's decision-making
+- **Mobile & Desktop Friendly**: Responsive design for all devices
+- **User Authentication**: Save your favorite teams and players
+
+## Tech Stack
+
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS, Framer Motion
+- **Backend**: Next.js API Routes
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: NextAuth.js
+- **Styling**: Tailwind CSS
+- **Deployment**: Vercel
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- API keys for:
-  - The Odds API (https://the-odds-api.com/)
-  - OpenAI API (optional, for AI-based predictions)
+- Node.js (v18 or later)
+- npm or yarn
+- PostgreSQL database
 
 ### Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/AI-BET.git
-   cd AI-BET
+   git clone https://github.com/yourusername/betai.git
+   cd betai
    ```
 
 2. Install dependencies:
@@ -33,77 +43,54 @@ A Next.js application for sports betting analysis, predictions, and odds trackin
    npm install
    ```
 
-3. Create a `.env` file in the root directory with your API keys:
-   ```
-   NEXT_PUBLIC_THE_ODDS_API_KEY=your_odds_api_key
-   NEXT_PUBLIC_SPORTS_DATA_API_KEY=your_sports_data_api_key
-   OPENAI_API_KEY=your_openai_api_key
-   NEXT_PUBLIC_APP_URL=http://localhost:3000
-   LOG_LEVEL=INFO
+3. Set up environment variables:
+   - Copy `.env.example` to `.env.local`
+   - Update the values with your database connection string and API keys
+
+4. Set up the database:
+   ```bash
+   npx prisma migrate dev
    ```
 
-4. Run the development server:
+5. Run the development server:
    ```bash
    npm run dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## API Integration
+## API Keys & External Services
 
-### The Odds API
+BetAI uses the following APIs for sports data:
 
-This application uses The Odds API to fetch real sports data. The integration includes:
+- [SportsData.io](https://sportsdata.io/) - For NBA and MLB game data
+- [The Odds API](https://the-odds-api.com/) - For betting odds
 
-- `/sports/{sport}/events` - Get upcoming and live games with scores
-- `/sports/{sport}/odds` - Get betting odds for games
-- `/sports/{sport}/odds/?markets=player_props` - Get player props (when available)
-
-Team logos are fetched from league-specific sources:
-- NBA: `https://cdn.nba.com/logos/nba/{teamId}/global/L/logo.svg`
-- MLB: `https://www.mlbstatic.com/team-logos/{teamId}.svg`
-
-### Error Handling
-
-The application implements robust error handling:
-- Automatic fallback to ESPN API when Odds API is unavailable
-- Caching of responses to reduce API calls
-- Clear error messaging to users when APIs are unreachable
+You'll need to sign up for these services and add your API keys to the `.env.local` file.
 
 ## Project Structure
 
-- `/components` - React components
-- `/hooks` - Custom React hooks
-- `/lib` - API services and utilities
-- `/models` - TypeScript interfaces and types
-- `/pages` - Next.js pages
-- `/public` - Static assets
-- `/styles` - Global CSS styles
-- `/utils` - Helper functions
+```
+betai/
+├── prisma/           # Database schema and migrations
+├── public/           # Static assets
+├── src/
+│   ├── app/          # Next.js app router and pages
+│   ├── components/   # React components
+│   ├── hooks/        # Custom React hooks
+│   ├── lib/          # Utility functions and API clients
+│   ├── models/       # TypeScript types and interfaces
+```
 
-## Current Development Phase
+## Contributing
 
-Phase 3: Real Game Data Integration
-
-- Fetching real NBA and MLB games from The Odds API
-- Displaying actual odds and spreads
-- Integrating player and team information
-- Building analytics and prediction models
-
-## Technologies Used
-
-- [Next.js](https://nextjs.org/) - React framework
-- [TypeScript](https://www.typescriptlang.org/) - Type safety
-- [Tailwind CSS](https://tailwindcss.com/) - Styling
-- [The Odds API](https://the-odds-api.com/) - Sports data
-- [OpenAI API](https://openai.com/) - AI predictions (optional)
-- [Jest](https://jestjs.io/) - Testing
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is for personal use only.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
-- The Odds API for providing sports data
-- OpenAI for prediction capabilities
+- Sports data provided by SportsData.io and The Odds API
+- Icons by FontAwesome via react-icons 

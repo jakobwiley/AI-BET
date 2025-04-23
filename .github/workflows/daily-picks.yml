@@ -1,0 +1,43 @@
+name: Daily Sports Picks
+
+on:
+  schedule:
+    # Runs at 9:00 AM Central Time (14:00 UTC during standard time, 15:00 UTC during daylight savings)
+    - cron: '0 14,15 * * *'
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  generate-picks:
+    runs-on: ubuntu-latest
+    
+    env:
+      # Email configuration
+      SMTP_USER: jakobwiley@gmail.com
+      SMTP_FROM: jakobwiley@gmail.com
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_SECURE: false
+      
+      # Database configuration (you'll need to add this as a secret)
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      
+      # Other API keys if needed
+      RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate and send picks
+        run: node scripts/get-todays-picks.js 

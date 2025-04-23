@@ -17,6 +17,7 @@ export class CacheService {
   private static instance: CacheService;
   private cache: Map<string, CacheEntry<any>> = new Map();
   private apiCalls: Map<string, number> = new Map();
+  private apiUsage: ApiUsage;
   private readonly STORAGE_KEY = 'ai_bet_api_cache';
   private readonly USAGE_KEY = 'ai_bet_api_usage';
   private readonly MONTHLY_LIMIT = 500;
@@ -26,6 +27,11 @@ export class CacheService {
     if (typeof window !== 'undefined') {
       localStorage.clear();
     }
+    this.apiUsage = {
+      used: 0,
+      limit: this.MONTHLY_LIMIT,
+      lastResetDate: new Date()
+    };
   }
 
   public static getInstance(): CacheService {

@@ -1,22 +1,31 @@
 export type SportType = 'NBA' | 'MLB';
 
-export type PredictionType = 'SPREAD' | 'MONEYLINE' | 'TOTAL' | 'OVER_UNDER';
+export type PredictionType = 'SPREAD' | 'MONEYLINE' | 'TOTAL';
 
-export type PlayerPropType =
-  | 'POINTS'
-  | 'REBOUNDS'
-  | 'ASSISTS'
-  | 'BLOCKS'
-  | 'STEALS'
-  | 'TURNOVERS'
-  | 'THREE_POINTERS'
-  | 'HITS'
-  | 'RUNS'
-  | 'RBI'
-  | 'STRIKEOUTS'
-  | 'HOME_RUNS'
-  | 'STOLEN_BASES'
-  | 'WALKS';
+export enum GameStatus {
+  SCHEDULED = 'SCHEDULED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINAL = 'FINAL',
+  POSTPONED = 'POSTPONED',
+  CANCELLED = 'CANCELLED'
+}
+
+export enum PlayerPropType {
+  POINTS = 'POINTS',
+  REBOUNDS = 'REBOUNDS',
+  ASSISTS = 'ASSISTS',
+  BLOCKS = 'BLOCKS',
+  STEALS = 'STEALS',
+  TURNOVERS = 'TURNOVERS',
+  THREE_POINTERS = 'THREE_POINTERS',
+  HITS = 'HITS',
+  RUNS = 'RUNS',
+  RBI = 'RBI',
+  STRIKEOUTS = 'STRIKEOUTS',
+  HOME_RUNS = 'HOME_RUNS',
+  STOLEN_BASES = 'STOLEN_BASES',
+  WALKS = 'WALKS'
+}
 
 export interface Game {
   id: string;
@@ -27,34 +36,42 @@ export interface Game {
   awayTeamName: string;
   gameDate: string;
   startTime: string;
-  status: string;
-  spread?: { home: number; away: number };
+  status: GameStatus;
   predictions?: Prediction[];
   odds?: {
-    spread: {
-      home: { line: number; odds: number };
-      away: { line: number; odds: number };
+    spread?: {
+      homeSpread: number;
+      awaySpread: number;
+      homeOdds: number;
+      awayOdds: number;
     };
-    total: {
-      over: { line: number; odds: number };
-      under: { line: number; odds: number };
+    total?: {
+      overUnder: number;
+      overOdds: number;
+      underOdds: number;
     };
-    moneyline: {
-      home: number;
-      away: number;
+    moneyline?: {
+      homeOdds: number;
+      awayOdds: number;
     };
   };
+  probableHomePitcherId?: number;
+  probableAwayPitcherId?: number;
+  probableHomePitcherName?: string;
+  probableAwayPitcherName?: string;
 }
 
 export interface Prediction {
   id: string;
   gameId: string;
-  predictionType: 'SPREAD' | 'MONEYLINE' | 'TOTAL' | 'OVER_UNDER';
-  predictionValue: string;
+  predictionType: PredictionType;
+  predictionValue: number;
   confidence: number;
-  reasoning?: string;
+  grade: string;
+  reasoning: string;
   outcome?: 'WIN' | 'LOSS' | 'PUSH';
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface PlayerProp {

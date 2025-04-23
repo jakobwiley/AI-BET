@@ -1,7 +1,11 @@
+import React from 'react';
 import Link from "next/link";
 import { FaBasketballBall, FaBaseballBall, FaChartLine, FaLightbulb } from "react-icons/fa";
 
 export default function Home() {
+  // Added for debugging - will log when page loads
+  console.log("Home page loaded");
+  
   return (
     <main className="flex flex-col items-center">
       <div className="text-center py-12 md:py-24">
@@ -77,4 +81,4 @@ export default function Home() {
       </div>
     </main>
   );
-}
+} 

@@ -1,46 +1,38 @@
 'use client';
 
-import { use } from 'react';
 import { useEffect, useState } from 'react';
+import { useGamePredictions } from '@/hooks/useSportsData';
+import { useParams } from 'next/navigation';
 import GameDetails from '@/components/GameDetails';
-import { Game } from '@/models/types';
-import { OddsApiService } from '@/lib/oddsApi';
+import PredictionList from '@/components/PredictionList';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import ErrorMessage from '@/components/ErrorMessage';
+import { Prediction } from '@/models/types';
 
-interface GamePageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
+export default function GameDetailsPage() {
+  const params = useParams<{ id: string }>();
+  const gameId = params.id;
+  const { game, predictions: gamePredictions, loading, error } = useGamePredictions(gameId);
 
-export default function GamePage({ params }: GamePageProps) {
-  const resolvedParams = use(params);
-  const [game, setGame] = useState<Game | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
-  useEffect(() => {
-    async function loadGame() {
-      try {
-        setIsLoading(true);
-        // TODO: Implement game fetching by ID
-        // const game = await OddsApiService.getGameById(resolvedParams.id);
-        // setGame(game);
-      } catch (error) {
-        console.error('Error loading game:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  if (error) {
+    return <ErrorMessage message={error.message} />;
+  }
 
-    loadGame();
-  }, [resolvedParams.id]);
-  
+  if (!game) {
+    return <ErrorMessage message="Game not found" />;
+  }
+
   return (
-    <div className="container mx-auto py-8">
-      <GameDetails 
-        game={game}
-        isLoading={isLoading}
-        initialPredictions={[]}
-      />
+    <div className="container mx-auto px-4 py-8">
+      <GameDetails game={game} />
+      <div className="mt-8">
+        <h2 className="text-xl font-bold text-white mb-4">Predictions</h2>
+        <PredictionList predictions={gamePredictions} />
+      </div>
     </div>
   );
 } 
