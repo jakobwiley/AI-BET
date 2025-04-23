@@ -20,7 +20,9 @@ export class SportsApiService {
 
   private static getOddsService(): OddsApiService {
     if (!this.oddsService) {
-      this.oddsService = new OddsApiService(THE_ODDS_API_KEY, ODDS_API_BASE_URL);
+      const apiKey = process.env.THE_ODDS_API_KEY;
+      const apiHost = process.env.ODDS_API_HOST;
+      this.oddsService = new OddsApiService(apiKey, apiHost);
     }
     return this.oddsService;
   }

@@ -60,7 +60,8 @@ async function getTodaysPredictions() {
           console.log(`  Reasoning: ${pred.reasoning}\n`);
         });
       } catch (error) {
-        console.log(`  Error getting predictions: ${error.message}\n`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.log(`  Error getting predictions: ${errorMessage}\n`);
       }
     }
 

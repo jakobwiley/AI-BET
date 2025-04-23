@@ -38,6 +38,16 @@ function isRateLimitError(error: any): boolean {
          error?.response?.status === 401;
 }
 
+interface ApiError extends Error {
+  response?: {
+    data?: {
+      message?: string;
+      error_code?: string;
+    };
+    status?: number;
+  };
+}
+
 async function determinePredictionOutcome(prediction: any, scores: { home: number; away: number } | null): Promise<PredictionOutcomeType> {
   if (!scores) {
     return PredictionOutcome.PENDING;
@@ -150,14 +160,15 @@ async function analyzeYesterdayPredictions() {
             updatedCount++;
           }
         }
-      } catch (error) {
-        if (isRateLimitError(error)) {
-          log(`⚠️ API rate limit reached: ${error.response?.data?.message || 'Unknown error'}`);
+      } catch (error: unknown) {
+        const apiError = error as ApiError;
+        if (isRateLimitError(apiError)) {
+          log(`⚠️ API rate limit reached: ${apiError.response?.data?.message || 'Unknown error'}`);
           rateLimitHit = true;
           errorCount++;
           break;
         } else {
-          log(`Error processing game ${game.id}: ${error.message}`);
+          log(`Error processing game ${game.id}: ${apiError.message}`);
           errorCount++;
         }
       }
@@ -178,7 +189,8 @@ async function analyzeYesterdayPredictions() {
     log(`Log file saved to: ${logFile}`);
 
   } catch (error) {
-    log(`Error in analysis process: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    log(`Error in analysis process: ${errorMessage}`);
   } finally {
     await prisma.$disconnect();
     logStream.end();

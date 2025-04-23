@@ -8,13 +8,49 @@ function formatTeamName(game) {
   return `${game.awayTeamName} @ ${game.homeTeamName}`;
 }
 
+// Helper function to properly format odds
+function formatOdds(odds) {
+  if (!odds) return 'Not available';
+  
+  const formattedOdds = {};
+  
+  if (odds.spread) {
+    formattedOdds.spread = `${odds.spread.away > 0 ? '+' : ''}${odds.spread.away} (${odds.spread.point}) | ${odds.spread.home > 0 ? '+' : ''}${odds.spread.home} (${odds.spread.point})`;
+  }
+  
+  if (odds.total) {
+    formattedOdds.total = `O/U ${odds.total.over} (O: ${odds.total.point} | U: ${odds.total.under})`;
+  }
+  
+  if (odds.moneyline) {
+    formattedOdds.moneyline = `${odds.moneyline.away} | ${odds.moneyline.home}`;
+  }
+  
+  return formattedOdds;
+}
+
 // Helper function to properly format prediction details
 function formatPrediction(pred) {
+  let formattedValue = pred.predictionValue;
+  
+  switch (pred.predictionType) {
+    case 'SPREAD':
+      formattedValue = `${formattedValue > 0 ? '+' : ''}${formattedValue}`;
+      break;
+    case 'TOTAL':
+      formattedValue = formattedValue > 0 ? 'OVER' : 'UNDER';
+      break;
+    case 'MONEYLINE':
+      formattedValue = formattedValue > 0 ? 'HOME' : 'AWAY';
+      break;
+  }
+  
   return {
     type: pred.predictionType,
-    value: pred.predictionValue,
+    value: formattedValue,
     confidence: Math.round(pred.confidence * 100),
-    grade: pred.grade || 'N/A'
+    grade: pred.grade || calculateGrade(pred.confidence),
+    reasoning: pred.reasoning
   };
 }
 
@@ -93,11 +129,12 @@ async function main() {
         
         // Display odds if available
         if (game.oddsJson) {
-          console.log('Odds:');
           const odds = typeof game.oddsJson === 'string' ? JSON.parse(game.oddsJson) : game.oddsJson;
-          if (odds.spread) console.log(`  Spread: ${odds.spread}`);
-          if (odds.total) console.log(`  Total: ${odds.total}`);
-          if (odds.moneyline) console.log(`  Moneyline: ${odds.moneyline}`);
+          const formattedOdds = formatOdds(odds);
+          console.log('Odds:');
+          if (formattedOdds.spread) console.log(`  Spread: ${formattedOdds.spread}`);
+          if (formattedOdds.total) console.log(`  Total: ${formattedOdds.total}`);
+          if (formattedOdds.moneyline) console.log(`  Moneyline: ${formattedOdds.moneyline}`);
         } else {
           console.log('No odds available');
         }
@@ -108,6 +145,9 @@ async function main() {
           game.predictions.forEach(pred => {
             const formattedPred = formatPrediction(pred);
             console.log(`  - ${formattedPred.type}: ${formattedPred.value} (Confidence: ${formattedPred.confidence}%, Grade: ${formattedPred.grade})`);
+            if (formattedPred.reasoning) {
+              console.log(`    Reasoning: ${formattedPred.reasoning}`);
+            }
           });
         } else {
           console.log('No predictions available');
@@ -130,11 +170,12 @@ async function main() {
         
         // Display odds if available
         if (game.oddsJson) {
-          console.log('Odds:');
           const odds = typeof game.oddsJson === 'string' ? JSON.parse(game.oddsJson) : game.oddsJson;
-          if (odds.spread) console.log(`  Spread: ${odds.spread}`);
-          if (odds.total) console.log(`  Total: ${odds.total}`);
-          if (odds.moneyline) console.log(`  Moneyline: ${odds.moneyline}`);
+          const formattedOdds = formatOdds(odds);
+          console.log('Odds:');
+          if (formattedOdds.spread) console.log(`  Spread: ${formattedOdds.spread}`);
+          if (formattedOdds.total) console.log(`  Total: ${formattedOdds.total}`);
+          if (formattedOdds.moneyline) console.log(`  Moneyline: ${formattedOdds.moneyline}`);
         } else {
           console.log('No odds available');
         }
@@ -145,6 +186,9 @@ async function main() {
           game.predictions.forEach(pred => {
             const formattedPred = formatPrediction(pred);
             console.log(`  - ${formattedPred.type}: ${formattedPred.value} (Confidence: ${formattedPred.confidence}%, Grade: ${formattedPred.grade})`);
+            if (formattedPred.reasoning) {
+              console.log(`    Reasoning: ${formattedPred.reasoning}`);
+            }
           });
         } else {
           console.log('No predictions available');

@@ -1,103 +1,144 @@
 import { PrismaClient, GameStatus } from '@prisma/client';
 import { format } from 'date-fns';
-import EmailService from '../src/lib/emailService';
 import dotenv from 'dotenv';
+import EmailService from '../src/lib/emailService';
+import { createInterface } from 'readline/promises';
 
 dotenv.config();
 
 const prisma = new PrismaClient();
 
 interface Prediction {
+  id: string;
   gameId: string;
-  predictionType: string;
+  predictionType: 'SPREAD' | 'TOTAL' | 'MONEYLINE';
   predictionValue: number;
   confidence: number;
   reasoning: string;
-  grade?: string;
+  outcome: 'PENDING' | 'WIN' | 'LOSS';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface Game {
   id: string;
   sport: string;
+  homeTeamId: string;
+  awayTeamId: string;
   homeTeamName: string;
   awayTeamName: string;
   gameDate: Date;
   status: GameStatus;
+  oddsJson: any;
   predictions: Prediction[];
 }
 
-async function formatPredictions(games: Game[]): Promise<string> {
-  let output = `AI-BET Predictions for ${format(new Date(), 'MMMM d, yyyy')}\n`;
-  output += '='.repeat(50) + '\n\n';
+function getConfidenceGrade(confidence: number): string {
+  if (confidence >= 0.85) return 'A+';
+  if (confidence >= 0.80) return 'A';
+  if (confidence >= 0.75) return 'A-';
+  if (confidence >= 0.70) return 'B+';
+  return 'B';
+}
 
-  // Group predictions by sport
-  const predictionsBySport: Record<string, Game[]> = {};
-  games.forEach(game => {
-    if (!predictionsBySport[game.sport]) {
-      predictionsBySport[game.sport] = [];
-    }
-    predictionsBySport[game.sport].push(game);
-  });
-
-  // Format predictions for each sport
-  for (const [sport, sportGames] of Object.entries(predictionsBySport)) {
-    output += `${sport} Predictions\n`;
-    output += '-'.repeat(30) + '\n\n';
-
-    sportGames.forEach(game => {
-      output += `${game.awayTeamName} @ ${game.homeTeamName}\n`;
-      output += `Date: ${format(new Date(game.gameDate), 'MMM d, h:mm a')}\n\n`;
-
-      // Group predictions by type
-      const predictionsByType: Record<string, Prediction[]> = {};
-      game.predictions.forEach(prediction => {
-        if (!predictionsByType[prediction.predictionType]) {
-          predictionsByType[prediction.predictionType] = [];
-        }
-        predictionsByType[prediction.predictionType].push(prediction);
-      });
-
-      // Format each prediction type
-      for (const [type, predictions] of Object.entries(predictionsByType)) {
-        predictions.forEach(prediction => {
-          output += `${type}:\n`;
-          output += `  Confidence: ${prediction.confidence}%${prediction.grade ? ` (${prediction.grade})` : ''}\n`;
-          if (prediction.predictionValue !== 0) {
-            output += `  Value: ${prediction.predictionValue}\n`;
-          }
-          output += `  Reasoning: ${prediction.reasoning}\n\n`;
-        });
-      }
-      output += '-'.repeat(30) + '\n\n';
-    });
+function formatPrediction(prediction: Prediction, game: Game): string {
+  let predictionText = '';
+  
+  switch (prediction.predictionType) {
+    case 'SPREAD':
+      const spreadValue = Math.abs(prediction.predictionValue);
+      const spreadDirection = prediction.predictionValue > 0 ? 'favorite' : 'underdog';
+      const spreadTeam = prediction.predictionValue > 0 ? game.homeTeamName : game.awayTeamName;
+      predictionText = `${spreadTeam} ${spreadDirection} ${spreadValue}`;
+      break;
+      
+    case 'TOTAL':
+      const totalValue = Math.abs(prediction.predictionValue);
+      const totalDirection = prediction.predictionValue > totalValue ? 'OVER' : 'UNDER';
+      predictionText = `${totalDirection} ${totalValue}`;
+      break;
+      
+    case 'MONEYLINE':
+      const mlTeam = prediction.predictionValue > 0 ? game.homeTeamName : game.awayTeamName;
+      predictionText = `${mlTeam} ML`;
+      break;
   }
+  
+  return `${prediction.predictionType}: ${predictionText} (${Math.round(prediction.confidence * 100)}% confidence)`;
+}
 
-  return output;
+function formatPredictions(games: Game[]): string {
+  let emailBody = '';
+  
+  // Group games by sport
+  const gamesBySport = games.reduce((acc, game) => {
+    if (!acc[game.sport]) {
+      acc[game.sport] = [];
+    }
+    acc[game.sport].push(game);
+    return acc;
+  }, {} as Record<string, Game[]>);
+  
+  // Format each sport's predictions
+  Object.entries(gamesBySport).forEach(([sport, sportGames]) => {
+    emailBody += `\n${sport.toUpperCase()} PREDICTIONS\n`;
+    emailBody += '='.repeat(sport.length + 12) + '\n\n';
+    
+    // Group predictions by grade
+    const predictionsByGrade = sportGames.reduce((acc, game) => {
+      game.predictions.forEach(prediction => {
+        const grade = getConfidenceGrade(prediction.confidence);
+        if (!acc[grade]) {
+          acc[grade] = [];
+        }
+        acc[grade].push({ game, prediction });
+      });
+      return acc;
+    }, {} as Record<string, Array<{ game: Game; prediction: Prediction }>>);
+    
+    // Sort grades (A+ to B+)
+    const sortedGrades = Object.keys(predictionsByGrade).sort((a, b) => {
+      const gradeOrder = { 'A+': 0, 'A': 1, 'A-': 2, 'B+': 3 };
+      return gradeOrder[a as keyof typeof gradeOrder] - gradeOrder[b as keyof typeof gradeOrder];
+    });
+    
+    // Format predictions by grade
+    sortedGrades.forEach(grade => {
+      emailBody += `\nGrade ${grade} Predictions:\n`;
+      emailBody += '-'.repeat(20) + '\n\n';
+      
+      predictionsByGrade[grade].forEach(({ game, prediction }) => {
+        const gameTime = format(new Date(game.gameDate), 'h:mm a');
+        emailBody += `${game.awayTeamName} @ ${game.homeTeamName} (${gameTime})\n`;
+        emailBody += formatPrediction(prediction, game) + '\n';
+        emailBody += 'Reasoning:\n';
+        
+        // Format reasoning with bullet points
+        const reasoningPoints = prediction.reasoning.split('\n').filter(point => point.trim());
+        reasoningPoints.forEach(point => {
+          emailBody += `• ${point.trim()}\n`;
+        });
+        
+        emailBody += '\n';
+      });
+    });
+  });
+  
+  return emailBody;
 }
 
 async function main() {
   try {
-    // Initialize email service
     const emailService = new EmailService();
-    
-    // Verify email connection
-    const isConnected = await emailService.verifyConnection();
-    if (!isConnected) {
-      console.error('Failed to connect to email service');
-      return;
-    }
+    await emailService.verifyConnection();
 
-    // Get today's games with predictions
     const games = await prisma.game.findMany({
       where: {
         gameDate: {
           gte: new Date(new Date().setHours(0, 0, 0, 0)),
           lt: new Date(new Date().setHours(23, 59, 59, 999))
         },
-        status: GameStatus.SCHEDULED,
-        predictions: {
-          some: {}
-        }
+        status: GameStatus.SCHEDULED
       },
       include: {
         predictions: true
@@ -109,22 +150,37 @@ async function main() {
       return;
     }
 
-    // Format predictions
-    const emailBody = await formatPredictions(games);
-
-    // Send email
-    await emailService.sendEmail({
-      to: process.env.RECIPIENT_EMAIL || 'jakobwiley@gmail.com',
-      subject: `AI-BET Predictions for ${format(new Date(), 'MMM d, yyyy')}`,
-      body: emailBody
+    const emailBody = formatPredictions(games);
+    
+    // Display predictions in console
+    console.log('\n=== TODAY\'S PREDICTIONS ===\n');
+    console.log(emailBody);
+    console.log('\n===========================\n');
+    
+    // Ask for confirmation before sending email
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout
     });
 
-    console.log('Predictions email sent successfully');
+    const answer = await rl.question('Would you like to send these predictions via email? (y/n): ');
+    rl.close();
+
+    if (answer.toLowerCase() === 'y') {
+      await emailService.sendEmail({
+        to: process.env.EMAIL_TO || '',
+        subject: `Sports Betting Predictions - ${format(new Date(), 'MMMM d, yyyy')}`,
+        body: emailBody
+      });
+      console.log('Predictions email sent successfully');
+    } else {
+      console.log('Email sending cancelled');
+    }
   } catch (error) {
-    console.error('Error sending predictions email:', error);
+    console.error('Error:', error);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-main(); 
+main();

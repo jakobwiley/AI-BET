@@ -7,7 +7,7 @@ type Prediction = pkg.Prediction;
 type PredictionType = pkg.PredictionType;
 type PredictionOutcome = pkg.PredictionOutcome;
 
-import { getConfidenceGrade, GRADES } from '../lib/prediction.js';
+import { getConfidenceGrade, Grade as GradeType } from '../lib/prediction.js';
 import { sendWhatsAppMessage, formatWhatsAppNumber } from '../lib/whatsapp.js';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
@@ -23,11 +23,11 @@ interface FormattedPick {
 }
 
 type SportType = 'MLB' | 'NBA';
-type Grade = typeof GRADES[number];
+const grades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'] as const;
+type Grade = typeof grades[number];
 
 interface PicksBySportAndGrade {
-  MLB: Record<Grade, FormattedPick[]>;
-  NBA: Record<Grade, FormattedPick[]>;
+  [sport: string]: Record<Grade, FormattedPick[]>;
 }
 
 type GameWithPredictions = Game & {
@@ -58,22 +58,17 @@ interface GameWithOdds extends GameWithPredictions {
   odds?: GameOdds;
 }
 
-function initializePicksBySportAndGrade(): PicksBySportAndGrade {
+const initializePicksBySportAndGrade = (): PicksBySportAndGrade => {
+  const emptyGradeRecord = grades.reduce((acc, grade) => {
+    acc[grade] = [];
+    return acc;
+  }, {} as Record<Grade, FormattedPick[]>);
+
   return {
-    MLB: {
-      'A+': [],
-      'A': [],
-      'A-': [],
-      'B+': []
-    },
-    NBA: {
-      'A+': [],
-      'A': [],
-      'A-': [],
-      'B+': []
-    }
+    MLB: { ...emptyGradeRecord },
+    NBA: { ...emptyGradeRecord }
   };
-}
+};
 
 const formatPrediction = (prediction: PredictionWithGrade, game: GameWithOdds, matchup: string): string => {
   const grade = prediction.grade;

@@ -14,8 +14,6 @@ model Game {
   awayTeamId            String
   homeTeamName          String
   awayTeamName          String
-  homeScore             Int?         @map("home_score")
-  awayScore             Int?         @map("away_score")
   gameDate              DateTime     @map("game_date")
   startTime             String?
   status                GameStatus   @default(SCHEDULED)
@@ -24,6 +22,8 @@ model Game {
   oddsJson              Json?        @map("odds_json")
   probableHomePitcherId Int?         @map("probable_home_pitcher_id")
   probableAwayPitcherId Int?         @map("probable_away_pitcher_id")
+  awayScore             Int?         @map("away_score")
+  homeScore             Int?         @map("home_score")
   predictions           Prediction[]
 
   @@map("games")

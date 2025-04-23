@@ -87,14 +87,79 @@ const NBA_STATS_API_TEAM_IDS: Record<string, number> = {
   'wizards': 1610612764,
 };
 
+// Add mapping from Rundown API team IDs to stats.nba.com Team IDs
+const RUNDOWN_TO_NBA_STATS_TEAM_IDS: Record<string, number> = {
+  '25': 1610612758, // Sacramento Kings
+  '26': 1610612742, // Dallas Mavericks
+  '27': 1610612737, // Atlanta Hawks
+  '28': 1610612738, // Boston Celtics
+  '29': 1610612751, // Brooklyn Nets
+  '30': 1610612766, // Charlotte Hornets
+  '31': 1610612741, // Chicago Bulls
+  '32': 1610612739, // Cleveland Cavaliers
+  '33': 1610612743, // Denver Nuggets
+  '34': 1610612765, // Detroit Pistons
+  '35': 1610612744, // Golden State Warriors
+  '36': 1610612745, // Houston Rockets
+  '37': 1610612754, // Indiana Pacers
+  '38': 1610612746, // LA Clippers
+  '39': 1610612747, // Los Angeles Lakers
+  '40': 1610612763, // Memphis Grizzlies
+  '41': 1610612748, // Miami Heat
+  '42': 1610612749, // Milwaukee Bucks
+  '43': 1610612750, // Minnesota Timberwolves
+  '44': 1610612740, // New Orleans Pelicans
+  '45': 1610612752, // New York Knicks
+  '46': 1610612760, // Oklahoma City Thunder
+  '47': 1610612753, // Orlando Magic
+  '48': 1610612755, // Philadelphia 76ers
+  '49': 1610612756, // Phoenix Suns
+  '50': 1610612757, // Portland Trail Blazers
+  '51': 1610612759, // San Antonio Spurs
+  '52': 1610612761, // Toronto Raptors
+  '53': 1610612762, // Utah Jazz
+  '54': 1610612764, // Washington Wizards
+};
+
 export class NBAStatsService {
   private static async getTeamId(teamName: string): Promise<number | null> {
-    const normalizedName = teamName.toLowerCase();
-    const id = NBA_STATS_API_TEAM_IDS[normalizedName];
+    // First check if it's a Rundown API team ID
+    const rundownId = RUNDOWN_TO_NBA_STATS_TEAM_IDS[teamName];
+    if (rundownId !== undefined) {
+      return rundownId;
+    }
+
+    // Handle special cases and normalize team name
+    const normalizedName = teamName
+      .toLowerCase()
+      .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+      .trim();
+
+    // Remove city/location prefixes if the team name is unique
+    const shortName = normalizedName
+      .replace('golden state', '')
+      .replace('los angeles', '')
+      .replace('la', '')
+      .replace('new york', '')
+      .replace('new orleans', '')
+      .replace('oklahoma city', '')
+      .replace('san antonio', '')
+      .replace('portland trail', '')
+      .trim();
+
+    // Try full name first
+    let id = NBA_STATS_API_TEAM_IDS[normalizedName];
+    
+    // If not found, try short name
     if (id === undefined) {
-      console.warn(`[NBAStatsService] NBA Stats API Team ID not found for: ${teamName}`);
+      id = NBA_STATS_API_TEAM_IDS[shortName];
+    }
+
+    if (id === undefined) {
+      console.warn(`[NBAStatsService] NBA Stats API Team ID not found for: ${teamName} (Normalized: "${normalizedName}", Short: "${shortName}")`);
       return null;
     }
+    
     return id;
   }
 

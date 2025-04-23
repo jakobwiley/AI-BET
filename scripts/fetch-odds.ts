@@ -244,7 +244,22 @@ async function updateGameOdds(game: Prisma.GameGetPayload<{}>, odds: Transformed
   await prisma.game.update({
     where: { id: game.id },
     data: {
-      oddsJson: odds.odds
+      oddsJson: {
+        spread: odds.odds.spread ? {
+          home: odds.odds.spread.home,
+          away: odds.odds.spread.away,
+          point: odds.odds.spread.point
+        } : undefined,
+        total: odds.odds.total ? {
+          over: odds.odds.total.over,
+          under: odds.odds.total.under,
+          point: odds.odds.total.point
+        } : undefined,
+        moneyline: odds.odds.moneyline ? {
+          home: odds.odds.moneyline.home,
+          away: odds.odds.moneyline.away
+        } : undefined
+      }
     }
   });
 }
@@ -261,7 +276,7 @@ async function main() {
     const nbaOdds = await fetchOddsForSport('NBA');
     console.log(`Found ${nbaOdds.length} NBA games`);
 
-    // Update games in database
+    // Update or create games in database
     for (const odds of [...mlbOdds, ...nbaOdds]) {
       const game = await prisma.game.findFirst({
         where: {
@@ -278,7 +293,24 @@ async function main() {
         await updateGameOdds(game, odds);
         console.log(`Updated odds for ${game.homeTeamName} vs ${game.awayTeamName}`);
       } else {
-        console.log(`No matching game found for ${odds.homeTeam} vs ${odds.awayTeam}`);
+        // Create new game with a unique ID based on teams and date
+        const gameId = `${odds.sport}_${odds.homeTeam.replace(/\s+/g, '')}_${odds.awayTeam.replace(/\s+/g, '')}_${odds.startTime.toISOString().split('T')[0]}`;
+        
+        // Create new game
+        const newGame = await prisma.game.create({
+          data: {
+            id: gameId,
+            sport: odds.sport as SportType,
+            homeTeamId: odds.homeTeam.replace(/\s+/g, ''),  // Using simplified team name as ID
+            awayTeamId: odds.awayTeam.replace(/\s+/g, ''),  // Using simplified team name as ID
+            homeTeamName: odds.homeTeam,
+            awayTeamName: odds.awayTeam,
+            gameDate: odds.startTime,
+            status: 'SCHEDULED',
+            oddsJson: odds.odds
+          }
+        });
+        console.log(`Created new game: ${newGame.homeTeamName} vs ${newGame.awayTeamName}`);
       }
     }
 

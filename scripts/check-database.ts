@@ -120,7 +120,12 @@ async function checkDatabase() {
     // Check for games with missing odds
     const gamesWithoutOdds = await prisma.game.count({
       where: {
-        oddsJson: null
+        oddsJson: {
+          not: {
+            path: ['$'],
+            not: null
+          }
+        }
       }
     });
     console.log(`Games without odds data: ${gamesWithoutOdds}`);

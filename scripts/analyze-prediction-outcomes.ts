@@ -96,7 +96,7 @@ async function analyzePredictionOutcomes() {
       // Sort grades by win percentage
       const sortedGrades = Object.entries(typeStats).map(([grade, stats]) => {
         stats.winPercentage = (stats.wins / stats.total) * 100;
-        return [grade, stats];
+        return [grade, stats] as [string, GradeStats];
       }).sort(([, a], [, b]) => b.winPercentage - a.winPercentage);
 
       let totalWins = 0;
