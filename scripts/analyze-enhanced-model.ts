@@ -1,5 +1,5 @@
 import { PrismaClient, PredictionType, PredictionOutcome } from '@prisma/client';
-import { EnhancedPredictionModel } from '../src/lib/prediction/enhanced-model';
+import { EnhancedPredictionModel } from '../src/lib/enhanced-predictions/enhanced-model.ts';
 
 const prisma = new PrismaClient();
 const enhancedModel = new EnhancedPredictionModel();
@@ -33,7 +33,7 @@ async function analyzePredictions() {
 
     // Initialize analysis by type
     const analysis: Record<PredictionType, PredictionAnalysis> = {
-      MONEYLINE: {
+      [PredictionType.MONEYLINE]: {
         type: PredictionType.MONEYLINE,
         totalCount: 0,
         originalConfidenceAvg: 0,
@@ -43,7 +43,7 @@ async function analyzePredictions() {
         warnings: [],
         rejections: 0
       },
-      SPREAD: {
+      [PredictionType.SPREAD]: {
         type: PredictionType.SPREAD,
         totalCount: 0,
         originalConfidenceAvg: 0,
@@ -53,7 +53,7 @@ async function analyzePredictions() {
         warnings: [],
         rejections: 0
       },
-      TOTAL: {
+      [PredictionType.TOTAL]: {
         type: PredictionType.TOTAL,
         totalCount: 0,
         originalConfidenceAvg: 0,
@@ -108,7 +108,7 @@ async function analyzePredictions() {
     }
 
     // Calculate averages and print results
-    for (const type of Object.keys(analysis) as PredictionType[]) {
+    for (const type of Object.values(PredictionType)) {
       const stats = analysis[type];
       if (stats.totalCount > 0) {
         stats.originalConfidenceAvg /= stats.totalCount;
@@ -140,5 +140,4 @@ async function analyzePredictions() {
 }
 
 analyzePredictions()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect()); 
+  .catch(console.error); 

@@ -21,7 +21,12 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "resolveJsonModule": true,
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*", "src/*"]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "exclude": ["node_modules"],
   "include": ["./src/**/*.ts", "./scripts/**/*.ts"]

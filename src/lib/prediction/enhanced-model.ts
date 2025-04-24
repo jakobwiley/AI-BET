@@ -1,6 +1,6 @@
 import { PredictionType } from '@prisma/client';
 
-interface GameStats {
+export interface GameStats {
   homeTeamName: string;
   awayTeamName: string;
   homeScore?: number | null;
@@ -10,8 +10,8 @@ interface GameStats {
   awayTeamWinRate?: number;
 }
 
-interface PredictionInput {
-  predictionType: PredictionType;
+export interface PredictionInput {
+  predictionType: string;
   rawConfidence: number;  // Original confidence from base model
   predictionValue: string;
   game: GameStats;
@@ -19,6 +19,11 @@ interface PredictionInput {
   recentAwayScores?: number[];  // Last 5 games
   homeTeamWinRate?: number;    // Recent win rate
   awayTeamWinRate?: number;    // Recent win rate
+  historicalAccuracy?: {  // New field for historical performance
+    type: string;
+    accuracy: number;
+    sampleSize: number;
+  };
 }
 
 interface CalibrationConfig {
@@ -30,9 +35,9 @@ interface CalibrationConfig {
   };
   // Type-specific performance factors
   typeWeights: {
-    [PredictionType.SPREAD]: number;    // 1.1 (best performing)
-    [PredictionType.MONEYLINE]: number; // 1.0 (baseline)
-    [PredictionType.TOTAL]: number;     // 0.9 (most volatile)
+    SPREAD: number;    // 1.1 (best performing)
+    MONEYLINE: number; // 1.0 (baseline)
+    TOTAL: number;     // 0.9 (most volatile)
   };
 }
 
@@ -43,13 +48,13 @@ const DEFAULT_CONFIG: CalibrationConfig = {
     max: 0.80
   },
   typeWeights: {
-    [PredictionType.SPREAD]: 1.1,
-    [PredictionType.MONEYLINE]: 1.0,
-    [PredictionType.TOTAL]: 0.9
+    SPREAD: 1.1,
+    MONEYLINE: 1.0,
+    TOTAL: 0.9
   }
 };
 
-interface QualityAssessment {
+export interface QualityAssessment {
   confidence: number;
   warning?: string;
   recommendation: 'ACCEPT' | 'REJECT';
@@ -62,9 +67,9 @@ export class EnhancedPredictionModel {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  private calibrateConfidence(rawConfidence: number, type: PredictionType): number {
+  private calibrateConfidence(rawConfidence: number, type: string): number {
     // Apply type-specific weight
-    let adjustedConfidence = rawConfidence * this.config.typeWeights[type];
+    let adjustedConfidence = rawConfidence * this.config.typeWeights[type as keyof typeof this.config.typeWeights];
 
     // Scale down high confidence predictions
     if (adjustedConfidence > this.config.maxConfidence) {
@@ -93,11 +98,11 @@ export class EnhancedPredictionModel {
 
   private adjustForRecentScoring(
     confidence: number,
-    type: PredictionType,
+    type: string,
     recentHomeScores: number[] = [],
     recentAwayScores: number[] = []
   ): number {
-    if (type === PredictionType.TOTAL) {
+    if (type === 'TOTAL') {
       // Calculate scoring consistency
       const allScores = [...recentHomeScores, ...recentAwayScores];
       if (allScores.length > 0) {
@@ -112,26 +117,79 @@ export class EnhancedPredictionModel {
     return confidence;
   }
 
-  private validatePredictionValue(value: string, type: PredictionType): boolean {
-    switch (type) {
-      case PredictionType.TOTAL:
-        return value.startsWith('o') || value.startsWith('u');
-      case PredictionType.SPREAD:
-        return !['0', '0.0'].includes(value);
-      case PredictionType.MONEYLINE:
-        return !['0', '1', '-1'].includes(value);
-      default:
-        return true;
+  private validateTotalPrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
+    const totalMatch = value.match(/^(OVER|UNDER)\s*(\d+(\.\d+)?)$/i);
+    if (!totalMatch) {
+      return { isValid: false, warning: 'Invalid total format', confidenceAdjustment: 0.7 };
     }
+
+    const totalValue = parseFloat(totalMatch[2]);
+    const direction = totalMatch[1].toUpperCase();
+
+    // Check for reasonable total range based on sport (assuming baseball for now)
+    if (totalValue < 5) {
+      return { isValid: true, warning: 'Unusually low total', confidenceAdjustment: 0.75 };
+    }
+    if (totalValue > 12) {
+      return { isValid: true, warning: 'Unusually high total', confidenceAdjustment: 0.8 };
+    }
+
+    // Check for half-runs in baseball (unusual)
+    if (totalValue % 1 !== 0) {
+      return { isValid: true, warning: 'Non-integer total value', confidenceAdjustment: 0.9 };
+    }
+
+    return { isValid: true, confidenceAdjustment: 1.0 };
+  }
+
+  private validateSpreadPrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
+    const spreadMatch = value.match(/^([+-]?\d+(\.\d+)?)$/);
+    if (!spreadMatch) {
+      return { isValid: false, warning: 'Invalid spread format', confidenceAdjustment: 0.7 };
+    }
+
+    const spreadValue = parseFloat(value);
+    const absSpread = Math.abs(spreadValue);
+
+    // Check for reasonable spread ranges
+    if (absSpread === 0) {
+      return { isValid: false, warning: 'Zero spread value', confidenceAdjustment: 0.7 };
+    }
+    if (absSpread > 2.5) {
+      return { isValid: true, warning: 'Large spread for baseball', confidenceAdjustment: 0.85 };
+    }
+    if (absSpread % 0.5 !== 0) {
+      return { isValid: true, warning: 'Unusual spread increment', confidenceAdjustment: 0.9 };
+    }
+
+    return { isValid: true, confidenceAdjustment: 1.0 };
+  }
+
+  private validateMoneylinePrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
+    const moneylineMatch = value.match(/^([+-]?\d+)$/);
+    if (!moneylineMatch) {
+      return { isValid: false, warning: 'Invalid moneyline format', confidenceAdjustment: 0.7 };
+    }
+
+    const moneylineValue = parseInt(value);
+    const absMoneyline = Math.abs(moneylineValue);
+
+    // Check for reasonable moneyline ranges
+    if (absMoneyline < 100) {
+      return { isValid: false, warning: 'Moneyline too low', confidenceAdjustment: 0.7 };
+    }
+    if (absMoneyline > 300) {
+      return { isValid: true, warning: 'High risk moneyline value', confidenceAdjustment: 0.8 };
+    }
+    if (absMoneyline > 200) {
+      return { isValid: true, warning: 'Significant underdog/favorite', confidenceAdjustment: 0.9 };
+    }
+
+    return { isValid: true, confidenceAdjustment: 1.0 };
   }
 
   public calculateConfidence(input: PredictionInput): number {
     // Validate prediction value
-    if (!this.validatePredictionValue(input.predictionValue, input.predictionType)) {
-      return Math.min(input.rawConfidence * 0.7, 0.65); // Significantly reduce confidence for questionable values
-    }
-
-    // Start with base confidence and apply calibration
     let confidence = this.calibrateConfidence(input.rawConfidence, input.predictionType);
 
     // Apply home advantage adjustment
@@ -145,89 +203,72 @@ export class EnhancedPredictionModel {
       input.recentAwayScores
     );
 
-    // Additional type-specific adjustments
+    // Validate prediction value based on type
+    let validationResult;
     switch (input.predictionType) {
-      case PredictionType.SPREAD:
-        // Slightly boost spread predictions in optimal range
-        if (confidence >= 0.75 && confidence <= 0.80) {
-          confidence *= 1.05;
-        }
+      case 'TOTAL':
+        validationResult = this.validateTotalPrediction(input.predictionValue, input.game);
         break;
-      case PredictionType.TOTAL:
-        // Cap total predictions at a lower maximum
-        confidence = Math.min(confidence, 0.82);
+      case 'SPREAD':
+        validationResult = this.validateSpreadPrediction(input.predictionValue, input.game);
         break;
+      case 'MONEYLINE':
+        validationResult = this.validateMoneylinePrediction(input.predictionValue, input.game);
+        break;
+      default:
+        validationResult = { isValid: false, warning: 'Invalid prediction type', confidenceAdjustment: 0.7 };
     }
 
-    // Final bounds check
-    return Math.min(Math.max(confidence, 0.5), this.config.maxConfidence);
+    // Apply validation adjustment
+    confidence *= validationResult.confidenceAdjustment;
+
+    // Consider historical accuracy if available
+    if (input.historicalAccuracy) {
+      const accuracyWeight = Math.min(1, input.historicalAccuracy.sampleSize / 100);
+      const historicalAdjustment = 0.7 + (0.3 * input.historicalAccuracy.accuracy);
+      confidence = confidence * (1 - accuracyWeight) + (confidence * historicalAdjustment * accuracyWeight);
+    }
+
+    // Ensure final confidence is between 0 and 1
+    return Math.max(0, Math.min(1, confidence));
   }
 
   public getPredictionQuality(input: PredictionInput): QualityAssessment {
-    let confidence = this.calculateConfidence(input);
+    const confidence = this.calculateConfidence(input);
     let warning: string | undefined;
-    
-    // Base confidence adjustments
-    if (confidence < 0.6) {
-      confidence *= 0.9; // Reduce confidence for low confidence predictions
-    }
+    let recommendation: 'ACCEPT' | 'REJECT' = 'ACCEPT';
 
-    // Type-specific validations and adjustments
+    // Validate prediction value based on type
+    let validationResult;
     switch (input.predictionType) {
-      case PredictionType.TOTAL:
-        const totalMatch = input.predictionValue.match(/^(OVER|UNDER)\s*(\d+(\.\d+)?)$/i);
-        if (!totalMatch) {
-          warning = 'Invalid total format';
-          confidence *= 0.7;
-        } else {
-          const totalValue = parseFloat(totalMatch[2]);
-          if (totalValue < 3 || totalValue > 15) {
-            warning = 'Unusual total value';
-            confidence *= 0.8;
-          }
-        }
+      case 'TOTAL':
+        validationResult = this.validateTotalPrediction(input.predictionValue, input.game);
         break;
-
-      case PredictionType.SPREAD:
-        const spreadMatch = input.predictionValue.match(/^[+-]?\d+(\.\d+)?$/);
-        if (!spreadMatch) {
-          warning = 'Invalid spread format';
-          confidence *= 0.7;
-        } else {
-          const spreadValue = Math.abs(parseFloat(input.predictionValue));
-          if (spreadValue > 15) {
-            warning = 'Large spread value';
-            confidence *= 0.85;
-          }
-        }
+      case 'SPREAD':
+        validationResult = this.validateSpreadPrediction(input.predictionValue, input.game);
         break;
-
-      case PredictionType.MONEYLINE:
-        const moneylineMatch = input.predictionValue.match(/^[+-]?\d+$/);
-        if (!moneylineMatch) {
-          warning = 'Invalid moneyline format';
-          confidence *= 0.7;
-        } else {
-          const moneylineValue = parseInt(input.predictionValue);
-          if (Math.abs(moneylineValue) > 300) {
-            warning = 'Extreme moneyline value';
-            confidence *= 0.9;
-          }
-        }
+      case 'MONEYLINE':
+        validationResult = this.validateMoneylinePrediction(input.predictionValue, input.game);
         break;
+      default:
+        validationResult = { isValid: false, warning: 'Invalid prediction type', confidenceAdjustment: 0.7 };
     }
 
-    // Game-specific adjustments
-    if (!input.game.homeTeamName || !input.game.awayTeamName) {
-      warning = 'Missing team information';
-      confidence *= 0.6;
+    if (!validationResult.isValid) {
+      recommendation = 'REJECT';
+      warning = validationResult.warning;
+    } else if (validationResult.warning) {
+      warning = validationResult.warning;
     }
 
-    // Final recommendation
-    const recommendation = confidence >= 0.5 ? 'ACCEPT' : 'REJECT';
+    // Additional quality checks
+    if (confidence < 0.6) {
+      recommendation = 'REJECT';
+      warning = warning ? `${warning}; Low confidence prediction` : 'Low confidence prediction';
+    }
 
     return {
-      confidence: Math.max(0, Math.min(1, confidence)), // Ensure confidence is between 0 and 1
+      confidence,
       warning,
       recommendation
     };
