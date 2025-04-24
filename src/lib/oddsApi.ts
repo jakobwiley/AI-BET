@@ -264,12 +264,17 @@ export class OddsApiService {
         }
       });
 
+      // Add debug logging
+      console.log(`[OddsApiService] Raw API response for scores:`, JSON.stringify(response.data, null, 2));
+
       if (!Array.isArray(response.data) || response.data.length === 0) {
         console.log(`[OddsApiService] No scores found for game ${strippedGameId}`);
         return null;
       }
 
       const game = response.data[0];
+      console.log(`[OddsApiService] Found game data:`, JSON.stringify(game, null, 2));
+
       if (!game.scores) {
         console.log(`[OddsApiService] No scores available for game ${strippedGameId}`);
         return null;

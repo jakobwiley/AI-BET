@@ -1,0 +1,1296 @@
+{
+  "totalGames": 165,
+  "issuesSummary": {
+    "gamesWithMissingScores": 73,
+    "gamesWithWrongStatus": 20,
+    "gamesWithIncompleteData": 0,
+    "gamesWithPendingPredictions": 120
+  },
+  "details": {
+    "missingScores": [
+      {
+        "id": "0ad952ba90ad3f9319d8ec0c8eede1ac",
+        "date": "2025-04-09",
+        "teams": "Orlando Magic vs Boston Celtics",
+        "status": "FINAL"
+      },
+      {
+        "id": "9dfae0ca946fecfe33eed88fd6056fd2",
+        "date": "2025-04-09",
+        "teams": "Washington Wizards vs Philadelphia 76ers",
+        "status": "FINAL"
+      },
+      {
+        "id": "88ab25bbf01a28d3f999b2c44a9ea52b",
+        "date": "2025-04-09",
+        "teams": "Toronto Raptors vs Charlotte Hornets",
+        "status": "FINAL"
+      },
+      {
+        "id": "2f2d69768c491fa3befbaceb2f4da649",
+        "date": "2025-04-09",
+        "teams": "Dallas Mavericks vs Los Angeles Lakers",
+        "status": "FINAL"
+      },
+      {
+        "id": "c27f91e504c093ff0b43e83bccfb9732",
+        "date": "2025-04-10",
+        "teams": "Chicago Bulls vs Miami Heat",
+        "status": "FINAL"
+      },
+      {
+        "id": "ab9fd4195cdd64ed05f3c2f03d82f570",
+        "date": "2025-04-10",
+        "teams": "Utah Jazz vs Portland Trail Blazers",
+        "status": "FINAL"
+      },
+      {
+        "id": "ffce12b85dddb0d0a0c240614c2b37ab",
+        "date": "2025-04-10",
+        "teams": "Phoenix Suns vs Oklahoma City Thunder",
+        "status": "FINAL"
+      },
+      {
+        "id": "6dd480253123576fa5f109589d71f5a7",
+        "date": "2025-04-10",
+        "teams": "Sacramento Kings vs Denver Nuggets",
+        "status": "FINAL"
+      },
+      {
+        "id": "46fb9a5147ba9f093b79502ffe6c2cf1",
+        "date": "2025-04-10",
+        "teams": "Golden State Warriors vs San Antonio Spurs",
+        "status": "FINAL"
+      },
+      {
+        "id": "903978b1b42e2d4808980f67584b1ec4",
+        "date": "2025-04-10",
+        "teams": "Los Angeles Clippers vs Houston Rockets",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-32d5ad8a2022041121369bd432615507",
+        "date": "2025-04-10",
+        "teams": "Cleveland Guardians vs Chicago White Sox",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-c689c51f89947e9e870fb49e2d8a5cd3",
+        "date": "2025-04-10",
+        "teams": "Tampa Bay Rays vs Los Angeles Angels",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-5190f08b3ce3f00bd217870a720b13ce",
+        "date": "2025-04-10",
+        "teams": "Kansas City Royals vs Minnesota Twins",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-548b909066cc52d717c512324a6a2004",
+        "date": "2025-04-10",
+        "teams": "Colorado Rockies vs Milwaukee Brewers",
+        "status": "FINAL"
+      },
+      {
+        "id": "548b909066cc52d717c512324a6a2004",
+        "date": "2025-04-10",
+        "teams": "Colorado Rockies vs Milwaukee Brewers",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-9cd729c06a47ee29e6f0fb6f155f8cfc",
+        "date": "2025-04-10",
+        "teams": "Boston Red Sox vs Toronto Blue Jays",
+        "status": "FINAL"
+      },
+      {
+        "id": "7aa9f4f6bb59b6a4453db958e2aa9f31",
+        "date": "2025-04-10",
+        "teams": "Detroit Pistons vs New York Knicks",
+        "status": "FINAL"
+      },
+      {
+        "id": "2d7c114ac266d890852c5a00d0a09c1c",
+        "date": "2025-04-10",
+        "teams": "Indiana Pacers vs Cleveland Cavaliers",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-7aa9f4f6bb59b6a4453db958e2aa9f31",
+        "date": "2025-04-10",
+        "teams": "Detroit Pistons vs New York Knicks",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-2d7c114ac266d890852c5a00d0a09c1c",
+        "date": "2025-04-10",
+        "teams": "Indiana Pacers vs Cleveland Cavaliers",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-c34983873267842c39e96ca2fec99687",
+        "date": "2025-04-10",
+        "teams": "Atlanta Braves vs Philadelphia Phillies",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-c015dac4afa8286578bbfe4271eb4515",
+        "date": "2025-04-10",
+        "teams": "Brooklyn Nets vs Atlanta Hawks",
+        "status": "FINAL"
+      },
+      {
+        "id": "c015dac4afa8286578bbfe4271eb4515",
+        "date": "2025-04-10",
+        "teams": "Brooklyn Nets vs Atlanta Hawks",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-d11984b0f1bb2d351140900d0d64c28e",
+        "date": "2025-04-11",
+        "teams": "Milwaukee Bucks vs New Orleans Pelicans",
+        "status": "FINAL"
+      },
+      {
+        "id": "d11984b0f1bb2d351140900d0d64c28e",
+        "date": "2025-04-11",
+        "teams": "Milwaukee Bucks vs New Orleans Pelicans",
+        "status": "FINAL"
+      },
+      {
+        "id": "77d0c83170f202a956ae2cee0db9a53b",
+        "date": "2025-04-11",
+        "teams": "Memphis Grizzlies vs Minnesota Timberwolves",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-77d0c83170f202a956ae2cee0db9a53b",
+        "date": "2025-04-11",
+        "teams": "Memphis Grizzlies vs Minnesota Timberwolves",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-fdc86c504dde5873f06ccb73771c8930",
+        "date": "2025-04-11",
+        "teams": "Indiana Pacers vs Orlando Magic",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-f9a891268b916c9d2abb2749f6924549",
+        "date": "2025-04-11",
+        "teams": "Philadelphia 76ers vs Atlanta Hawks",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-85661dc8891e70b42eafcd3a014657c9",
+        "date": "2025-04-11",
+        "teams": "Detroit Pistons vs Milwaukee Bucks",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-3a515f8d33b78f5c76242d62a61939fc",
+        "date": "2025-04-11",
+        "teams": "Boston Celtics vs Charlotte Hornets",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-2721fe208e6a174ed5e416652a0534d9",
+        "date": "2025-04-11",
+        "teams": "New York Knicks vs Cleveland Cavaliers",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-975c0a7ea2939348c79037e6e045d61d",
+        "date": "2025-04-12",
+        "teams": "Chicago Bulls vs Washington Wizards",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-b65a6b586cf57347fa273391b9641391",
+        "date": "2025-04-12",
+        "teams": "Minnesota Twins vs Detroit Tigers",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-1b44b84738ab10d1e6a134096b5a3e96",
+        "date": "2025-04-12",
+        "teams": "New Orleans Pelicans vs Miami Heat",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-e63e1102c71c054d4375f86db51e3cb1",
+        "date": "2025-04-12",
+        "teams": "Dallas Mavericks vs Toronto Raptors",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-4ff0af3adc5b6374baa460699df0b9ad",
+        "date": "2025-04-12",
+        "teams": "Minnesota Timberwolves vs Brooklyn Nets",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-7cf495458cd35623ba5e973bfe7127bc",
+        "date": "2025-04-12",
+        "teams": "Denver Nuggets vs Memphis Grizzlies",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-ba26c324b46d3c4f0c9a649cdf58c448",
+        "date": "2025-04-12",
+        "teams": "Utah Jazz vs Oklahoma City Thunder",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-8f31764433afacce24b22c453ccd28aa",
+        "date": "2025-04-12",
+        "teams": "Phoenix Suns vs San Antonio Spurs",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-7a84c22909eb8bd4d425b05ea65b2d44",
+        "date": "2025-04-12",
+        "teams": "Sacramento Kings vs Los Angeles Clippers",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-f8a8d891449b1dd4554534fa1beb9bb4",
+        "date": "2025-04-12",
+        "teams": "Portland Trail Blazers vs Golden State Warriors",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-a979e2e5555ce917d702f0859095d33c",
+        "date": "2025-04-12",
+        "teams": "Los Angeles Lakers vs Houston Rockets",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-3d99fd231ae1fe01417e94b6dec16c3f",
+        "date": "2025-04-12",
+        "teams": "St. Louis Cardinals vs Philadelphia Phillies",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-513651cd0e81b6848046e4a8bdcac04f",
+        "date": "2025-04-12",
+        "teams": "Oakland Athletics vs New York Mets",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-8c2928c6de13f8bf8f4c7188938d6d9d",
+        "date": "2025-04-12",
+        "teams": "Houston Astros vs Los Angeles Angels",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-6821c6900d3fd3f9e037a48776b13798",
+        "date": "2025-04-13",
+        "teams": "Arizona Diamondbacks vs Milwaukee Brewers",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-e80b26b3aa9459acfde5b7beb9839d03",
+        "date": "2025-04-13",
+        "teams": "Sacramento Kings vs Phoenix Suns",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-85d8ce495d552918d4ac47c5116c9c3b",
+        "date": "2025-04-13",
+        "teams": "Golden State Warriors vs Los Angeles Clippers",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-2e9da98e76a5b665386f10ebc840883a",
+        "date": "2025-04-13",
+        "teams": "Memphis Grizzlies vs Dallas Mavericks",
+        "status": "FINAL"
+      },
+      {
+        "id": "nba-game-44121a9b30b5cefc38487a04410c5cbc",
+        "date": "2025-04-13",
+        "teams": "Minnesota Timberwolves vs Utah Jazz",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-898c0d62d47daf2016bfd842668a1f38",
+        "date": "2025-04-13",
+        "teams": "San Diego Padres vs Colorado Rockies",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-562e656caafc7729d573dadbae5f2a5f",
+        "date": "2025-04-13",
+        "teams": "Seattle Mariners vs Texas Rangers",
+        "status": "FINAL"
+      },
+      {
+        "id": "mlb-game-5f1e757fdaf6d83728079447ad0dab26",
+        "date": "2025-04-16",
+        "teams": "Baltimore Orioles vs Cleveland Guardians",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-c76e9766dc5816adcbb05e5237239669",
+        "date": "2025-04-16",
+        "teams": "Pittsburgh Pirates vs Washington Nationals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-71477fff9e1cf61f4079befee45933a8",
+        "date": "2025-04-16",
+        "teams": "Miami Marlins vs Arizona Diamondbacks",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-5bf5a418807d745c7006221f8a0b879e",
+        "date": "2025-04-16",
+        "teams": "Cincinnati Reds vs Seattle Mariners",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-c04007b39e85d1351625ceb9a3843057",
+        "date": "2025-04-16",
+        "teams": "Philadelphia Phillies vs San Francisco Giants",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-21b2c8e035e9b8eafeacb5418f013be0",
+        "date": "2025-04-16",
+        "teams": "Tampa Bay Rays vs Boston Red Sox",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-7b887f6aa184b055fe9ced1f21dd5051",
+        "date": "2025-04-16",
+        "teams": "New York Yankees vs Kansas City Royals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-5ac7640ee8f4dda34f2cbf98ea39dfd4",
+        "date": "2025-04-16",
+        "teams": "Chicago White Sox vs Oakland Athletics",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-866edca57ccb39dbce4c14411c0c2532",
+        "date": "2025-04-16",
+        "teams": "Texas Rangers vs Los Angeles Angels",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-0a2616adcc59aa00e128de19a5bd714d",
+        "date": "2025-04-16",
+        "teams": "Los Angeles Dodgers vs Colorado Rockies",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_MiamiMarlins_ArizonaDiamondbacks_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Miami Marlins vs Arizona Diamondbacks",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_PittsburghPirates_WashingtonNationals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Pittsburgh Pirates vs Washington Nationals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_CincinnatiReds_SeattleMariners_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Cincinnati Reds vs Seattle Mariners",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_ChicagoWhiteSox_OaklandAthletics_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Chicago White Sox vs Oakland Athletics",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_PhiladelphiaPhillies_SanFranciscoGiants_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Philadelphia Phillies vs San Francisco Giants",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_BaltimoreOrioles_ClevelandGuardians_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Baltimore Orioles vs Cleveland Guardians",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_DetroitTigers_KansasCityRoyals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Detroit Tigers vs Kansas City Royals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_TampaBayRays_NewYorkYankees_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Tampa Bay Rays vs New York Yankees",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_NewYorkMets_St.LouisCardinals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "New York Mets vs St. Louis Cardinals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_TexasRangers_LosAngelesAngels_2025-04-18",
+        "date": "2025-04-18",
+        "teams": "Texas Rangers vs Los Angeles Angels",
+        "status": "SCHEDULED"
+      }
+    ],
+    "wrongStatus": [
+      {
+        "id": "mlb-game-5f1e757fdaf6d83728079447ad0dab26",
+        "date": "2025-04-16",
+        "teams": "Baltimore Orioles vs Cleveland Guardians",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-c76e9766dc5816adcbb05e5237239669",
+        "date": "2025-04-16",
+        "teams": "Pittsburgh Pirates vs Washington Nationals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-71477fff9e1cf61f4079befee45933a8",
+        "date": "2025-04-16",
+        "teams": "Miami Marlins vs Arizona Diamondbacks",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-5bf5a418807d745c7006221f8a0b879e",
+        "date": "2025-04-16",
+        "teams": "Cincinnati Reds vs Seattle Mariners",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-c04007b39e85d1351625ceb9a3843057",
+        "date": "2025-04-16",
+        "teams": "Philadelphia Phillies vs San Francisco Giants",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-21b2c8e035e9b8eafeacb5418f013be0",
+        "date": "2025-04-16",
+        "teams": "Tampa Bay Rays vs Boston Red Sox",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-7b887f6aa184b055fe9ced1f21dd5051",
+        "date": "2025-04-16",
+        "teams": "New York Yankees vs Kansas City Royals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-5ac7640ee8f4dda34f2cbf98ea39dfd4",
+        "date": "2025-04-16",
+        "teams": "Chicago White Sox vs Oakland Athletics",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-866edca57ccb39dbce4c14411c0c2532",
+        "date": "2025-04-16",
+        "teams": "Texas Rangers vs Los Angeles Angels",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "mlb-game-0a2616adcc59aa00e128de19a5bd714d",
+        "date": "2025-04-16",
+        "teams": "Los Angeles Dodgers vs Colorado Rockies",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_MiamiMarlins_ArizonaDiamondbacks_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Miami Marlins vs Arizona Diamondbacks",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_PittsburghPirates_WashingtonNationals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Pittsburgh Pirates vs Washington Nationals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_CincinnatiReds_SeattleMariners_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Cincinnati Reds vs Seattle Mariners",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_ChicagoWhiteSox_OaklandAthletics_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Chicago White Sox vs Oakland Athletics",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_PhiladelphiaPhillies_SanFranciscoGiants_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Philadelphia Phillies vs San Francisco Giants",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_BaltimoreOrioles_ClevelandGuardians_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Baltimore Orioles vs Cleveland Guardians",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_DetroitTigers_KansasCityRoyals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Detroit Tigers vs Kansas City Royals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_TampaBayRays_NewYorkYankees_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Tampa Bay Rays vs New York Yankees",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_NewYorkMets_St.LouisCardinals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "New York Mets vs St. Louis Cardinals",
+        "status": "SCHEDULED"
+      },
+      {
+        "id": "MLB_TexasRangers_LosAngelesAngels_2025-04-18",
+        "date": "2025-04-18",
+        "teams": "Texas Rangers vs Los Angeles Angels",
+        "status": "SCHEDULED"
+      }
+    ],
+    "incompleteData": [],
+    "pendingOldGames": [
+      {
+        "id": "mlb-game-778389",
+        "date": "2025-04-09",
+        "teams": "Pittsburgh Pirates vs St. Louis Cardinals",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778390",
+        "date": "2025-04-09",
+        "teams": "New York Mets vs Miami Marlins",
+        "pendingPredictions": 3
+      },
+      {
+        "id": "mlb-game-778387",
+        "date": "2025-04-09",
+        "teams": "Detroit Tigers vs New York Yankees",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778385",
+        "date": "2025-04-09",
+        "teams": "Chicago Cubs vs Texas Rangers",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778381",
+        "date": "2025-04-09",
+        "teams": "Oakland Athletics vs San Diego Padres",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778380",
+        "date": "2025-04-09",
+        "teams": "Arizona Diamondbacks vs Baltimore Orioles",
+        "pendingPredictions": 3
+      },
+      {
+        "id": "mlb-game-778376",
+        "date": "2025-04-09",
+        "teams": "San Francisco Giants vs Cincinnati Reds",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778392",
+        "date": "2025-04-09",
+        "teams": "Washington Nationals vs Los Angeles Dodgers",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778383",
+        "date": "2025-04-09",
+        "teams": "Seattle Mariners vs Houston Astros",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778391",
+        "date": "2025-04-09",
+        "teams": "Cleveland Guardians vs Chicago White Sox",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778386",
+        "date": "2025-04-09",
+        "teams": "Boston Red Sox vs Toronto Blue Jays",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778399",
+        "date": "2025-04-09",
+        "teams": "Tampa Bay Rays vs Los Angeles Angels",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778393",
+        "date": "2025-04-09",
+        "teams": "Atlanta Braves vs Philadelphia Phillies",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778388",
+        "date": "2025-04-09",
+        "teams": "Kansas City Royals vs Minnesota Twins",
+        "pendingPredictions": 3
+      },
+      {
+        "id": "mlb-game-778371",
+        "date": "2025-04-10",
+        "teams": "Colorado Rockies vs Milwaukee Brewers",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "mlb-game-778378",
+        "date": "2025-04-10",
+        "teams": "Cleveland Guardians vs Chicago White Sox",
+        "pendingPredictions": 7
+      },
+      {
+        "id": "mlb-game-32d5ad8a2022041121369bd432615507",
+        "date": "2025-04-10",
+        "teams": "Cleveland Guardians vs Chicago White Sox",
+        "pendingPredictions": 33
+      },
+      {
+        "id": "mlb-game-c689c51f89947e9e870fb49e2d8a5cd3",
+        "date": "2025-04-10",
+        "teams": "Tampa Bay Rays vs Los Angeles Angels",
+        "pendingPredictions": 33
+      },
+      {
+        "id": "mlb-game-778382",
+        "date": "2025-04-10",
+        "teams": "Tampa Bay Rays vs Los Angeles Angels",
+        "pendingPredictions": 7
+      },
+      {
+        "id": "mlb-game-778373",
+        "date": "2025-04-10",
+        "teams": "Kansas City Royals vs Minnesota Twins",
+        "pendingPredictions": 7
+      },
+      {
+        "id": "mlb-game-5190f08b3ce3f00bd217870a720b13ce",
+        "date": "2025-04-10",
+        "teams": "Kansas City Royals vs Minnesota Twins",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "mlb-game-548b909066cc52d717c512324a6a2004",
+        "date": "2025-04-10",
+        "teams": "Colorado Rockies vs Milwaukee Brewers",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "548b909066cc52d717c512324a6a2004",
+        "date": "2025-04-10",
+        "teams": "Colorado Rockies vs Milwaukee Brewers",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-9cd729c06a47ee29e6f0fb6f155f8cfc",
+        "date": "2025-04-10",
+        "teams": "Boston Red Sox vs Toronto Blue Jays",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "mlb-game-778377",
+        "date": "2025-04-10",
+        "teams": "Boston Red Sox vs Toronto Blue Jays",
+        "pendingPredictions": 7
+      },
+      {
+        "id": "7aa9f4f6bb59b6a4453db958e2aa9f31",
+        "date": "2025-04-10",
+        "teams": "Detroit Pistons vs New York Knicks",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "2d7c114ac266d890852c5a00d0a09c1c",
+        "date": "2025-04-10",
+        "teams": "Indiana Pacers vs Cleveland Cavaliers",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-7aa9f4f6bb59b6a4453db958e2aa9f31",
+        "date": "2025-04-10",
+        "teams": "Detroit Pistons vs New York Knicks",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "nba-game-2d7c114ac266d890852c5a00d0a09c1c",
+        "date": "2025-04-10",
+        "teams": "Indiana Pacers vs Cleveland Cavaliers",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "mlb-game-778384",
+        "date": "2025-04-10",
+        "teams": "Atlanta Braves vs Philadelphia Phillies",
+        "pendingPredictions": 7
+      },
+      {
+        "id": "mlb-game-c34983873267842c39e96ca2fec99687",
+        "date": "2025-04-10",
+        "teams": "Atlanta Braves vs Philadelphia Phillies",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "nba-game-c015dac4afa8286578bbfe4271eb4515",
+        "date": "2025-04-10",
+        "teams": "Brooklyn Nets vs Atlanta Hawks",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "c015dac4afa8286578bbfe4271eb4515",
+        "date": "2025-04-10",
+        "teams": "Brooklyn Nets vs Atlanta Hawks",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-d11984b0f1bb2d351140900d0d64c28e",
+        "date": "2025-04-11",
+        "teams": "Milwaukee Bucks vs New Orleans Pelicans",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "d11984b0f1bb2d351140900d0d64c28e",
+        "date": "2025-04-11",
+        "teams": "Milwaukee Bucks vs New Orleans Pelicans",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "77d0c83170f202a956ae2cee0db9a53b",
+        "date": "2025-04-11",
+        "teams": "Memphis Grizzlies vs Minnesota Timberwolves",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-77d0c83170f202a956ae2cee0db9a53b",
+        "date": "2025-04-11",
+        "teams": "Memphis Grizzlies vs Minnesota Timberwolves",
+        "pendingPredictions": 39
+      },
+      {
+        "id": "mlb-game-778375",
+        "date": "2025-04-11",
+        "teams": "Cleveland Guardians vs Kansas City Royals",
+        "pendingPredictions": 42
+      },
+      {
+        "id": "mlb-game-778374",
+        "date": "2025-04-11",
+        "teams": "Cincinnati Reds vs Pittsburgh Pirates",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-778370",
+        "date": "2025-04-11",
+        "teams": "New York Yankees vs San Francisco Giants",
+        "pendingPredictions": 10
+      },
+      {
+        "id": "mlb-game-778367",
+        "date": "2025-04-11",
+        "teams": "Tampa Bay Rays vs Atlanta Braves",
+        "pendingPredictions": 7
+      },
+      {
+        "id": "mlb-game-778372",
+        "date": "2025-04-11",
+        "teams": "Baltimore Orioles vs Toronto Blue Jays",
+        "pendingPredictions": 24
+      },
+      {
+        "id": "nba-game-fdc86c504dde5873f06ccb73771c8930",
+        "date": "2025-04-11",
+        "teams": "Indiana Pacers vs Orlando Magic",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-778369",
+        "date": "2025-04-11",
+        "teams": "Miami Marlins vs Washington Nationals",
+        "pendingPredictions": 7
+      },
+      {
+        "id": "nba-game-f9a891268b916c9d2abb2749f6924549",
+        "date": "2025-04-11",
+        "teams": "Philadelphia 76ers vs Atlanta Hawks",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-85661dc8891e70b42eafcd3a014657c9",
+        "date": "2025-04-11",
+        "teams": "Detroit Pistons vs Milwaukee Bucks",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-778366",
+        "date": "2025-04-11",
+        "teams": "Chicago White Sox vs Boston Red Sox",
+        "pendingPredictions": 10
+      },
+      {
+        "id": "nba-game-3a515f8d33b78f5c76242d62a61939fc",
+        "date": "2025-04-11",
+        "teams": "Boston Celtics vs Charlotte Hornets",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-2721fe208e6a174ed5e416652a0534d9",
+        "date": "2025-04-11",
+        "teams": "New York Knicks vs Cleveland Cavaliers",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-975c0a7ea2939348c79037e6e045d61d",
+        "date": "2025-04-12",
+        "teams": "Chicago Bulls vs Washington Wizards",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-b65a6b586cf57347fa273391b9641391",
+        "date": "2025-04-12",
+        "teams": "Minnesota Twins vs Detroit Tigers",
+        "pendingPredictions": 27
+      },
+      {
+        "id": "mlb-game-778351",
+        "date": "2025-04-12",
+        "teams": "Houston Astros vs Los Angeles Angels",
+        "pendingPredictions": 10
+      },
+      {
+        "id": "nba-game-1b44b84738ab10d1e6a134096b5a3e96",
+        "date": "2025-04-12",
+        "teams": "New Orleans Pelicans vs Miami Heat",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-778347",
+        "date": "2025-04-12",
+        "teams": "St. Louis Cardinals vs Philadelphia Phillies",
+        "pendingPredictions": 9
+      },
+      {
+        "id": "nba-game-e63e1102c71c054d4375f86db51e3cb1",
+        "date": "2025-04-12",
+        "teams": "Dallas Mavericks vs Toronto Raptors",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-4ff0af3adc5b6374baa460699df0b9ad",
+        "date": "2025-04-12",
+        "teams": "Minnesota Timberwolves vs Brooklyn Nets",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-7cf495458cd35623ba5e973bfe7127bc",
+        "date": "2025-04-12",
+        "teams": "Denver Nuggets vs Memphis Grizzlies",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-ba26c324b46d3c4f0c9a649cdf58c448",
+        "date": "2025-04-12",
+        "teams": "Utah Jazz vs Oklahoma City Thunder",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-778350",
+        "date": "2025-04-12",
+        "teams": "Arizona Diamondbacks vs Milwaukee Brewers",
+        "pendingPredictions": 9
+      },
+      {
+        "id": "mlb-game-778352",
+        "date": "2025-04-12",
+        "teams": "San Diego Padres vs Colorado Rockies",
+        "pendingPredictions": 27
+      },
+      {
+        "id": "mlb-game-778341",
+        "date": "2025-04-12",
+        "teams": "Seattle Mariners vs Texas Rangers",
+        "pendingPredictions": 9
+      },
+      {
+        "id": "mlb-game-778346",
+        "date": "2025-04-12",
+        "teams": "Oakland Athletics vs New York Mets",
+        "pendingPredictions": 9
+      },
+      {
+        "id": "nba-game-8f31764433afacce24b22c453ccd28aa",
+        "date": "2025-04-12",
+        "teams": "Phoenix Suns vs San Antonio Spurs",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-778345",
+        "date": "2025-04-12",
+        "teams": "Los Angeles Dodgers vs Chicago Cubs",
+        "pendingPredictions": 27
+      },
+      {
+        "id": "nba-game-7a84c22909eb8bd4d425b05ea65b2d44",
+        "date": "2025-04-12",
+        "teams": "Sacramento Kings vs Los Angeles Clippers",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-f8a8d891449b1dd4554534fa1beb9bb4",
+        "date": "2025-04-12",
+        "teams": "Portland Trail Blazers vs Golden State Warriors",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "nba-game-a979e2e5555ce917d702f0859095d33c",
+        "date": "2025-04-12",
+        "teams": "Los Angeles Lakers vs Houston Rockets",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-778348",
+        "date": "2025-04-12",
+        "teams": "Minnesota Twins vs Detroit Tigers",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-3d99fd231ae1fe01417e94b6dec16c3f",
+        "date": "2025-04-12",
+        "teams": "St. Louis Cardinals vs Philadelphia Phillies",
+        "pendingPredictions": 21
+      },
+      {
+        "id": "mlb-game-778355",
+        "date": "2025-04-12",
+        "teams": "New York Yankees vs San Francisco Giants",
+        "pendingPredictions": 9
+      },
+      {
+        "id": "mlb-game-513651cd0e81b6848046e4a8bdcac04f",
+        "date": "2025-04-12",
+        "teams": "Oakland Athletics vs New York Mets",
+        "pendingPredictions": 33
+      },
+      {
+        "id": "mlb-game-778362",
+        "date": "2025-04-12",
+        "teams": "Baltimore Orioles vs Toronto Blue Jays",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-778354",
+        "date": "2025-04-12",
+        "teams": "Miami Marlins vs Washington Nationals",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-778349",
+        "date": "2025-04-12",
+        "teams": "Chicago White Sox vs Boston Red Sox",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-778353",
+        "date": "2025-04-12",
+        "teams": "Tampa Bay Rays vs Atlanta Braves",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-778359",
+        "date": "2025-04-12",
+        "teams": "Cleveland Guardians vs Kansas City Royals",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-778357",
+        "date": "2025-04-12",
+        "teams": "Cincinnati Reds vs Pittsburgh Pirates",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-8c2928c6de13f8bf8f4c7188938d6d9d",
+        "date": "2025-04-12",
+        "teams": "Houston Astros vs Los Angeles Angels",
+        "pendingPredictions": 33
+      },
+      {
+        "id": "mlb-game-6821c6900d3fd3f9e037a48776b13798",
+        "date": "2025-04-13",
+        "teams": "Arizona Diamondbacks vs Milwaukee Brewers",
+        "pendingPredictions": 33
+      },
+      {
+        "id": "mlb-game-778330",
+        "date": "2025-04-13",
+        "teams": "San Diego Padres vs Colorado Rockies",
+        "pendingPredictions": 12
+      },
+      {
+        "id": "mlb-game-778331",
+        "date": "2025-04-13",
+        "teams": "Los Angeles Dodgers vs Chicago Cubs",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-778334",
+        "date": "2025-04-13",
+        "teams": "Seattle Mariners vs Texas Rangers",
+        "pendingPredictions": 11
+      },
+      {
+        "id": "mlb-game-778339",
+        "date": "2025-04-13",
+        "teams": "New York Yankees vs San Francisco Giants",
+        "pendingPredictions": 4
+      },
+      {
+        "id": "mlb-game-778344",
+        "date": "2025-04-13",
+        "teams": "Baltimore Orioles vs Toronto Blue Jays",
+        "pendingPredictions": 4
+      },
+      {
+        "id": "mlb-game-778342",
+        "date": "2025-04-13",
+        "teams": "Cleveland Guardians vs Kansas City Royals",
+        "pendingPredictions": 4
+      },
+      {
+        "id": "mlb-game-778340",
+        "date": "2025-04-13",
+        "teams": "Tampa Bay Rays vs Atlanta Braves",
+        "pendingPredictions": 4
+      },
+      {
+        "id": "mlb-game-778343",
+        "date": "2025-04-13",
+        "teams": "Cincinnati Reds vs Pittsburgh Pirates",
+        "pendingPredictions": 12
+      },
+      {
+        "id": "mlb-game-778337",
+        "date": "2025-04-13",
+        "teams": "Miami Marlins vs Washington Nationals",
+        "pendingPredictions": 4
+      },
+      {
+        "id": "mlb-game-778335",
+        "date": "2025-04-13",
+        "teams": "Minnesota Twins vs Detroit Tigers",
+        "pendingPredictions": 2
+      },
+      {
+        "id": "mlb-game-778338",
+        "date": "2025-04-13",
+        "teams": "Chicago White Sox vs Boston Red Sox",
+        "pendingPredictions": 3
+      },
+      {
+        "id": "mlb-game-778329",
+        "date": "2025-04-13",
+        "teams": "Houston Astros vs Los Angeles Angels",
+        "pendingPredictions": 3
+      },
+      {
+        "id": "mlb-game-778336",
+        "date": "2025-04-13",
+        "teams": "St. Louis Cardinals vs Philadelphia Phillies",
+        "pendingPredictions": 12
+      },
+      {
+        "id": "nba-game-85d8ce495d552918d4ac47c5116c9c3b",
+        "date": "2025-04-13",
+        "teams": "Golden State Warriors vs Los Angeles Clippers",
+        "pendingPredictions": 12
+      },
+      {
+        "id": "nba-game-2e9da98e76a5b665386f10ebc840883a",
+        "date": "2025-04-13",
+        "teams": "Memphis Grizzlies vs Dallas Mavericks",
+        "pendingPredictions": 12
+      },
+      {
+        "id": "mlb-game-778333",
+        "date": "2025-04-13",
+        "teams": "Oakland Athletics vs New York Mets",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-778332",
+        "date": "2025-04-13",
+        "teams": "Arizona Diamondbacks vs Milwaukee Brewers",
+        "pendingPredictions": 4
+      },
+      {
+        "id": "mlb-game-898c0d62d47daf2016bfd842668a1f38",
+        "date": "2025-04-13",
+        "teams": "San Diego Padres vs Colorado Rockies",
+        "pendingPredictions": 9
+      },
+      {
+        "id": "mlb-game-562e656caafc7729d573dadbae5f2a5f",
+        "date": "2025-04-13",
+        "teams": "Seattle Mariners vs Texas Rangers",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-5f1e757fdaf6d83728079447ad0dab26",
+        "date": "2025-04-16",
+        "teams": "Baltimore Orioles vs Cleveland Guardians",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-c76e9766dc5816adcbb05e5237239669",
+        "date": "2025-04-16",
+        "teams": "Pittsburgh Pirates vs Washington Nationals",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-71477fff9e1cf61f4079befee45933a8",
+        "date": "2025-04-16",
+        "teams": "Miami Marlins vs Arizona Diamondbacks",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-5bf5a418807d745c7006221f8a0b879e",
+        "date": "2025-04-16",
+        "teams": "Cincinnati Reds vs Seattle Mariners",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-c04007b39e85d1351625ceb9a3843057",
+        "date": "2025-04-16",
+        "teams": "Philadelphia Phillies vs San Francisco Giants",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-21b2c8e035e9b8eafeacb5418f013be0",
+        "date": "2025-04-16",
+        "teams": "Tampa Bay Rays vs Boston Red Sox",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-7b887f6aa184b055fe9ced1f21dd5051",
+        "date": "2025-04-16",
+        "teams": "New York Yankees vs Kansas City Royals",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-5ac7640ee8f4dda34f2cbf98ea39dfd4",
+        "date": "2025-04-16",
+        "teams": "Chicago White Sox vs Oakland Athletics",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-866edca57ccb39dbce4c14411c0c2532",
+        "date": "2025-04-16",
+        "teams": "Texas Rangers vs Los Angeles Angels",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "mlb-game-0a2616adcc59aa00e128de19a5bd714d",
+        "date": "2025-04-16",
+        "teams": "Los Angeles Dodgers vs Colorado Rockies",
+        "pendingPredictions": 6
+      },
+      {
+        "id": "MLB_MiamiMarlins_ArizonaDiamondbacks_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Miami Marlins vs Arizona Diamondbacks",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_PittsburghPirates_WashingtonNationals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Pittsburgh Pirates vs Washington Nationals",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_CincinnatiReds_SeattleMariners_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Cincinnati Reds vs Seattle Mariners",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_ChicagoWhiteSox_OaklandAthletics_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Chicago White Sox vs Oakland Athletics",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_PhiladelphiaPhillies_SanFranciscoGiants_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Philadelphia Phillies vs San Francisco Giants",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_BaltimoreOrioles_ClevelandGuardians_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Baltimore Orioles vs Cleveland Guardians",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_DetroitTigers_KansasCityRoyals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Detroit Tigers vs Kansas City Royals",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_TampaBayRays_NewYorkYankees_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "Tampa Bay Rays vs New York Yankees",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_NewYorkMets_St.LouisCardinals_2025-04-17",
+        "date": "2025-04-17",
+        "teams": "New York Mets vs St. Louis Cardinals",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "MLB_TexasRangers_LosAngelesAngels_2025-04-18",
+        "date": "2025-04-18",
+        "teams": "Texas Rangers vs Los Angeles Angels",
+        "pendingPredictions": 18
+      },
+      {
+        "id": "d10ad176d06f4a528655723178f217dd",
+        "date": "2025-04-20",
+        "teams": "Houston Astros vs San Diego Padres",
+        "pendingPredictions": 1
+      },
+      {
+        "id": "2fadc4199bb5915fe76944e1b5d4d29b",
+        "date": "2025-04-21",
+        "teams": "Colorado Rockies vs Washington Nationals",
+        "pendingPredictions": 1
+      }
+    ]
+  }
+}

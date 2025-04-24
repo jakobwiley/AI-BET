@@ -33,7 +33,7 @@ model Prediction {
   id              String            @id @default(uuid())
   gameId          String
   predictionType  PredictionType
-  predictionValue Float
+  predictionValue String
   confidence      Float
   reasoning       String
   outcome         PredictionOutcome @default(PENDING)
@@ -59,6 +59,7 @@ enum PredictionOutcome {
   WIN
   LOSS
   PENDING
+  PUSH
 }
 
 enum GameStatus {

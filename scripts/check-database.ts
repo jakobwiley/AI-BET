@@ -172,5 +172,50 @@ async function checkDatabase() {
   }
 }
 
+async function checkDatabaseState() {
+  try {
+    // Get total counts
+    const totalGames = await prisma.game.count();
+    const totalPredictions = await prisma.prediction.count();
+
+    console.log(`Total games in database: ${totalGames}`);
+    console.log(`Total predictions in database: ${totalPredictions}`);
+    console.log('\nSample of 5 recent games:');
+
+    // Get 5 sample games with their predictions
+    const games = await prisma.game.findMany({
+      take: 5,
+      orderBy: {
+        gameDate: 'desc'
+      },
+      include: {
+        predictions: true
+      }
+    });
+
+    games.forEach(game => {
+      console.log('\n----------------------------------------');
+      console.log(`Game: ${game.homeTeamName} vs ${game.awayTeamName}`);
+      console.log(`Date: ${game.gameDate}`);
+      console.log(`Status: ${game.status}`);
+      console.log(`Score: ${game.homeScore ?? 'N/A'} - ${game.awayScore ?? 'N/A'}`);
+      console.log(`Number of predictions: ${game.predictions.length}`);
+      
+      if (game.predictions.length > 0) {
+        console.log('\nPredictions:');
+        game.predictions.forEach(pred => {
+          console.log(`- Type: ${pred.predictionType}, Value: ${pred.predictionValue}, Confidence: ${pred.confidence}, Outcome: ${pred.outcome}`);
+        });
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking database state:', error);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 // Run the check
-checkDatabase().catch(console.error); 
+checkDatabase().catch(console.error);
+checkDatabaseState().catch(console.error); 
