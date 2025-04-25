@@ -1,45 +1,33 @@
 #!/bin/bash
 
-# Script to set up cron jobs for daily predictions at 8 AM
+# Set up environment
+export NODE_ENV=production
+source .env
 
-# Exit on error
-set -e
+# Log file setup
+LOG_DIR="logs"
+mkdir -p $LOG_DIR
+LOG_FILE="$LOG_DIR/daily-predictions-$(date +%Y-%m-%d).log"
 
-# Navigate to project directory
-PROJECT_DIR="$(dirname "$(realpath "$0")")"
-cd "$PROJECT_DIR/.."
+# Function to run predictions
+run_predictions() {
+    echo "Starting daily predictions at $(date)" >> "$LOG_FILE"
+    
+    # Update team stats first
+    npx ts-node scripts/populate-team-stats.ts >> "$LOG_FILE" 2>&1
+    
+    # Generate and send predictions
+    npx ts-node scripts/generate-daily-predictions.ts >> "$LOG_FILE" 2>&1
+    
+    echo "Completed daily predictions at $(date)" >> "$LOG_FILE"
+}
 
-# Create a temporary file for the crontab
-TEMP_CRON=$(mktemp)
+# Run predictions
+run_predictions
 
-# Get existing crontab
-crontab -l > "$TEMP_CRON" 2>/dev/null || echo "# New crontab" > "$TEMP_CRON"
+# Add to crontab if not already added
+CRON_CMD="0 9 * * * cd $(pwd) && ./scripts/schedule-daily-predictions.sh"
+(crontab -l 2>/dev/null | grep -q "$CRON_CMD") || (crontab -l 2>/dev/null; echo "$CRON_CMD") | crontab -
 
-# Remove any existing prediction jobs
-grep -v "generate-predictions.ts\|send-predictions-email.ts" "$TEMP_CRON" > "${TEMP_CRON}.new"
-mv "${TEMP_CRON}.new" "$TEMP_CRON"
-
-# Add our new scheduled jobs
-# First fetch odds and generate predictions
-echo "0 8 * * * cd $PWD && NODE_OPTIONS='--loader ts-node/esm' npx ts-node scripts/fetch-odds.ts > logs/fetch-odds-\$(date +\%Y\%m\%d\%H\%M\%S).log 2>&1" >> "$TEMP_CRON"
-echo "5 8 * * * cd $PWD && NODE_OPTIONS='--loader ts-node/esm' npx ts-node scripts/generate-predictions.ts > logs/generate-predictions-\$(date +\%Y\%m\%d\%H\%M\%S).log 2>&1" >> "$TEMP_CRON"
-echo "10 8 * * * cd $PWD && NODE_OPTIONS='--loader ts-node/esm' npx ts-node scripts/send-predictions-email.ts > logs/send-predictions-email-\$(date +\%Y\%m\%d\%H\%M\%S).log 2>&1" >> "$TEMP_CRON"
-
-# Make sure logs directory exists
-mkdir -p logs
-
-# Install the new crontab
-echo "Installing cron jobs..."
-crontab "$TEMP_CRON"
-rm "$TEMP_CRON"
-
-# Display confirmation
-echo "✅ Scheduled prediction jobs have been installed."
-echo "Jobs will run at the following times each day:"
-echo "  - 8:00 AM: Fetch odds"
-echo "  - 8:05 AM: Generate predictions"
-echo "  - 8:10 AM: Send email"
-echo ""
-echo "Log files will be saved to: $PWD/logs/"
-echo "To view scheduled jobs, run: crontab -l"
-echo "To remove all jobs, run: crontab -r" 
+echo "Daily predictions script has been scheduled to run at 9:00 AM daily"
+echo "Logs will be written to $LOG_FILE" 

@@ -1,83 +1,245 @@
 MLB Predictions for Today
 =======================
 
-Tampa Bay Rays @ Arizona Diamondbacks
-Game Time: 4/24/2025, 8:40:00 PM
+Baltimore Orioles @ Detroit Tigers
+Game Time: 4/25/2025, 5:40:00 PM
 ----------------------------------------
 SPREAD: -1.5
-Confidence: 85%
-Reasoning: Arizona Diamondbacks -1.5 (+146) with 40.7% implied probability
+Confidence: 84%
+Recommendation: ACCEPT
 
-MONEYLINE: -138
-Confidence: 90%
-Reasoning: Arizona Diamondbacks ML (-138) with 58.0% implied probability
+MONEYLINE: -122
+Confidence: 80%
+Recommendation: ACCEPT
 
 TOTAL: o8.5
-Confidence: 86%
-Reasoning: Over 8.5 (-104) with 51.0% implied probability
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
 
 
-Texas Rangers @ Oakland Athletics
-Game Time: 4/24/2025, 9:05:00 PM
+New York Mets @ Washington Nationals
+Game Time: 4/25/2025, 5:45:00 PM
 ----------------------------------------
 SPREAD: 1.5
-Confidence: 87%
-Reasoning: Oakland Athletics 1.5 (-142) with 58.7% implied probability
+Confidence: 84%
+Recommendation: ACCEPT
 
-MONEYLINE: 116
-Confidence: 89%
-Reasoning: Oakland Athletics ML (+116) with 46.3% implied probability
-
-TOTAL: o8.5
-Confidence: 87%
-Reasoning: Over 8.5 (-120) with 54.5% implied probability
-
-
-Colorado Rockies @ Kansas City Royals
-Game Time: 4/24/2025, 4:26:21 PM
-----------------------------------------
-SPREAD: -3.5
-Confidence: 91%
-Reasoning: Kansas City Royals -3.5 (-220) with 68.8% implied probability
-
-MONEYLINE: -10000
-Confidence: 95%
-Reasoning: Kansas City Royals ML (-10000) with 99.0% implied probability
-
-TOTAL: o8.5
-Confidence: 86%
-Reasoning: Over 8.5 (+118) with 45.9% implied probability
-
-
-Baltimore Orioles @ Washington Nationals
-Game Time: 4/24/2025, 5:45:48 PM
-----------------------------------------
-SPREAD: -1.5
-Confidence: 90%
-Reasoning: Washington Nationals -1.5 (-104) with 51.0% implied probability
-
-MONEYLINE: -235
-Confidence: 95%
-Reasoning: Washington Nationals ML (-235) with 70.1% implied probability
-
-TOTAL: o7.5
-Confidence: 87%
-Reasoning: Over 7.5 (+108) with 48.1% implied probability
-
-
-Pittsburgh Pirates @ Los Angeles Angels
-Game Time: 4/24/2025, 8:29:00 PM
-----------------------------------------
-SPREAD: -1.5
-Confidence: 85%
-Reasoning: Los Angeles Angels -1.5 (+128) with 43.9% implied probability
-
-MONEYLINE: -158
-Confidence: 90%
-Reasoning: Los Angeles Angels ML (-158) with 61.2% implied probability
+MONEYLINE: 154
+Confidence: 80%
+Recommendation: ACCEPT
 
 TOTAL: o9
-Confidence: 87%
-Reasoning: Over 9 (-108) with 51.9% implied probability
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Cincinnati Reds @ Colorado Rockies
+Game Time: 4/25/2025, 7:40:00 PM
+----------------------------------------
+SPREAD: 1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: 102
+Confidence: 80%
+Recommendation: ACCEPT
+
+TOTAL: o9.5
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Atlanta Braves @ Arizona Diamondbacks
+Game Time: 4/25/2025, 8:40:00 PM
+----------------------------------------
+SPREAD: 1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: 110
+Confidence: 80%
+Recommendation: ACCEPT
+
+TOTAL: o8.5
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Miami Marlins @ Seattle Mariners
+Game Time: 4/25/2025, 8:40:00 PM
+----------------------------------------
+SPREAD: -1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -305
+Confidence: 64%
+Warning: High risk moneyline value
+Recommendation: ACCEPT
+
+TOTAL: o7.5
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Toronto Blue Jays @ New York Yankees
+Game Time: 4/25/2025, 6:05:00 PM
+----------------------------------------
+SPREAD: -1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -142
+Confidence: 80%
+Recommendation: ACCEPT
+
+TOTAL: o9
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Boston Red Sox @ Cleveland Guardians
+Game Time: 4/25/2025, 6:10:00 PM
+----------------------------------------
+SPREAD: 1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -110
+Confidence: 80%
+Recommendation: ACCEPT
+
+TOTAL: o9
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Houston Astros @ Kansas City Royals
+Game Time: 4/25/2025, 6:40:00 PM
+----------------------------------------
+SPREAD: 1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -102
+Confidence: 80%
+Recommendation: ACCEPT
+
+TOTAL: o8
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Los Angeles Angels @ Minnesota Twins
+Game Time: 4/25/2025, 6:40:00 PM
+----------------------------------------
+SPREAD: -1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -218
+Confidence: 72%
+Warning: Significant underdog/favorite
+Recommendation: ACCEPT
+
+TOTAL: o8
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Milwaukee Brewers @ St. Louis Cardinals
+Game Time: 4/25/2025, 7:15:00 PM
+----------------------------------------
+SPREAD: -1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -130
+Confidence: 80%
+Recommendation: ACCEPT
+
+TOTAL: o8
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Tampa Bay Rays @ San Diego Padres
+Game Time: 4/25/2025, 8:40:00 PM
+----------------------------------------
+SPREAD: -1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -142
+Confidence: 80%
+Recommendation: ACCEPT
+
+TOTAL: o7
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Chicago White Sox @ Oakland Athletics
+Game Time: 4/25/2025, 9:05:00 PM
+----------------------------------------
+SPREAD: -1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -258
+Confidence: 72%
+Warning: Significant underdog/favorite
+Recommendation: ACCEPT
+
+TOTAL: o9
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Pittsburgh Pirates @ Los Angeles Dodgers
+Game Time: 4/25/2025, 9:10:00 PM
+----------------------------------------
+SPREAD: -1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -218
+Confidence: 72%
+Warning: Significant underdog/favorite
+Recommendation: ACCEPT
+
+TOTAL: o7
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
+
+
+Texas Rangers @ San Francisco Giants
+Game Time: 4/25/2025, 9:15:00 PM
+----------------------------------------
+SPREAD: 1.5
+Confidence: 84%
+Recommendation: ACCEPT
+
+MONEYLINE: -115
+Confidence: 80%
+Recommendation: ACCEPT
+
+TOTAL: o7.5
+Confidence: 50%
+Warning: Invalid total format; Low confidence prediction
+Recommendation: REJECT
 
 

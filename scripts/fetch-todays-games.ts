@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 
 async function fetchTodaysGames() {
   try {
-    const today = new Date('2025-04-15');
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const tomorrow = new Date(today);
@@ -43,8 +43,6 @@ async function fetchTodaysGames() {
         awayTeamId: game.awayTeamId,
         status: game.status,
         startTime: game.startTime,
-        probableHomePitcherName: game.probableHomePitcherName ?? null,
-        probableAwayPitcherName: game.probableAwayPitcherName ?? null,
         oddsJson: game.odds ? (game.odds as unknown as Prisma.InputJsonValue) : Prisma.JsonNull
       };
 
