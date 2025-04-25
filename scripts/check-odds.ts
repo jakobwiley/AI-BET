@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { PrismaClient, GameStatus } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient } = pkg;
 import { format } from 'date-fns';
 import dotenv from 'dotenv';
 
@@ -10,47 +11,53 @@ const prisma = new PrismaClient();
 
 async function checkOdds() {
   try {
+    // Get today's MLB games with odds
+    const startDate = new Date('2025-04-24T05:00:00.000Z');
+    const endDate = new Date('2025-04-25T05:00:00.000Z');
+    
     const games = await prisma.game.findMany({
       where: {
+        sport: 'MLB',
         gameDate: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(23, 59, 59, 999))
-        },
-        status: GameStatus.SCHEDULED
-      }
-    });
-
-    console.log(`\nGames for ${format(new Date(), 'MMMM d, yyyy')}:\n`);
-    
-    games.forEach(game => {
-      console.log(`${game.awayTeamName} @ ${game.homeTeamName}`);
-      console.log(`Time: ${format(new Date(game.gameDate), 'h:mm a')}`);
-      
-      try {
-        const odds = typeof game.oddsJson === 'string' 
-          ? JSON.parse(game.oddsJson) 
-          : game.oddsJson;
-
-        if (odds) {
-          if (odds.moneyline) {
-            console.log(`Moneyline: ${game.awayTeamName} ${odds.moneyline.away > 0 ? '+' : ''}${odds.moneyline.away} | ${game.homeTeamName} ${odds.moneyline.home > 0 ? '+' : ''}${odds.moneyline.home}`);
-          }
-          if (odds.spread) {
-            console.log(`Spread: ${game.awayTeamName} ${odds.spread.away > 0 ? '+' : ''}${odds.spread.away} (${odds.spread.point > 0 ? '+' : ''}${odds.spread.point}) | ${game.homeTeamName} ${odds.spread.home > 0 ? '+' : ''}${odds.spread.home} (${-odds.spread.point > 0 ? '+' : ''}${-odds.spread.point})`);
-          }
-          if (odds.total) {
-            console.log(`Total: O/U ${odds.total.over} (O: ${odds.total.point > 0 ? '+' : ''}${odds.total.point} | U: ${odds.total.under > 0 ? '+' : ''}${odds.total.under})`);
-          }
-        } else {
-          console.log('No odds available');
+          gte: startDate,
+          lt: endDate
         }
-      } catch (error) {
-        console.error(`Error parsing odds for game ${game.id}:`, error);
+      },
+      select: {
+        id: true,
+        homeTeamName: true,
+        awayTeamName: true,
+        oddsJson: true
       }
-      
-      console.log('-------------------\n');
     });
 
+    console.log(`Found ${games.length} MLB games for today`);
+    
+    // Analyze odds format for each game
+    games.forEach(game => {
+      console.log(`\n${game.awayTeamName} @ ${game.homeTeamName}`);
+      console.log('----------------------------------------');
+      
+      if (game.oddsJson) {
+        const odds = typeof game.oddsJson === 'string' ? JSON.parse(game.oddsJson) : game.oddsJson;
+        console.log('Raw odds data:', JSON.stringify(odds, null, 2));
+        
+        // Check odds structure
+        if (typeof odds === 'object') {
+          console.log('\nOdds structure:');
+          Object.keys(odds).forEach(key => {
+            console.log(`- ${key}: ${typeof odds[key]}`);
+            if (typeof odds[key] === 'object') {
+              Object.keys(odds[key]).forEach(subKey => {
+                console.log(`  - ${subKey}: ${typeof odds[key][subKey]}`);
+              });
+            }
+          });
+        }
+      } else {
+        console.log('No odds data available');
+      }
+    });
   } catch (error) {
     console.error('Error checking odds:', error);
   } finally {

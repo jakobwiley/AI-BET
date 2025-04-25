@@ -1,6 +1,6 @@
-const { PredictionType } = require('@prisma/client');
+import { PredictionType } from '@prisma/client';
 
-interface GameStats {
+export interface GameStats {
   homeTeamName: string;
   awayTeamName: string;
   homeScore?: number | null;
@@ -10,7 +10,7 @@ interface GameStats {
   awayTeamWinRate?: number;
 }
 
-interface PredictionInput {
+export interface PredictionInput {
   predictionType: PredictionType;
   rawConfidence: number;  // Original confidence from base model
   predictionValue: string;
@@ -19,6 +19,11 @@ interface PredictionInput {
   recentAwayScores?: number[];  // Last 5 games
   homeTeamWinRate?: number;    // Recent win rate
   awayTeamWinRate?: number;    // Recent win rate
+  historicalAccuracy?: {  // New field for historical performance
+    type: PredictionType;
+    accuracy: number;
+    sampleSize: number;
+  };
 }
 
 interface CalibrationConfig {
@@ -30,9 +35,7 @@ interface CalibrationConfig {
   };
   // Type-specific performance factors
   typeWeights: {
-    [PredictionType.SPREAD]: number;    // 1.1 (best performing)
-    [PredictionType.MONEYLINE]: number; // 1.0 (baseline)
-    [PredictionType.TOTAL]: number;     // 0.9 (most volatile)
+    [key in PredictionType]: number;
   };
 }
 
@@ -49,7 +52,13 @@ const DEFAULT_CONFIG: CalibrationConfig = {
   }
 };
 
-class EnhancedPredictionModel {
+export interface QualityAssessment {
+  confidence: number;
+  warning?: string;
+  recommendation: 'ACCEPT' | 'REJECT';
+}
+
+export class EnhancedPredictionModel {
   private config: CalibrationConfig;
 
   constructor(config: Partial<CalibrationConfig> = {}) {
@@ -106,26 +115,77 @@ class EnhancedPredictionModel {
     return confidence;
   }
 
-  private validatePredictionValue(value: string, type: PredictionType): boolean {
-    switch (type) {
-      case PredictionType.TOTAL:
-        return value.startsWith('o') || value.startsWith('u');
-      case PredictionType.SPREAD:
-        return !['0', '0.0'].includes(value);
-      case PredictionType.MONEYLINE:
-        return !['0', '1', '-1'].includes(value);
-      default:
-        return true;
+  private validateTotalPrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
+    const totalMatch = value.match(/^(OVER|UNDER)\s*(\d+(\.\d+)?)$/i);
+    if (!totalMatch) {
+      return { isValid: false, warning: 'Invalid total format', confidenceAdjustment: 0.7 };
     }
+
+    const totalValue = parseFloat(totalMatch[2]);
+
+    // Check for reasonable total range based on sport (assuming baseball for now)
+    if (totalValue < 5) {
+      return { isValid: true, warning: 'Unusually low total', confidenceAdjustment: 0.75 };
+    }
+    if (totalValue > 12) {
+      return { isValid: true, warning: 'Unusually high total', confidenceAdjustment: 0.8 };
+    }
+
+    // Check for half-runs in baseball (unusual)
+    if (totalValue % 1 !== 0) {
+      return { isValid: true, warning: 'Non-integer total value', confidenceAdjustment: 0.9 };
+    }
+
+    return { isValid: true, confidenceAdjustment: 1.0 };
+  }
+
+  private validateSpreadPrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
+    const spreadMatch = value.match(/^([+-]?\d+(\.\d+)?)$/);
+    if (!spreadMatch) {
+      return { isValid: false, warning: 'Invalid spread format', confidenceAdjustment: 0.7 };
+    }
+
+    const spreadValue = parseFloat(value);
+    const absSpread = Math.abs(spreadValue);
+
+    // Check for reasonable spread ranges
+    if (absSpread === 0) {
+      return { isValid: false, warning: 'Zero spread value', confidenceAdjustment: 0.7 };
+    }
+    if (absSpread > 2.5) {
+      return { isValid: true, warning: 'Large spread for baseball', confidenceAdjustment: 0.85 };
+    }
+    if (absSpread % 0.5 !== 0) {
+      return { isValid: true, warning: 'Unusual spread increment', confidenceAdjustment: 0.9 };
+    }
+
+    return { isValid: true, confidenceAdjustment: 1.0 };
+  }
+
+  private validateMoneylinePrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
+    const moneylineMatch = value.match(/^([+-]?\d+)$/);
+    if (!moneylineMatch) {
+      return { isValid: false, warning: 'Invalid moneyline format', confidenceAdjustment: 0.7 };
+    }
+
+    const moneylineValue = parseInt(value);
+    const absMoneyline = Math.abs(moneylineValue);
+
+    // Check for reasonable moneyline ranges
+    if (absMoneyline < 100) {
+      return { isValid: false, warning: 'Moneyline too low', confidenceAdjustment: 0.7 };
+    }
+    if (absMoneyline > 300) {
+      return { isValid: true, warning: 'High risk moneyline value', confidenceAdjustment: 0.8 };
+    }
+    if (absMoneyline > 200) {
+      return { isValid: true, warning: 'Significant underdog/favorite', confidenceAdjustment: 0.9 };
+    }
+
+    return { isValid: true, confidenceAdjustment: 1.0 };
   }
 
   public calculateConfidence(input: PredictionInput): number {
-    // Validate prediction value
-    if (!this.validatePredictionValue(input.predictionValue, input.predictionType)) {
-      return Math.min(input.rawConfidence * 0.7, 0.65); // Significantly reduce confidence for questionable values
-    }
-
-    // Start with base confidence and apply calibration
     let confidence = this.calibrateConfidence(input.rawConfidence, input.predictionType);
 
     // Apply home advantage adjustment
@@ -139,50 +199,74 @@ class EnhancedPredictionModel {
       input.recentAwayScores
     );
 
-    // Additional type-specific adjustments
+    // Validate prediction value based on type
+    let validationResult;
     switch (input.predictionType) {
-      case PredictionType.SPREAD:
-        // Slightly boost spread predictions in optimal range
-        if (confidence >= 0.75 && confidence <= 0.80) {
-          confidence *= 1.05;
-        }
-        break;
       case PredictionType.TOTAL:
-        // Cap total predictions at a lower maximum
-        confidence = Math.min(confidence, 0.82);
+        validationResult = this.validateTotalPrediction(input.predictionValue, input.game);
         break;
+      case PredictionType.SPREAD:
+        validationResult = this.validateSpreadPrediction(input.predictionValue, input.game);
+        break;
+      case PredictionType.MONEYLINE:
+        validationResult = this.validateMoneylinePrediction(input.predictionValue, input.game);
+        break;
+      default:
+        validationResult = { isValid: false, warning: 'Invalid prediction type', confidenceAdjustment: 0.7 };
     }
 
-    // Final bounds check
-    return Math.min(Math.max(confidence, 0.5), this.config.maxConfidence);
+    // Apply validation adjustment
+    confidence *= validationResult.confidenceAdjustment;
+
+    // Consider historical accuracy if available
+    if (input.historicalAccuracy) {
+      const accuracyWeight = Math.min(1, input.historicalAccuracy.sampleSize / 100);
+      const historicalAdjustment = 0.7 + (0.3 * input.historicalAccuracy.accuracy);
+      confidence = confidence * (1 - accuracyWeight) + (confidence * historicalAdjustment * accuracyWeight);
+    }
+
+    // Ensure final confidence is between 0 and 1
+    return Math.max(0, Math.min(1, confidence));
   }
 
-  public getPredictionQuality(input: PredictionInput): {
-    confidence: number;
-    recommendation: string;
-    warning?: string;
-  } {
+  public getPredictionQuality(input: PredictionInput): QualityAssessment {
     const confidence = this.calculateConfidence(input);
-    let recommendation = 'PROCEED';
     let warning: string | undefined;
+    let recommendation: 'ACCEPT' | 'REJECT' = 'ACCEPT';
 
-    // Quality checks
-    if (input.predictionType === PredictionType.TOTAL && confidence > 0.80) {
-      recommendation = 'CAUTION';
-      warning = 'High confidence total predictions have shown lower accuracy';
+    // Validate prediction value based on type
+    let validationResult;
+    switch (input.predictionType) {
+      case PredictionType.TOTAL:
+        validationResult = this.validateTotalPrediction(input.predictionValue, input.game);
+        break;
+      case PredictionType.SPREAD:
+        validationResult = this.validateSpreadPrediction(input.predictionValue, input.game);
+        break;
+      case PredictionType.MONEYLINE:
+        validationResult = this.validateMoneylinePrediction(input.predictionValue, input.game);
+        break;
+      default:
+        validationResult = { isValid: false, warning: 'Invalid prediction type', confidenceAdjustment: 0.7 };
     }
 
-    if (!this.validatePredictionValue(input.predictionValue, input.predictionType)) {
+    if (!validationResult.isValid) {
       recommendation = 'REJECT';
-      warning = 'Invalid prediction value for type';
+      warning = validationResult.warning;
+    } else if (validationResult.warning) {
+      warning = validationResult.warning;
+    }
+
+    // Additional quality checks
+    if (confidence < 0.6) {
+      recommendation = 'REJECT';
+      warning = warning ? `${warning}; Low confidence prediction` : 'Low confidence prediction';
     }
 
     return {
       confidence,
-      recommendation,
-      warning
+      warning,
+      recommendation
     };
   }
-}
-
-module.exports = { EnhancedPredictionModel }; 
+} 

@@ -1,15 +1,22 @@
 #!/usr/bin/env node
 
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-const { format } = require('date-fns');
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+import { format } from 'date-fns';
+import { fileURLToPath } from 'url';
+import { EnhancedPredictionModel } from './src/lib/prediction/enhanced-model.ts';
+import { getYesterdaysResults, formatResultsSummary } from './scripts/get-yesterdays-results.ts';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configuration
 const API_BASE_URL = 'http://localhost:3000/api';
 const CONFIDENCE_THRESHOLD = 65; // Only show predictions with confidence >= 65%
 
-async function fetchGames(sport = null) {
+async function fetchGames(sport: string | null = null) {
   try {
     const url = sport ? `${API_BASE_URL}/games?sport=${sport}` : `${API_BASE_URL}/games`;
     console.log(`Fetching games from: ${url}`);
@@ -21,8 +28,22 @@ async function fetchGames(sport = null) {
   }
 }
 
-function filterTodaysGames(games) {
-  const today = new Date();
+interface Game {
+  id: string;
+  gameDate: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeScore?: number;
+  awayScore?: number;
+  status: string;
+  odds?: any;
+  oddsJson?: any;
+  predictions?: any[];
+  sport: string;
+}
+
+function filterTodaysGames(games: Game[]) {
+  const today = new Date('2025-04-24T00:00:00.000Z');
   today.setHours(0, 0, 0, 0);
   
   const tomorrow = new Date(today);
@@ -48,20 +69,45 @@ function getBestPredictions(game) {
   // Log predictions for debugging
   console.log(`Game ${game.awayTeamName} @ ${game.homeTeamName} has ${game.predictions.length} predictions`);
   
+  // Create enhanced model instance
+  const enhancedModel = new EnhancedPredictionModel();
+  
   // Group predictions by type
   const predictionsByType = game.predictions.reduce((acc, prediction) => {
     if (!acc[prediction.predictionType]) {
       acc[prediction.predictionType] = [];
     }
+    
+    // Enhance the prediction with our model
+    const input = {
+      predictionType: prediction.predictionType,
+      rawConfidence: prediction.confidence,
+      predictionValue: prediction.predictionValue.toString(),
+      game: {
+        homeTeamName: game.homeTeamName,
+        awayTeamName: game.awayTeamName,
+        homeScore: game.homeScore,
+        awayScore: game.awayScore,
+        status: game.status
+      }
+    };
+    
+    const quality = enhancedModel.getPredictionQuality(input);
+    prediction.enhancedConfidence = quality.confidence;
+    prediction.warning = quality.warning;
+    prediction.recommendation = quality.recommendation;
+    
     acc[prediction.predictionType].push(prediction);
     return acc;
   }, {});
   
-  // For each type, get the highest confidence prediction
+  // For each type, get the highest confidence prediction that is recommended
   return Object.keys(predictionsByType).map(type => {
-    const predictions = predictionsByType[type];
-    return predictions.sort((a, b) => b.confidence - a.confidence)[0];
-  }).filter(prediction => prediction.confidence >= CONFIDENCE_THRESHOLD);
+    const predictions = predictionsByType[type]
+      .filter(p => p.recommendation === 'ACCEPT')
+      .sort((a, b) => b.enhancedConfidence - a.enhancedConfidence);
+    return predictions[0];
+  }).filter(prediction => prediction && prediction.enhancedConfidence >= (CONFIDENCE_THRESHOLD / 100));
 }
 
 function formatPredictionValue(prediction, game) {
@@ -187,61 +233,64 @@ function formatPredictionValue(prediction, game) {
   }
 }
 
-function createReadableOutput(games) {
+async function createReadableOutput(games: Game[]) {
   let output = '';
   
-  if (games.length === 0) {
-    return 'No games found for today.';
-  }
+  // Add yesterday's results
+  const yesterdaysResults = await getYesterdaysResults();
+  output += formatResultsSummary(yesterdaysResults);
+  output += '\n\n';
   
-  output += `TODAY'S TOP PREDICTIONS (${format(new Date(), 'MMM d, yyyy')})\n`;
-  output += '==============================================\n\n';
+  if (games.length === 0) {
+    output += 'No games found for today.\n';
+    return output;
+  }
   
   // Group games by sport
   const gamesBySport = games.reduce((acc, game) => {
-    if (!acc[game.sport]) {
-      acc[game.sport] = [];
+    const sport = game.sport || 'UNKNOWN';
+    if (!acc[sport]) {
+      acc[sport] = [];
     }
-    acc[game.sport].push(game);
+    acc[sport].push(game);
     return acc;
-  }, {});
+  }, {} as Record<string, Game[]>);
   
-  Object.keys(gamesBySport).forEach(sport => {
-    output += `${sport} GAMES\n`;
-    output += '--------------\n\n';
+  // Process each sport's games
+  for (const [sport, sportGames] of Object.entries(gamesBySport)) {
+    output += `${sport} Games\n`;
+    output += '='.repeat(sport.length + 6) + '\n\n';
     
-    gamesBySport[sport].forEach(game => {
-      const bestPredictions = getBestPredictions(game);
-      
-      if (bestPredictions.length === 0) {
-        return;
-      }
-      
-      const gameTime = format(new Date(game.gameDate), 'h:mm a');
-      output += `${game.awayTeamName} @ ${game.homeTeamName} - ${gameTime}\n`;
-      
-      // Check if game has odds for debugging
-      if (!game.odds) {
-        output += `  (No odds available for this game)\n`;
-      }
-      
-      bestPredictions.forEach(prediction => {
-        const formattedValue = formatPredictionValue(prediction, game);
-        const predictionTypeStr = `${prediction.predictionType}:`.padEnd(10);
-        output += `  ${predictionTypeStr} ${formattedValue.padEnd(25)} | `;
-        output += `Confidence: ${typeof prediction.confidence === 'number' ? prediction.confidence.toFixed(1) : prediction.confidence}% | Grade: ${prediction.grade}\n`;
-        
-        // Add detailed analysis for high-confidence predictions
-        if (prediction.confidence >= 75 || (prediction.grade && prediction.grade.startsWith('A') || prediction.grade === 'B+')) {
-          output += `    Analysis: ${generateAnalysis(prediction, game)}\n`;
-        }
-      });
-      
-      output += '\n';
+    // Sort games by start time
+    sportGames.sort((a, b) => {
+      const timeA = new Date(a.gameDate).getTime();
+      const timeB = new Date(b.gameDate).getTime();
+      return timeA - timeB;
     });
     
-    output += '\n';
-  });
+    // Process each game
+    for (const game of sportGames) {
+      const predictions = getBestPredictions(game);
+      if (predictions.length > 0) {
+        output += `${game.awayTeamName} @ ${game.homeTeamName}\n`;
+        output += `Game time: ${format(new Date(game.gameDate), 'h:mm a')}\n\n`;
+        
+        for (const prediction of predictions) {
+          const formattedValue = formatPredictionValue(prediction, game);
+          const analysis = generateAnalysis(prediction, game);
+          
+          output += `${prediction.predictionType}: ${formattedValue}\n`;
+          output += `Confidence: ${(prediction.enhancedConfidence * 100).toFixed(1)}%\n`;
+          if (prediction.warning) {
+            output += `Warning: ${prediction.warning}\n`;
+          }
+          output += `Analysis: ${analysis}\n\n`;
+        }
+        
+        output += '-'.repeat(40) + '\n\n';
+      }
+    }
+  }
   
   return output;
 }
@@ -297,110 +346,63 @@ function generateAnalysis(prediction, game) {
 // Main execution flow
 async function main() {
   try {
+    // Get yesterday's results
+    const yesterdaysResults = await getYesterdaysResults();
+    const resultsSummary = formatResultsSummary(yesterdaysResults);
+    
+    // Fetch MLB games
     console.log('Fetching MLB games...');
-    const mlbGames = await fetchGamesWithOdds('MLB');
+    const mlbGames = await fetchGames('MLB') as Game[];
     
+    // Fetch NBA games
     console.log('Fetching NBA games...');
-    const nbaGames = await fetchGamesWithOdds('NBA');
+    const nbaGames = await fetchGames('NBA') as Game[];
     
+    // Combine all games
     const allGames = [...mlbGames, ...nbaGames];
     console.log(`Fetched ${allGames.length} total games (${mlbGames.length} MLB, ${nbaGames.length} NBA)`);
     
+    // Filter for today's games
     const todaysGames = filterTodaysGames(allGames);
     console.log(`Found ${todaysGames.length} games scheduled for today`);
     
-    // Log any games with missing odds
-    const gamesWithoutOdds = todaysGames.filter(game => !game.odds);
-    if (gamesWithoutOdds.length > 0) {
-      console.log(`Warning: ${gamesWithoutOdds.length} games are missing odds data:`);
-      gamesWithoutOdds.forEach(game => {
-        console.log(`  - ${game.awayTeamName} @ ${game.homeTeamName} (${game.id})`);
-      });
-    }
-    
     // Create readable output
-    const output = createReadableOutput(todaysGames);
+    const output = await createReadableOutput(todaysGames);
     
-    // Save to file
-    const filePath = path.join(__dirname, 'todays-picks.txt');
-    fs.writeFileSync(filePath, output);
-    console.log(`Today's picks saved to ${filePath}`);
+    // Write to file
+    const outputPath = path.join(__dirname, 'todays-picks.txt');
+    fs.writeFileSync(outputPath, output);
+    console.log(`Today's picks saved to ${outputPath}`);
     
-    return todaysGames;
   } catch (error) {
     console.error('Error in main:', error);
-    return [];
   }
 }
 
-// Helper function to ensure each game has valid odds data
-async function fetchGamesWithOdds(sport = null) {
-  try {
-    const url = sport ? `${API_BASE_URL}/games?sport=${sport}` : `${API_BASE_URL}/games`;
-    console.log(`Fetching games from: ${url}`);
-    const response = await axios.get(url);
-    const games = response.data;
-    
-    // Process and normalize odds data for each game
-    return games.map(game => {
-      // First check if game.odds exists
-      if (!game.odds) {
-        // Try to parse oddsJson if available
-        if (game.oddsJson) {
-          try {
-            if (typeof game.oddsJson === 'string') {
-              game.odds = JSON.parse(game.oddsJson);
-            } else {
-              game.odds = game.oddsJson;
-            }
-            console.log(`Game ${game.id}: Parsed odds from oddsJson`);
-          } catch (e) {
-            console.log(`Game ${game.id}: Failed to parse oddsJson - ${e.message}`);
-          }
-        }
+async function fetchGamesWithOdds(sport: string | null = null) {
+  const games = await fetchGames(sport) as Game[];
+  return games.map(game => {
+    if (typeof game.odds === 'string') {
+      try {
+        game.odds = JSON.parse(game.odds);
+      } catch (e) {
+        console.log(`Failed to parse odds for game ${game.id}:`, e);
       }
-      
-      // Create default odds structure if still missing
-      if (!game.odds) {
-        game.odds = {
-          spread: {
-            homeSpread: game.sport === 'MLB' ? -1.5 : -7.5,
-            awaySpread: game.sport === 'MLB' ? 1.5 : 7.5,
-            homeOdds: -110,
-            awayOdds: -110
-          },
-          moneyline: {
-            homeOdds: -130,
-            awayOdds: 110
-          },
-          total: {
-            overUnder: game.sport === 'MLB' ? 8.5 : 220.5,
-            overOdds: -110,
-            underOdds: -110
-          }
-        };
-        console.log(`Game ${game.id}: Created default odds structure`);
-      }
-      
-      return game;
-    });
-  } catch (error) {
-    console.error('Error fetching games:', error.message);
-    return [];
-  }
+    }
+    return game;
+  });
 }
 
-// Execute main function
-if (require.main === module) {
-  main().then(() => {
-    console.log('Finished generating picks');
-  }).catch(err => {
-    console.error('Error generating picks:', err);
+// Run the main function
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(error => {
+    console.error('Error:', error);
+    process.exit(1);
   });
 }
 
 // Export for potential use by other modules
-module.exports = {
+export {
   fetchGames,
   fetchGamesWithOdds,
   filterTodaysGames,

@@ -65,7 +65,7 @@ export interface Prediction {
   id: string;
   gameId: string;
   predictionType: PredictionType;
-  predictionValue: number;
+  predictionValue: string;
   confidence: number;
   grade: string;
   reasoning: string;

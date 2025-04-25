@@ -1,6 +1,6 @@
 import { PredictionType } from '@prisma/client';
 
-interface GameStats {
+export interface GameStats {
   homeTeamName: string;
   awayTeamName: string;
   homeScore?: number | null;
@@ -10,7 +10,7 @@ interface GameStats {
   awayTeamWinRate?: number;
 }
 
-interface PredictionInput {
+export interface PredictionInput {
   predictionType: PredictionType;
   rawConfidence: number;  // Original confidence from base model
   predictionValue: string;

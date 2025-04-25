@@ -65,7 +65,7 @@ export class PredictionService {
     try {
       console.log(`[PredictionService] Generating ${type} prediction for game ${gameId}`);
       
-      let predictionValue = 0;
+      let predictionValue = '0';
       let reasoning = '';
       
       // Enhanced form calculation with weighted recent performance and matchup advantages
@@ -149,7 +149,7 @@ export class PredictionService {
       
       switch (type) {
         case 'SPREAD':
-          predictionValue = game.odds?.spread?.homeSpread || 0;
+          predictionValue = String(game.odds?.spread?.homeSpread || 0);
           reasoning = `Based on comprehensive analysis:
 - ${game.homeTeamName} (${homeStats?.wins || 0}-${homeStats?.losses || 0}): ${homeFormData.form} form, ${homeStats?.lastTenGames || 'N/A'} in last 10
   • Net Rating: ${homeAdvancedMetrics.netRating}
@@ -171,11 +171,11 @@ Key Factors:
 • ${game.homeTeamName}'s ${homeFormData.form} form (${homeAdvancedMetrics.recentMomentum.toFixed(1)} rating)
 • ${game.awayTeamName}'s ${awayFormData.form} form (${awayAdvancedMetrics.recentMomentum.toFixed(1)} rating)
 • ${Math.abs(homeAdvancedMetrics.locationImpact).toFixed(1)}% home court advantage factor
-Overall prediction: ${predictionValue > 0 ? '+' : ''}${predictionValue} spread with ${(confidence * 100).toFixed(1)}% confidence.`;
+Overall prediction: ${predictionValue.startsWith('-') ? '' : '+'}${predictionValue} spread with ${(confidence * 100).toFixed(1)}% confidence.`;
           break;
 
         case 'TOTAL':
-          predictionValue = game.odds?.total?.overUnder || 0;
+          predictionValue = String(game.odds?.total?.overUnder || 0);
           const avgTotalPoints = game.sport === 'NBA' ?
             ((homeStats?.pointsFor || 0) + (awayStats?.pointsFor || 0)) / 2 :
             ((homeStats?.avgRunsScored || 0) + (awayStats?.avgRunsScored || 0)) / 2;
@@ -212,7 +212,7 @@ Overall prediction: Total of ${predictionValue} with ${(confidence * 100).toFixe
           break;
 
         case 'MONEYLINE':
-          predictionValue = game.odds?.moneyline?.homeOdds || -110;
+          predictionValue = String(game.odds?.moneyline?.homeOdds || -110);
           
           const homeStrengthScore = (
             (homeStats?.winPercentage || 0.5) * 0.3 +
@@ -259,7 +259,7 @@ Key Factors:
 • Form Differential: ${(homeFormData.score - awayFormData.score).toFixed(1)}
 • Streak Impact: Home ${homeAdvancedMetrics.winStreak > 0 ? 'W' + homeAdvancedMetrics.winStreak : 'L' + Math.abs(homeAdvancedMetrics.winStreak)} vs Away ${awayAdvancedMetrics.winStreak > 0 ? 'W' + awayAdvancedMetrics.winStreak : 'L' + Math.abs(awayAdvancedMetrics.winStreak)}
 
-Overall prediction: ${game.homeTeamName} ${predictionValue > 0 ? '+' : ''}${predictionValue} with ${(confidence * 100).toFixed(1)}% confidence.`;
+Overall prediction: ${game.homeTeamName} ${predictionValue.startsWith('-') ? '' : '+'}${predictionValue} with ${(confidence * 100).toFixed(1)}% confidence.`;
           break;
       }
 

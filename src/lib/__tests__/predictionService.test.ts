@@ -1,62 +1,68 @@
-import { PredictionService } from '../predictionService';
-import { NBAStatsService } from '../nbaStatsApi';
-import { MLBStatsService, PitcherDetails, PitcherStats } from '../mlbStatsApi';
-import { Game, Prediction, SportType, PredictionType } from '@/models/types';
+import { PredictionService } from '../predictionService.js';
+import { NBAStatsService } from '../nbaStatsApi.js';
+import { MLBStatsService } from '../mlbStatsApi.js';
+import { Game, GameStatus, PredictionType, Prediction } from '@/models/types.js';
 
-jest.mock('../nbaStatsApi');
-jest.mock('../mlbStatsApi');
+jest.mock('../nbaStatsApi.js');
+jest.mock('../mlbStatsApi.js');
 
 describe('PredictionService', () => {
   const mockNBAGame: Game = {
-    id: 'test-nba-game-1',
+    id: 'nba-game-1',
     sport: 'NBA',
-    homeTeamId: 'mia',
-    awayTeamId: 'bos',
-    homeTeamName: 'Miami Heat',
-    awayTeamName: 'Boston Celtics',
+    status: GameStatus.SCHEDULED,
+    homeTeamId: 'lal',
+    awayTeamId: 'gsw',
+    homeTeamName: 'Lakers',
+    awayTeamName: 'Warriors',
     gameDate: '2025-04-07T23:00:00Z',
     startTime: '7:00 PM',
-    status: 'scheduled',
     odds: {
       spread: {
-        home: { line: -3.5, odds: -110 },
-        away: { line: 3.5, odds: -110 }
+        homeSpread: -5.5,
+        awaySpread: 5.5,
+        homeOdds: -110,
+        awayOdds: -110
       },
       total: {
-        over: { line: 220.5, odds: -110 },
-        under: { line: 220.5, odds: -110 }
+        overUnder: 220.5,
+        overOdds: -110,
+        underOdds: -110
       },
       moneyline: {
-        home: -150,
-        away: 130
+        homeOdds: -150,
+        awayOdds: 130
       }
     }
   };
 
   const mockMLBGame: Game = {
-    id: 'test-mlb-game-1',
+    id: 'mlb-game-1',
     sport: 'MLB',
+    status: GameStatus.SCHEDULED,
     homeTeamId: 'nyy',
     awayTeamId: 'bos',
-    homeTeamName: 'New York Yankees',
-    awayTeamName: 'Boston Red Sox',
+    homeTeamName: 'Yankees',
+    awayTeamName: 'Red Sox',
     gameDate: '2025-04-07T23:00:00Z',
     startTime: '7:00 PM',
-    status: 'scheduled',
-    probableHomePitcherId: 12345,
-    probableAwayPitcherId: 67890,
+    probableHomePitcherId: 123,
+    probableAwayPitcherId: 456,
     odds: {
       spread: {
-        home: { line: -1.5, odds: 120 },
-        away: { line: 1.5, odds: -140 }
+        homeSpread: -1.5,
+        awaySpread: 1.5,
+        homeOdds: -110,
+        awayOdds: -110
       },
       total: {
-        over: { line: 8.5, odds: -110 },
-        under: { line: 8.5, odds: -110 }
+        overUnder: 8.5,
+        overOdds: -110,
+        underOdds: -110
       },
       moneyline: {
-        home: -130,
-        away: 110
+        homeOdds: -130,
+        awayOdds: 110
       }
     }
   };
@@ -99,7 +105,7 @@ describe('PredictionService', () => {
       expect(prediction).toHaveProperty('predictionType');
       expect(['MONEYLINE', 'SPREAD', 'TOTAL']).toContain(prediction.predictionType);
       expect(prediction).toHaveProperty('predictionValue');
-      expect(typeof prediction.predictionValue).toBe('number');
+      expect(typeof prediction.predictionValue).toBe('string');
       expect(prediction).toHaveProperty('confidence');
       expect(typeof prediction.confidence).toBe('number');
       expect(prediction.confidence).toBeGreaterThanOrEqual(0);

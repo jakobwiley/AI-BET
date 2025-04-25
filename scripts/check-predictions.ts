@@ -1,44 +1,44 @@
 import { PrismaClient } from '@prisma/client';
+import { fileURLToPath } from 'url';
 
 const prisma = new PrismaClient();
 
 async function checkPredictions() {
-  try {
-    // Get predictions for games on April 23-24, 2025
-    const predictions = await prisma.prediction.findMany({
-      where: {
-        game: {
-          gameDate: {
-            gte: new Date('2025-04-23T00:00:00Z'),
-            lte: new Date('2025-04-24T23:59:59Z')
-          }
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+  
+  const today = new Date(yesterday);
+  today.setDate(today.getDate() + 1);
+
+  const predictions = await prisma.prediction.findMany({
+    where: {
+      game: {
+        gameDate: {
+          gte: yesterday,
+          lt: today
         }
-      },
-      include: {
-        game: true
-      },
-      orderBy: {
-        createdAt: 'desc'
       }
-    });
+    },
+    include: {
+      game: true
+    }
+  });
 
-    console.log(`Found ${predictions.length} predictions for April 23-24, 2025`);
-    
-    predictions.forEach(pred => {
-      console.log('\n-----------------------------------');
-      console.log(`Game: ${pred.game.homeTeamName} vs ${pred.game.awayTeamName}`);
-      console.log(`Type: ${pred.predictionType}`);
-      console.log(`Value: ${pred.predictionValue}`);
-      console.log(`Confidence: ${pred.confidence * 100}%`);
-      console.log(`Reasoning: ${pred.reasoning}`);
-      console.log('-----------------------------------');
-    });
+  console.log('\nPREDICTION VALUES CHECK\n');
+  console.log(`Found ${predictions.length} predictions for ${yesterday.toLocaleDateString()}\n`);
 
-  } catch (error) {
-    console.error('Error checking predictions:', error);
-  } finally {
-    await prisma.$disconnect();
-  }
+  predictions.forEach(pred => {
+    console.log(`Type: ${pred.predictionType}`);
+    console.log(`Value: ${pred.predictionValue}`);
+    console.log(`Outcome: ${pred.outcome}`);
+    console.log(`Game: ${pred.game.homeTeamName} vs ${pred.game.awayTeamName}\n`);
+  });
 }
 
-checkPredictions().catch(console.error); 
+// Run if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  checkPredictions()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect());
+} 

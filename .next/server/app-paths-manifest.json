@@ -1,12 +1,3 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/games/[id]/route": "app/api/games/[id]/route.js",
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
-  "/api/games/route": "app/api/games/route.js",
-  "/nba/page": "app/nba/page.js",
-  "/games/[id]/page": "app/games/[id]/page.js",
-  "/mlb/page": "app/mlb/page.js",
-  "/page": "app/page.js",
-  "/profile/page": "app/profile/page.js",
-  "/api/cron/odds/route": "app/api/cron/odds/route.js"
+  "/api/games/route": "app/api/games/route.js"
 }

@@ -1,10 +1,9 @@
 import { PrismaClient, PredictionType, PredictionOutcome } from '@prisma/client';
-import { EnhancedPredictionModel } from '../src/lib/prediction/enhanced-model';
+import { EnhancedPredictionModel, PredictionInput } from '../src/lib/prediction/enhanced-model';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
 const prisma = new PrismaClient();
-const enhancedModel = new EnhancedPredictionModel();
 
 interface AnalysisReport {
   timestamp: string;
@@ -108,11 +107,17 @@ async function analyzePredictions(): Promise<AnalysisReport> {
     const historicalAccuracy = await getHistoricalAccuracy(prediction.predictionType);
 
     // Prepare input for enhanced model
-    const input = {
+    const input: PredictionInput = {
       predictionType: prediction.predictionType,
       rawConfidence: prediction.confidence,
       predictionValue: String(prediction.predictionValue),
-      game: prediction.game,
+      game: {
+        homeTeamName: prediction.game.homeTeamName,
+        awayTeamName: prediction.game.awayTeamName,
+        homeScore: prediction.game.homeScore,
+        awayScore: prediction.game.awayScore,
+        status: prediction.game.status
+      },
       historicalAccuracy: {
         type: prediction.predictionType,
         accuracy: historicalAccuracy.accuracy,
@@ -121,7 +126,7 @@ async function analyzePredictions(): Promise<AnalysisReport> {
     };
 
     // Get enhanced model's evaluation
-    const quality = enhancedModel.getPredictionQuality(input);
+    const quality = new EnhancedPredictionModel().getPredictionQuality(input);
 
     // Update statistics
     typeStats.avgConfidence += prediction.confidence;
@@ -133,10 +138,6 @@ async function analyzePredictions(): Promise<AnalysisReport> {
 
     if (quality.recommendation === 'REJECT') {
       typeStats.rejectionRate++;
-    }
-
-    // Track high-risk predictions
-    if (quality.confidence < 0.6) {
       report.recommendations.highRiskPredictions.push({
         id: prediction.id,
         type: prediction.predictionType,

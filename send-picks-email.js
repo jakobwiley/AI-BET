@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
 import { format } from 'date-fns';
 import { fileURLToPath } from 'url';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -16,12 +19,12 @@ const EMAIL_SUBJECT = `AI-BET Predictions for ${format(new Date(), 'MMM d, yyyy'
 const PICKS_FILE = path.join(__dirname, 'todays-picks.txt');
 
 // Function to send email using mailx (Unix/macOS) or mail (Linux)
-function sendEmail(to, subject, body) {
+async function sendEmail(to, subject, body) {
   if (!to || to.trim() === '') {
-    console.error('Error: No recipient email address provided');
-    console.error('Please provide an email address as a command line argument:');
-    console.error('node send-picks-email.js your-email@example.com');
-    process.exit(1);
+    throw new Error(
+      'No recipient email address provided. Please provide an email address as a command line argument:\n' +
+      'node send-picks-email.js your-email@example.com'
+    );
   }
   
   // Escape the body for terminal
@@ -34,30 +37,29 @@ function sendEmail(to, subject, body) {
   // Create the email command
   const command = `echo "${escapedBody}" | mail -s "${subject}" ${to}`;
   
-  // Execute the command
-  exec(command, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error sending email: ${error.message}`);
-      console.error(`You might need to install mailx or configure your mail system.`);
-      console.error(`On macOS, try: brew install mailutils`);
-      console.error(`On Ubuntu/Debian, try: sudo apt-get install mailutils`);
-      return;
-    }
+  try {
+    const { stdout, stderr } = await execAsync(command);
     
     if (stderr) {
-      console.error(`Email command stderr: ${stderr}`);
-      return;
+      console.warn(`Warning: ${stderr}`);
     }
     
     console.log(`Email sent successfully to ${to}`);
-  });
+    return true;
+  } catch (error) {
+    console.error('Failed to send email:');
+    console.error(`Error: ${error.message}`);
+    console.error('\nYou might need to install mailx or configure your mail system:');
+    console.error('- On macOS: brew install mailutils');
+    console.error('- On Ubuntu/Debian: sudo apt-get install mailutils');
+    throw error;
+  }
 }
 
 // Alternative function to send email using smtp.js if available
-// You would need to install smtp.js with: npm install smtp-client
-function sendEmailSmtp(to, subject, body) {
+async function sendEmailSmtp(to, subject, body) {
   try {
-    const { SMTPClient } = require('smtp-client');
+    const { SMTPClient } = await import('smtp-client');
     
     const smtp = new SMTPClient({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -69,26 +71,27 @@ function sendEmailSmtp(to, subject, body) {
       }
     });
     
-    smtp.connect()
-      .then(() => smtp.greet({ hostname: process.env.SMTP_HOSTNAME || 'localhost' }))
-      .then(() => smtp.auth())
-      .then(() => smtp.mail({ from: process.env.SMTP_FROM || process.env.SMTP_USER }))
-      .then(() => smtp.rcpt({ to: to.split(',') }))
-      .then(() => smtp.data(
-        `From: AI-BET <${process.env.SMTP_FROM || process.env.SMTP_USER}>\r\n` +
-        `To: ${to}\r\n` +
-        `Subject: ${subject}\r\n` +
-        `Content-Type: text/plain; charset=utf-8\r\n` +
-        `\r\n` +
-        `${body}`
-      ))
-      .then(() => smtp.quit())
-      .then(() => console.log(`Email sent successfully to ${to}`))
-      .catch(err => console.error(`SMTP Error: ${err.message}`));
+    await smtp.connect();
+    await smtp.greet({ hostname: process.env.SMTP_HOSTNAME || 'localhost' });
+    await smtp.auth();
+    await smtp.mail({ from: process.env.SMTP_FROM || process.env.SMTP_USER });
+    await smtp.rcpt({ to: to.split(',') });
+    await smtp.data(
+      `From: AI-BET <${process.env.SMTP_FROM || process.env.SMTP_USER}>\r\n` +
+      `To: ${to}\r\n` +
+      `Subject: ${subject}\r\n` +
+      `Content-Type: text/plain; charset=utf-8\r\n` +
+      `\r\n` +
+      `${body}`
+    );
+    await smtp.quit();
+    
+    console.log(`Email sent successfully to ${to}`);
+    return true;
   } catch (error) {
-    console.error(`SMTP module error: ${error.message}`);
-    console.error(`Falling back to mailx...`);
-    sendEmail(to, subject, body);
+    console.error(`SMTP Error: ${error.message}`);
+    console.error('Falling back to mailx...');
+    return sendEmail(to, subject, body);
   }
 }
 
@@ -98,25 +101,33 @@ async function main() {
     console.log('Reading predictions file...');
     
     // Check if the file exists
-    if (!fs.existsSync(PICKS_FILE)) {
-      console.error(`File not found: ${PICKS_FILE}`);
-      console.error('Please run daily-picks.js first to generate the predictions.');
-      process.exit(1);
+    try {
+      await fs.access(PICKS_FILE);
+    } catch (error) {
+      throw new Error(
+        `File not found: ${PICKS_FILE}\n` +
+        'Please run daily-picks.js first to generate the predictions.'
+      );
     }
     
     // Read the file
-    const emailBody = fs.readFileSync(PICKS_FILE, 'utf8');
+    const emailBody = await fs.readFile(PICKS_FILE, 'utf8');
     
     // Get email recipient from command line or environment
     const emailRecipient = process.argv[2] || EMAIL_RECIPIENTS;
     
     console.log('Sending email...');
     
-    // Send the email
-    sendEmail(emailRecipient, EMAIL_SUBJECT, emailBody);
+    // Try SMTP first, fall back to mailx
+    try {
+      await sendEmailSmtp(emailRecipient, EMAIL_SUBJECT, emailBody);
+    } catch (error) {
+      console.error('SMTP failed, trying mailx...');
+      await sendEmail(emailRecipient, EMAIL_SUBJECT, emailBody);
+    }
     
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('\nError:', error.message);
     process.exit(1);
   }
 }
@@ -126,6 +137,12 @@ function printSetupInstructions() {
   console.log('\nUsage: node send-picks-email.js [recipient-email]');
   console.log('\nYou can also set the EMAIL_RECIPIENTS environment variable:');
   console.log('  export EMAIL_RECIPIENTS=your-email@example.com');
+  console.log('\nFor SMTP support, set these environment variables:');
+  console.log('  SMTP_HOST - SMTP server hostname');
+  console.log('  SMTP_PORT - SMTP server port');
+  console.log('  SMTP_USER - SMTP username');
+  console.log('  SMTP_PASSWORD - SMTP password');
+  console.log('  SMTP_FROM - From email address');
 }
 
 // Run the main function
@@ -133,6 +150,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (process.argv.includes('--help')) {
     printSetupInstructions();
   } else {
-    main();
+    main().catch(() => process.exit(1));
   }
 } 

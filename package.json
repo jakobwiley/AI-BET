@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "codegen": "playwright codegen",
-    "build:css": "tailwindcss -i ./src/app/globals.css -o ./src/app/output.css --minify"
+    "build:css": "tailwindcss -i ./src/app/globals.css -o ./src/app/output.css --minify",
+    "analyze": "npm run build && node dist/scripts/automated-prediction-analysis.js"
   },
   "dependencies": {
     "@auth/core": "^0.38.0",

@@ -11,7 +11,7 @@ export interface GameStats {
 }
 
 export interface PredictionInput {
-  predictionType: string;
+  predictionType: PredictionType;
   rawConfidence: number;  // Original confidence from base model
   predictionValue: string;
   game: GameStats;
@@ -20,7 +20,7 @@ export interface PredictionInput {
   homeTeamWinRate?: number;    // Recent win rate
   awayTeamWinRate?: number;    // Recent win rate
   historicalAccuracy?: {  // New field for historical performance
-    type: string;
+    type: PredictionType;
     accuracy: number;
     sampleSize: number;
   };
@@ -35,9 +35,7 @@ interface CalibrationConfig {
   };
   // Type-specific performance factors
   typeWeights: {
-    SPREAD: number;    // 1.1 (best performing)
-    MONEYLINE: number; // 1.0 (baseline)
-    TOTAL: number;     // 0.9 (most volatile)
+    [key in PredictionType]: number;
   };
 }
 
@@ -48,9 +46,9 @@ const DEFAULT_CONFIG: CalibrationConfig = {
     max: 0.80
   },
   typeWeights: {
-    SPREAD: 1.1,
-    MONEYLINE: 1.0,
-    TOTAL: 0.9
+    [PredictionType.SPREAD]: 1.1,
+    [PredictionType.MONEYLINE]: 1.0,
+    [PredictionType.TOTAL]: 0.9
   }
 };
 
@@ -67,9 +65,9 @@ export class EnhancedPredictionModel {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  private calibrateConfidence(rawConfidence: number, type: string): number {
+  private calibrateConfidence(rawConfidence: number, type: PredictionType): number {
     // Apply type-specific weight
-    let adjustedConfidence = rawConfidence * this.config.typeWeights[type as keyof typeof this.config.typeWeights];
+    let adjustedConfidence = rawConfidence * this.config.typeWeights[type];
 
     // Scale down high confidence predictions
     if (adjustedConfidence > this.config.maxConfidence) {
@@ -98,11 +96,11 @@ export class EnhancedPredictionModel {
 
   private adjustForRecentScoring(
     confidence: number,
-    type: string,
+    type: PredictionType,
     recentHomeScores: number[] = [],
     recentAwayScores: number[] = []
   ): number {
-    if (type === 'TOTAL') {
+    if (type === PredictionType.TOTAL) {
       // Calculate scoring consistency
       const allScores = [...recentHomeScores, ...recentAwayScores];
       if (allScores.length > 0) {
@@ -124,7 +122,6 @@ export class EnhancedPredictionModel {
     }
 
     const totalValue = parseFloat(totalMatch[2]);
-    const direction = totalMatch[1].toUpperCase();
 
     // Check for reasonable total range based on sport (assuming baseball for now)
     if (totalValue < 5) {
@@ -189,7 +186,6 @@ export class EnhancedPredictionModel {
   }
 
   public calculateConfidence(input: PredictionInput): number {
-    // Validate prediction value
     let confidence = this.calibrateConfidence(input.rawConfidence, input.predictionType);
 
     // Apply home advantage adjustment
@@ -206,13 +202,13 @@ export class EnhancedPredictionModel {
     // Validate prediction value based on type
     let validationResult;
     switch (input.predictionType) {
-      case 'TOTAL':
+      case PredictionType.TOTAL:
         validationResult = this.validateTotalPrediction(input.predictionValue, input.game);
         break;
-      case 'SPREAD':
+      case PredictionType.SPREAD:
         validationResult = this.validateSpreadPrediction(input.predictionValue, input.game);
         break;
-      case 'MONEYLINE':
+      case PredictionType.MONEYLINE:
         validationResult = this.validateMoneylinePrediction(input.predictionValue, input.game);
         break;
       default:
@@ -241,13 +237,13 @@ export class EnhancedPredictionModel {
     // Validate prediction value based on type
     let validationResult;
     switch (input.predictionType) {
-      case 'TOTAL':
+      case PredictionType.TOTAL:
         validationResult = this.validateTotalPrediction(input.predictionValue, input.game);
         break;
-      case 'SPREAD':
+      case PredictionType.SPREAD:
         validationResult = this.validateSpreadPrediction(input.predictionValue, input.game);
         break;
-      case 'MONEYLINE':
+      case PredictionType.MONEYLINE:
         validationResult = this.validateMoneylinePrediction(input.predictionValue, input.game);
         break;
       default:

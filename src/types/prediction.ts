@@ -4,7 +4,7 @@ export interface Prediction {
   id?: string;
   gameId: string;
   type: PredictionType;
-  predictionValue: number;
+  predictionValue: string;
   confidence: number;
   reasoning: string;
   outcome?: PredictionOutcome;
