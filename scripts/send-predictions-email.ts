@@ -12,12 +12,21 @@ interface Prediction {
   id: string;
   gameId: string;
   predictionType: 'SPREAD' | 'TOTAL' | 'MONEYLINE';
-  predictionValue: number;
+  predictionValue: string;
   confidence: number;
   reasoning: string;
-  outcome: 'PENDING' | 'WIN' | 'LOSS';
+  outcome: 'PENDING' | 'WIN' | 'LOSS' | 'PUSH';
   createdAt: Date;
   updatedAt: Date;
+  projectionJson?: {
+    projectedTeam?: string;
+    projectedMargin?: number;
+    projectedHome?: number;
+    projectedAway?: number;
+    projectedTotal?: number;
+    projectedWinner?: string;
+    winProbability?: number;
+  };
 }
 
 interface Game {
@@ -42,32 +51,87 @@ function getConfidenceGrade(confidence: number): string {
 }
 
 function formatPrediction(prediction: Prediction, game: Game): string {
-  let predictionText = '';
-  
-  switch (prediction.predictionType) {
-    case 'SPREAD':
-      const spreadValue = Math.abs(prediction.predictionValue);
-      const spreadDirection = prediction.predictionValue > 0 ? 'favorite' : 'underdog';
-      const spreadTeam = prediction.predictionValue > 0 ? game.homeTeamName : game.awayTeamName;
-      predictionText = `${spreadTeam} ${spreadDirection} ${spreadValue}`;
-      break;
-      
-    case 'TOTAL':
-      const totalValue = Math.abs(prediction.predictionValue);
-      const totalDirection = prediction.predictionValue > totalValue ? 'OVER' : 'UNDER';
-      predictionText = `${totalDirection} ${totalValue}`;
-      break;
-      
-    case 'MONEYLINE':
-      const mlTeam = prediction.predictionValue > 0 ? game.homeTeamName : game.awayTeamName;
-      predictionText = `${mlTeam} ML`;
-      break;
+  let predictionLine = '';
+  let modelLine = '';
+  let warningLine = '';
+  const predictionValueNum = Number(prediction.predictionValue);
+  const confidencePct = Math.round(prediction.confidence * 100);
+  // SPREAD
+  if (prediction.predictionType === 'SPREAD') {
+    const spreadValue = Math.abs(predictionValueNum);
+    const isFavorite = predictionValueNum < 0;
+    const lineTeam = isFavorite ? game.homeTeamName : game.awayTeamName;
+    const lineSign = isFavorite ? '-' : '+';
+    predictionLine = `Betting Line & Odds: ${lineTeam} ${lineSign}${spreadValue}`;
+    if (prediction.projectionJson) {
+      modelLine = `Model Pick: ${prediction.projectionJson.projectedTeam} by ${prediction.projectionJson.projectedMargin} (Confidence: ${confidencePct}%)`;
+      if (prediction.projectionJson.projectedTeam !== lineTeam) {
+        warningLine = '⚠️ Model disagrees with the betting line!';
+      }
+    }
   }
-  
-  return `${prediction.predictionType}: ${predictionText} (${Math.round(prediction.confidence * 100)}% confidence)`;
+  // MONEYLINE
+  else if (prediction.predictionType === 'MONEYLINE') {
+    const lineTeam = predictionValueNum > 0 ? game.homeTeamName : game.awayTeamName;
+    predictionLine = `Betting Line & Odds: ${lineTeam} ML`;
+    if (prediction.projectionJson) {
+      modelLine = `Model Pick: ${prediction.projectionJson.projectedWinner} (${prediction.projectionJson.winProbability}% win probability, Confidence: ${confidencePct}%)`;
+      if (prediction.projectionJson.projectedWinner !== lineTeam) {
+        warningLine = '⚠️ Model disagrees with the betting line!';
+      }
+    }
+  }
+  // TOTAL
+  else if (prediction.predictionType === 'TOTAL') {
+    const totalMatch = prediction.predictionValue.match(/(OVER|UNDER)\s*(\d+(\.\d+)?)/i);
+    let lineDirection = '';
+    let lineValue = '';
+    if (totalMatch) {
+      lineDirection = totalMatch[1].toUpperCase();
+      lineValue = totalMatch[2];
+    } else {
+      lineDirection = prediction.predictionValue;
+      lineValue = '';
+    }
+    predictionLine = `Betting Line & Odds: ${lineDirection} ${lineValue}`;
+    if (prediction.projectionJson) {
+      modelLine = `Model Pick: ${prediction.projectionJson.projectedHome}-${prediction.projectionJson.projectedAway} (Total: ${prediction.projectionJson.projectedTotal}, Confidence: ${confidencePct}%)`;
+      if ((lineDirection === 'OVER' && prediction.projectionJson.projectedTotal < Number(lineValue)) ||
+          (lineDirection === 'UNDER' && prediction.projectionJson.projectedTotal > Number(lineValue))) {
+        warningLine = '⚠️ Model disagrees with the betting line!';
+      }
+    }
+  }
+  return [predictionLine, modelLine, warningLine].filter(Boolean).join('\n');
 }
 
-function formatPredictions(games: Game[]): string {
+// Improved reasoning: show detailed stats and model warning
+function buildReasoning(prediction: Prediction, game: Game, teamStatsMap: any): string {
+  let homeStatsRaw = teamStatsMap[game.homeTeamName]?.statsJson;
+  let awayStatsRaw = teamStatsMap[game.awayTeamName]?.statsJson;
+  const homeStats = typeof homeStatsRaw === 'string' ? JSON.parse(homeStatsRaw) : homeStatsRaw;
+  const awayStats = typeof awayStatsRaw === 'string' ? JSON.parse(awayStatsRaw) : awayStatsRaw;
+  let points: string[] = [];
+  if (homeStats && awayStats) {
+    points.push(
+      `${game.homeTeamName} recent: ${homeStats.lastNGames.wins}-${homeStats.lastNGames.losses} (Runs: ${homeStats.lastNGames.runsScored}-${homeStats.lastNGames.runsAllowed})`,
+      `${game.awayTeamName} recent: ${awayStats.lastNGames.wins}-${awayStats.lastNGames.losses} (Runs: ${awayStats.lastNGames.runsScored}-${awayStats.lastNGames.runsAllowed})`
+    );
+    if (homeStats.homeStats && awayStats.awayStats) {
+      points.push(
+        `${game.homeTeamName} home: ${homeStats.homeStats.wins}-${homeStats.homeStats.losses} (Runs: ${homeStats.homeStats.runsScored}-${homeStats.homeStats.runsAllowed})`,
+        `${game.awayTeamName} away: ${awayStats.awayStats.wins}-${awayStats.awayStats.losses} (Runs: ${awayStats.awayStats.runsScored}-${awayStats.awayStats.runsAllowed})`
+      );
+    }
+  }
+  // Add model warning if present
+  if (prediction.reasoning && !/^SPREAD|MONEYLINE|TOTAL/.test(prediction.reasoning)) {
+    points.push(prediction.reasoning);
+  }
+  return points.map(p => `• ${p}`).join('\n');
+}
+
+function formatPredictions(games: Game[], teamStatsMap: any): string {
   let emailBody = '';
   
   // Group games by sport
@@ -112,12 +176,7 @@ function formatPredictions(games: Game[]): string {
         emailBody += `${game.awayTeamName} @ ${game.homeTeamName} (${gameTime})\n`;
         emailBody += formatPrediction(prediction, game) + '\n';
         emailBody += 'Reasoning:\n';
-        
-        // Format reasoning with bullet points
-        const reasoningPoints = prediction.reasoning.split('\n').filter(point => point.trim());
-        reasoningPoints.forEach(point => {
-          emailBody += `• ${point.trim()}\n`;
-        });
+        emailBody += buildReasoning(prediction, game, teamStatsMap) + '\n';
         
         emailBody += '\n';
       });
@@ -150,32 +209,41 @@ async function main() {
       return;
     }
 
-    const emailBody = formatPredictions(games);
-    
+    // Fetch all team stats for today
+    const teamStatsRecords = await prisma.teamStats.findMany({ where: { sport: 'MLB' } });
+    const teamStatsMap = Object.fromEntries(teamStatsRecords.map(ts => [ts.teamName, ts]));
+
+    // Flatten all predictions and enrich with stats and warnings
+    let allPredictions: Array<{ game: Game; prediction: Prediction; confidence: number; reasoning: string } > = [];
+    for (const game of games) {
+      for (const prediction of game.predictions) {
+        allPredictions.push({
+          game,
+          prediction,
+          confidence: prediction.confidence,
+          reasoning: buildReasoning(prediction, game, teamStatsMap)
+        });
+      }
+    }
+
+    // Sort all predictions by confidence descending
+    allPredictions.sort((a, b) => b.confidence - a.confidence);
+
+    // Format email body using grouping by grade
+    let emailBody = formatPredictions(games, teamStatsMap);
+
     // Display predictions in console
     console.log('\n=== TODAY\'S PREDICTIONS ===\n');
     console.log(emailBody);
     console.log('\n===========================\n');
     
-    // Ask for confirmation before sending email
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout
+    // Send the email automatically, no prompt
+    await emailService.sendEmail({
+      to: 'jakobwiley@gmail.com',
+      subject: `Sports Betting Predictions - ${format(new Date(), 'MMMM d, yyyy')}`,
+      body: emailBody
     });
-
-    const answer = await rl.question('Would you like to send these predictions via email? (y/n): ');
-    rl.close();
-
-    if (answer.toLowerCase() === 'y') {
-      await emailService.sendEmail({
-        to: process.env.EMAIL_TO || '',
-        subject: `Sports Betting Predictions - ${format(new Date(), 'MMMM d, yyyy')}`,
-        body: emailBody
-      });
-      console.log('Predictions email sent successfully');
-    } else {
-      console.log('Email sending cancelled');
-    }
+    console.log('Predictions email sent successfully');
   } catch (error) {
     console.error('Error:', error);
   } finally {

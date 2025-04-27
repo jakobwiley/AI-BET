@@ -118,17 +118,29 @@ async function updateTeamStats() {
           (stats.lastNGames.runsScored - stats.lastNGames.runsAllowed) / totalGames;
       }
 
+      // Fetch teamName from the most recent game for this teamId
+      const recentGame = games.find(g => g.homeTeamId === teamId || g.awayTeamId === teamId);
+      let teamName = teamId;
+      if (recentGame) {
+        if (recentGame.homeTeamId === teamId) {
+          teamName = recentGame.homeTeamName;
+        } else if (recentGame.awayTeamId === teamId) {
+          teamName = recentGame.awayTeamName;
+        }
+      }
+
       // Store stats in database
       await prisma.teamStats.upsert({
         where: { teamId },
         create: {
           teamId,
-          statsJson: stats,
-          updatedAt: new Date()
+          teamName,
+          sport: 'MLB',
+          statsJson: stats as unknown as import('@prisma/client').Prisma.JsonObject
         },
         update: {
-          statsJson: stats,
-          updatedAt: new Date()
+          teamName,
+          statsJson: stats as unknown as import('@prisma/client').Prisma.JsonObject
         }
       });
     }
