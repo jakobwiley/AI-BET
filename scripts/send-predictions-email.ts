@@ -3,6 +3,9 @@ import { format } from 'date-fns';
 import dotenv from 'dotenv';
 import EmailService from '../src/lib/emailService';
 import { createInterface } from 'readline/promises';
+import { getYesterdaysResults, formatResultsSummary } from './get-yesterdays-results';
+import { execSync } from 'child_process';
+import { populateTeamStats } from './populate-team-stats';
 
 dotenv.config();
 
@@ -42,6 +45,44 @@ interface Game {
   predictions: Prediction[];
 }
 
+// MLB team name to abbreviation mapping
+const MLB_TEAM_NAME_TO_ID: Record<string, string> = {
+  'Arizona Diamondbacks': 'ARI',
+  'Atlanta Braves': 'ATL',
+  'Baltimore Orioles': 'BAL',
+  'Boston Red Sox': 'BOS',
+  'Chicago Cubs': 'CHC',
+  'Chicago White Sox': 'CWS',
+  'Cincinnati Reds': 'CIN',
+  'Cleveland Guardians': 'CLE',
+  'Colorado Rockies': 'COL',
+  'Detroit Tigers': 'DET',
+  'Houston Astros': 'HOU',
+  'Kansas City Royals': 'KCR',
+  'Los Angeles Angels': 'LAA',
+  'Los Angeles Dodgers': 'LAD',
+  'Miami Marlins': 'MIA',
+  'Milwaukee Brewers': 'MIL',
+  'Minnesota Twins': 'MIN',
+  'New York Mets': 'NYM',
+  'New York Yankees': 'NYY',
+  'Oakland Athletics': 'OAK',
+  'Philadelphia Phillies': 'PHI',
+  'Pittsburgh Pirates': 'PIT',
+  'San Diego Padres': 'SDP',
+  'San Francisco Giants': 'SFG',
+  'Seattle Mariners': 'SEA',
+  'St. Louis Cardinals': 'STL',
+  'Tampa Bay Rays': 'TBR',
+  'Texas Rangers': 'TEX',
+  'Toronto Blue Jays': 'TOR',
+  'Washington Nationals': 'WSN',
+};
+
+function getTeamId(teamName: string, fallbackId: string): string {
+  return MLB_TEAM_NAME_TO_ID[teamName] || fallbackId;
+}
+
 function getConfidenceGrade(confidence: number): string {
   if (confidence >= 0.85) return 'A+';
   if (confidence >= 0.80) return 'A';
@@ -51,35 +92,28 @@ function getConfidenceGrade(confidence: number): string {
 }
 
 function formatPrediction(prediction: Prediction, game: Game): string {
-  let predictionLine = '';
-  let modelLine = '';
-  let warningLine = '';
   const predictionValueNum = Number(prediction.predictionValue);
   const confidencePct = Math.round(prediction.confidence * 100);
-  // SPREAD
   if (prediction.predictionType === 'SPREAD') {
     const spreadValue = Math.abs(predictionValueNum);
     const isFavorite = predictionValueNum < 0;
     const lineTeam = isFavorite ? game.homeTeamName : game.awayTeamName;
     const lineSign = isFavorite ? '-' : '+';
-    predictionLine = `Betting Line & Odds: ${lineTeam} ${lineSign}${spreadValue}`;
+    let out = '';
+    out += `SPREAD: ${lineTeam} ${lineSign}${spreadValue}\n`;
     if (prediction.projectionJson) {
-      modelLine = `Model Pick: ${prediction.projectionJson.projectedTeam} by ${prediction.projectionJson.projectedMargin} (Confidence: ${confidencePct}%)`;
-      if (prediction.projectionJson.projectedTeam !== lineTeam) {
-        warningLine = '⚠️ Model disagrees with the betting line!';
-      }
+      out += `PREDICTION: Take ${prediction.projectionJson.projectedTeam} - ${prediction.projectionJson.projectedTeam} by ${prediction.projectionJson.projectedMargin} - Confidence: ${confidencePct}%\n`;
     }
+    return out.trim();
   }
   // MONEYLINE
   else if (prediction.predictionType === 'MONEYLINE') {
     const lineTeam = predictionValueNum > 0 ? game.homeTeamName : game.awayTeamName;
-    predictionLine = `Betting Line & Odds: ${lineTeam} ML`;
+    let out = `Betting Line & Odds: ${lineTeam} ML\n`;
     if (prediction.projectionJson) {
-      modelLine = `Model Pick: ${prediction.projectionJson.projectedWinner} (${prediction.projectionJson.winProbability}% win probability, Confidence: ${confidencePct}%)`;
-      if (prediction.projectionJson.projectedWinner !== lineTeam) {
-        warningLine = '⚠️ Model disagrees with the betting line!';
-      }
+      out += `PREDICTION: Take ${prediction.projectionJson.projectedWinner} - ${prediction.projectionJson.projectedWinner} (Confidence: ${confidencePct}%)\n`;
     }
+    return out.trim();
   }
   // TOTAL
   else if (prediction.predictionType === 'TOTAL') {
@@ -93,26 +127,42 @@ function formatPrediction(prediction: Prediction, game: Game): string {
       lineDirection = prediction.predictionValue;
       lineValue = '';
     }
-    predictionLine = `Betting Line & Odds: ${lineDirection} ${lineValue}`;
+    let out = `Betting Line & Odds: ${lineDirection} ${lineValue}\n`;
     if (prediction.projectionJson) {
-      modelLine = `Model Pick: ${prediction.projectionJson.projectedHome}-${prediction.projectionJson.projectedAway} (Total: ${prediction.projectionJson.projectedTotal}, Confidence: ${confidencePct}%)`;
-      if ((lineDirection === 'OVER' && prediction.projectionJson.projectedTotal < Number(lineValue)) ||
-          (lineDirection === 'UNDER' && prediction.projectionJson.projectedTotal > Number(lineValue))) {
-        warningLine = '⚠️ Model disagrees with the betting line!';
-      }
+      out += `PREDICTION: Take ${lineDirection.charAt(0) + lineDirection.slice(1).toLowerCase()} - ${prediction.projectionJson.projectedHome}-${prediction.projectionJson.projectedAway} (Total: ${prediction.projectionJson.projectedTotal}, Confidence: ${confidencePct}%)\n`;
     }
+    return out.trim();
   }
-  return [predictionLine, modelLine, warningLine].filter(Boolean).join('\n');
+  return '';
 }
 
 // Improved reasoning: show detailed stats and model warning
 function buildReasoning(prediction: Prediction, game: Game, teamStatsMap: any): string {
-  let homeStatsRaw = teamStatsMap[game.homeTeamName]?.statsJson;
-  let awayStatsRaw = teamStatsMap[game.awayTeamName]?.statsJson;
+  const homeId = getTeamId(game.homeTeamName, game.homeTeamId);
+  const awayId = getTeamId(game.awayTeamName, game.awayTeamId);
+  let homeStatsRaw = teamStatsMap[homeId]?.statsJson;
+  let awayStatsRaw = teamStatsMap[awayId]?.statsJson;
   const homeStats = typeof homeStatsRaw === 'string' ? JSON.parse(homeStatsRaw) : homeStatsRaw;
   const awayStats = typeof awayStatsRaw === 'string' ? JSON.parse(awayStatsRaw) : awayStatsRaw;
   let points: string[] = [];
-  if (homeStats && awayStats) {
+  // Always use top-level MLB stats if present
+  if (homeStats && awayStats &&
+      (typeof homeStats.wins === 'number' || typeof awayStats.wins === 'number')) {
+    const hw = homeStats.wins ?? 0;
+    const hl = homeStats.losses ?? 0;
+    const hr = homeStats.runsScored ?? 0;
+    const hg = homeStats.gamesPlayed ?? 0;
+    const ha = homeStats.avgRunsScored ?? 0;
+    const aw = awayStats.wins ?? 0;
+    const al = awayStats.losses ?? 0;
+    const ar = awayStats.runsScored ?? 0;
+    const ag = awayStats.gamesPlayed ?? 0;
+    const aa = awayStats.avgRunsScored ?? 0;
+    points.push(
+      `${game.homeTeamName} season: ${hw}-${hl} (Runs: ${hr}, Games: ${hg}, Avg Runs: ${ha})`,
+      `${game.awayTeamName} season: ${aw}-${al} (Runs: ${ar}, Games: ${ag}, Avg Runs: ${aa})`
+    );
+  } else if (homeStats && awayStats && homeStats.lastNGames && awayStats.lastNGames) {
     points.push(
       `${game.homeTeamName} recent: ${homeStats.lastNGames.wins}-${homeStats.lastNGames.losses} (Runs: ${homeStats.lastNGames.runsScored}-${homeStats.lastNGames.runsAllowed})`,
       `${game.awayTeamName} recent: ${awayStats.lastNGames.wins}-${awayStats.lastNGames.losses} (Runs: ${awayStats.lastNGames.runsScored}-${awayStats.lastNGames.runsAllowed})`
@@ -170,14 +220,15 @@ function formatPredictions(games: Game[], teamStatsMap: any): string {
     sortedGrades.forEach(grade => {
       emailBody += `\nGrade ${grade} Predictions:\n`;
       emailBody += '-'.repeat(20) + '\n\n';
-      
-      predictionsByGrade[grade].forEach(({ game, prediction }) => {
+      // Sort predictions within the grade by confidence descending
+      const sortedPredictions = predictionsByGrade[grade].sort((a, b) => b.prediction.confidence - a.prediction.confidence);
+      sortedPredictions.forEach(({ game, prediction }) => {
         const gameTime = format(new Date(game.gameDate), 'h:mm a');
-        emailBody += `${game.awayTeamName} @ ${game.homeTeamName} (${gameTime})\n`;
+        // New header for each game
+        emailBody += `GAME: ${game.awayTeamName} @ ${game.homeTeamName} (${gameTime} CT)\n`;
         emailBody += formatPrediction(prediction, game) + '\n';
         emailBody += 'Reasoning:\n';
         emailBody += buildReasoning(prediction, game, teamStatsMap) + '\n';
-        
         emailBody += '\n';
       });
     });
@@ -187,9 +238,19 @@ function formatPredictions(games: Game[], teamStatsMap: any): string {
 }
 
 async function main() {
+  await populateTeamStats();
   try {
+    // Step 1: Update yesterday's prediction outcomes before summarizing
+    console.log('Running analyze-yesterday-predictions.ts to update outcomes...');
+    execSync('npx tsx scripts/analyze-yesterday-predictions.ts', { stdio: 'inherit' });
+    console.log('Outcome update complete. Proceeding to email generation.');
+
     const emailService = new EmailService();
     await emailService.verifyConnection();
+
+    // Get yesterday's results and format summary
+    const yesterdaysSummary = await getYesterdaysResults();
+    const yesterdaysResultsText = formatResultsSummary(yesterdaysSummary);
 
     const games = await prisma.game.findMany({
       where: {
@@ -211,26 +272,23 @@ async function main() {
 
     // Fetch all team stats for today
     const teamStatsRecords = await prisma.teamStats.findMany({ where: { sport: 'MLB' } });
-    const teamStatsMap = Object.fromEntries(teamStatsRecords.map(ts => [ts.teamName, ts]));
+    const teamStatsMap = Object.fromEntries(teamStatsRecords.map(ts => [ts.teamId, ts]));
 
-    // Flatten all predictions and enrich with stats and warnings
-    let allPredictions: Array<{ game: Game; prediction: Prediction; confidence: number; reasoning: string } > = [];
-    for (const game of games) {
-      for (const prediction of game.predictions) {
-        allPredictions.push({
-          game,
-          prediction,
-          confidence: prediction.confidence,
-          reasoning: buildReasoning(prediction, game, teamStatsMap)
-        });
-      }
+    // Log missing stats for teams in today's games
+    const missingStatsTeams = new Set<string>();
+    games.forEach(game => {
+      const homeId = getTeamId(game.homeTeamName, game.homeTeamId);
+      const awayId = getTeamId(game.awayTeamName, game.awayTeamId);
+      if (!teamStatsMap[homeId]) missingStatsTeams.add(`${game.homeTeamName} (${homeId})`);
+      if (!teamStatsMap[awayId]) missingStatsTeams.add(`${game.awayTeamName} (${awayId})`);
+    });
+    if (missingStatsTeams.size > 0) {
+      console.warn('Missing stats for the following teams:');
+      missingStatsTeams.forEach(t => console.warn('  - ' + t));
     }
 
-    // Sort all predictions by confidence descending
-    allPredictions.sort((a, b) => b.confidence - a.confidence);
-
     // Format email body using grouping by grade
-    let emailBody = formatPredictions(games, teamStatsMap);
+    let emailBody = yesterdaysResultsText + '\n' + formatPredictions(games, teamStatsMap);
 
     // Display predictions in console
     console.log('\n=== TODAY\'S PREDICTIONS ===\n');

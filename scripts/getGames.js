@@ -5,36 +5,17 @@ const prisma = new PrismaClient();
 async function getGames() {
   try {
     const games = await prisma.game.findMany({
-      where: {
-        gameDate: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(23, 59, 59, 999))
-        }
-      },
-      include: {
-        predictions: true
-      }
+      orderBy: { gameDate: 'desc' },
+      take: 10
     });
-
-    console.log('Today\'s Games:');
+    console.log('Most recent games:');
     games.forEach(game => {
-      const odds = game.oddsJson ? JSON.parse(game.oddsJson) : {};
-      console.log(`\n${game.homeTeamName} vs ${game.awayTeamName}`);
-      console.log(`Status: ${game.status}`);
-      if (odds.spread) {
-        console.log(`Spread: ${odds.spread}`);
-      }
-      if (odds.total) {
-        console.log(`Total: ${odds.total}`);
-      }
-      if (odds.moneyline) {
-        console.log(`Moneyline: Home ${odds.moneyline.home}, Away ${odds.moneyline.away}`);
-      }
-      console.log('Predictions:');
-      game.predictions.forEach(pred => {
-        console.log(`- Type: ${pred.predictionType}`);
-        console.log(`  Confidence: ${pred.confidence}`);
-        console.log(`  Outcome: ${pred.outcome}`);
+      console.log({
+        id: game.id,
+        home: game.homeTeamName,
+        away: game.awayTeamName,
+        date: game.gameDate,
+        status: game.status
       });
     });
   } catch (error) {

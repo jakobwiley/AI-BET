@@ -57,7 +57,7 @@ function initializeAnalysis(): PredictionAnalysis {
 
 function calculateROI(profitLoss: number, totalBets: number): number {
   if (totalBets === 0) return 0;
-  const totalInvestment = totalBets * 100; // Assuming $100 per bet
+  const totalInvestment = totalBets * 5; // Now using $5 per bet
   return (profitLoss / totalInvestment) * 100;
 }
 
@@ -121,13 +121,21 @@ async function analyzeMlbPredictions() {
           if (prediction.outcome === PredictionOutcome.WIN) {
             categoryAnalysis.correct++;
             // Calculate profit based on American odds
-            const odds = Math.abs(prediction.predictionValue);
-            categoryAnalysis.profitLoss += odds > 0 ? 
-              100 * (odds / 100) : 
-              100 * (100 / Math.abs(odds));
+            const odds = Math.abs(Number(prediction.predictionValue));
+            if (typeof odds === 'number' && !isNaN(odds) && odds > 0) {
+              // American odds payout calculation for $5 bet
+              if (Number(prediction.predictionValue) > 0) {
+                categoryAnalysis.profitLoss += 5 * (odds / 100);
+              } else {
+                categoryAnalysis.profitLoss += 5 * (100 / odds);
+              }
+            } else {
+              // If odds are missing or invalid, treat as even money
+              categoryAnalysis.profitLoss += 5;
+            }
           } else if (prediction.outcome === PredictionOutcome.LOSS) {
             categoryAnalysis.incorrect++;
-            categoryAnalysis.profitLoss -= 100; // Assuming $100 bet size
+            categoryAnalysis.profitLoss -= 5; // Now using $5 bet size
           }
         });
       }

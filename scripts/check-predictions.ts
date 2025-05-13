@@ -4,19 +4,18 @@ import { fileURLToPath } from 'url';
 const prisma = new PrismaClient();
 
 async function checkPredictions() {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(0, 0, 0, 0);
-  
-  const today = new Date(yesterday);
-  today.setDate(today.getDate() + 1);
+  // Set date to April 25, 2025
+  const targetDate = new Date('2025-04-25T00:00:00');
+  targetDate.setHours(0, 0, 0, 0);
+  const nextDay = new Date(targetDate);
+  nextDay.setDate(targetDate.getDate() + 1);
 
   const predictions = await prisma.prediction.findMany({
     where: {
       game: {
         gameDate: {
-          gte: yesterday,
-          lt: today
+          gte: targetDate,
+          lt: nextDay
         }
       }
     },
@@ -26,7 +25,7 @@ async function checkPredictions() {
   });
 
   console.log('\nPREDICTION VALUES CHECK\n');
-  console.log(`Found ${predictions.length} predictions for ${yesterday.toLocaleDateString()}\n`);
+  console.log(`Found ${predictions.length} predictions for ${targetDate.toLocaleDateString()}\n`);
 
   predictions.forEach(pred => {
     console.log(`Type: ${pred.predictionType}`);

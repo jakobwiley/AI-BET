@@ -1,6 +1,6 @@
 import pkg, { type PredictionOutcome as PredictionOutcomeType } from '@prisma/client';
 const { PrismaClient, PredictionOutcome, GameStatus } = pkg;
-import { OddsApiService } from '../src/lib/oddsApi.js';
+let oddsApi;
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -9,7 +9,6 @@ import path from 'path';
 dotenv.config();
 
 const prisma = new PrismaClient();
-const oddsApi = new OddsApiService();
 
 // Create logs directory if it doesn't exist
 const logsDir = path.join(process.cwd(), 'logs');
@@ -87,7 +86,26 @@ function isRateLimitError(error: any): boolean {
 async function backfillPredictionOutcomes() {
   try {
     log('🔄 Starting prediction outcome backfill process...');
-    
+
+    // Dynamically import OddsApiService using absolute path
+    const pathToOddsApi = path.resolve(process.cwd(), 'src/lib/oddsApi.js');
+    const { OddsApiService } = await import(`file://${pathToOddsApi}`);
+    oddsApi = new OddsApiService();
+    // Debug: print all method names on oddsApi
+    console.log('OddsApiService methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(oddsApi)));
+
+    // Mark all games in the past (not today) as FINAL
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const updated = await prisma.game.updateMany({
+      where: {
+        gameDate: { lt: today },
+        status: { not: GameStatus.FINAL }
+      },
+      data: { status: GameStatus.FINAL }
+    });
+    log(`Marked ${updated.count} past games as FINAL.`);
+
     // Get all completed games with pending predictions
     const games = await prisma.game.findMany({
       where: {
@@ -114,52 +132,38 @@ async function backfillPredictionOutcomes() {
     let errorCount = 0;
     let rateLimitHit = false;
 
-    // Process each game
-    for (const game of games) {
-      // If we hit the rate limit, stop processing
-      if (rateLimitHit) {
-        log(`⚠️ API rate limit reached. Stopping processing.`);
-        log(`⚠️ Please update your API key and run the script again to process remaining games.`);
-        break;
-      }
+    // Group games by sport for batching
+    const gamesBySport = games.reduce((acc, game) => {
+      if (!acc[game.sport]) acc[game.sport] = [];
+      acc[game.sport].push(game);
+      return acc;
+    }, {});
 
-      log(`\nProcessing game: ${game.homeTeamName} vs ${game.awayTeamName} (${game.gameDate.toISOString()})`);
-      
-      try {
-        // Fetch the game scores from the API
-        const scores = await oddsApi.getGameScores(game.sport, game.id);
-        
+    // Batch fetch and cache scores for each sport
+    for (const sport of Object.keys(gamesBySport)) {
+      const sportGames = gamesBySport[sport];
+      const gameIds = sportGames.map(g => g.id);
+      const scoresMap = await (oddsApi as any).getGameScoresBatch(sport, gameIds);
+
+      for (const game of sportGames) {
+        log(`\nProcessing game: ${game.homeTeamName} vs ${game.awayTeamName} (${game.gameDate.toISOString()})`);
+        const scores = scoresMap[game.id];
         if (!scores) {
           log(`No scores found for game ${game.id}`);
           skippedCount++;
           continue;
         }
-        
         // Update each prediction for this game
         for (const prediction of game.predictions) {
           const outcome = await determinePredictionOutcome(prediction, scores);
-          
           if (outcome !== PredictionOutcome.PENDING) {
             await prisma.prediction.update({
               where: { id: prediction.id },
               data: { outcome }
             });
-            
             log(`Updated prediction ${prediction.id}: ${prediction.predictionType} -> ${outcome}`);
             updatedCount++;
           }
-        }
-      } catch (error) {
-        const apiError = error as ApiError;
-        if (isRateLimitError(apiError)) {
-          log(`⚠️ API rate limit reached: ${apiError.response?.data?.message || 'Unknown error'}`);
-          rateLimitHit = true;
-          errorCount++;
-          break;
-        } else {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-          log(`Error processing game ${game.id}: ${errorMessage}`);
-          errorCount++;
         }
       }
     }

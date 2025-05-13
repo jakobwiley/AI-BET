@@ -116,7 +116,7 @@ async function sendDailyPicks() {
     const emailBody = formatEmailBody(predictions);
     const info = await transporter.sendMail({
       from: '"Sports Betting Predictions" <jakobwiley@gmail.com>',
-      to: 'jakemullins@gmail.com',
+      to: 'jakobwiley@gmail.com',
       subject: `Sports Betting Predictions - ${format(addDays(new Date(), 1), 'M/d/yyyy')}`,
       text: emailBody,
       headers: {

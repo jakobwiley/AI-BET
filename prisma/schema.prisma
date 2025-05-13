@@ -39,26 +39,26 @@ model Prediction {
   outcome         PredictionOutcome @default(PENDING)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-  game            Game              @relation(fields: [gameId], references: [id])
   projectionJson  Json?
+  game            Game              @relation(fields: [gameId], references: [id])
 
   @@map("predictions")
 }
 
 model TeamStats {
-  id                String    @id @default(uuid())
-  teamId           String    @unique
-  teamName         String
-  sport            SportType
-  wins             Int       @default(0)
-  losses           Int       @default(0)
-  runsScored       Int?      @map("runs_scored")
-  runsAllowed      Int?      @map("runs_allowed")
-  pointsScored     Int?      @map("points_scored")
-  pointsAllowed    Int?      @map("points_allowed")
-  statsJson        Json?     @map("stats_json")
-  lastUpdated      DateTime  @updatedAt
-  createdAt        DateTime  @default(now())
+  id            String    @id @default(uuid())
+  teamId        String    @unique
+  teamName      String
+  sport         SportType
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  runsScored    Int?      @map("runs_scored")
+  runsAllowed   Int?      @map("runs_allowed")
+  pointsScored  Int?      @map("points_scored")
+  pointsAllowed Int?      @map("points_allowed")
+  lastUpdated   DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+  statsJson     Json?     @map("stats_json")
 
   @@map("team_stats")
 }
@@ -77,8 +77,8 @@ enum PredictionType {
 enum PredictionOutcome {
   WIN
   LOSS
-  PENDING
   PUSH
+  PENDING
 }
 
 enum GameStatus {

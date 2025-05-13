@@ -249,7 +249,7 @@ async function emailResults(summary: ResultsSummary): Promise<void> {
     // Send the email
     const info = await transporter.sendMail({
       from: '"Sports Betting Results" <jakobwiley@gmail.com>',
-      to: 'jakemullins@gmail.com',
+      to: 'jakobwiley@gmail.com',
       subject: `Sports Betting Results - ${summary.date}`,
       text: formattedSummary,
       headers: {
@@ -271,7 +271,7 @@ async function emailResults(summary: ResultsSummary): Promise<void> {
   try {
     const summary = await getYesterdaysResults();
     console.log(formatResultsSummary(summary));
-    await emailResults(summary);
+    // await emailResults(summary);
   } catch (error) {
     console.error(error);
   } finally {

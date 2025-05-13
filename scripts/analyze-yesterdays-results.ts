@@ -26,9 +26,9 @@ interface AnalysisResults {
 
 function calculateROI(wins: number, losses: number, pushes: number): number {
   if (wins + losses + pushes === 0) return 0;
-  // Assuming $100 bet per game and average odds of -110
-  const invested = (wins + losses + pushes) * 100;
-  const returns = (wins * 190.91) + (pushes * 100);
+  // Now using $5 bet per game and average odds of -110
+  const invested = (wins + losses + pushes) * 5;
+  const returns = (wins * 9.545) + (pushes * 5); // $5 bet at -110 odds returns $9.545 on win
   return ((returns - invested) / invested) * 100;
 }
 
