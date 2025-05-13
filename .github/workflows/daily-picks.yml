@@ -20,11 +20,13 @@ jobs:
       SMTP_PORT: 587
       SMTP_SECURE: false
       
-      # Database configuration (you'll need to add this as a secret)
+      # Database configuration
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       
-      # Other API keys if needed
+      # API keys
       RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      SPORTSDATA_API_KEY: ${{ secrets.SPORTSDATA_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -39,5 +41,55 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate and send picks
-        run: node scripts/get-todays-picks.js 
+      - name: Update Team Stats
+        id: update-stats
+        run: npx tsx scripts/populate-team-stats.ts
+        continue-on-error: true
+
+      - name: Check Stats Update
+        if: steps.update-stats.outcome == 'failure'
+        run: |
+          echo "::error::Failed to update team stats"
+          exit 1
+
+      - name: Generate Predictions
+        id: generate-predictions
+        run: npx tsx scripts/generate-daily-predictions.ts
+        continue-on-error: true
+
+      - name: Check Predictions Generation
+        if: steps.generate-predictions.outcome == 'failure'
+        run: |
+          echo "::error::Failed to generate predictions"
+          exit 1
+
+      - name: Send Email
+        id: send-email
+        run: npx tsx scripts/send-predictions-email.ts
+        continue-on-error: true
+
+      - name: Check Email Send
+        if: steps.send-email.outcome == 'failure'
+        run: |
+          echo "::error::Failed to send email"
+          exit 1
+
+      - name: Notify on Success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: sports-picks
+          SLACK_COLOR: good
+          SLACK_TITLE: Daily Picks Generated Successfully
+          SLACK_MESSAGE: 'Daily picks have been generated and sent successfully!'
+
+      - name: Notify on Failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: sports-picks
+          SLACK_COLOR: danger
+          SLACK_TITLE: Daily Picks Generation Failed
+          SLACK_MESSAGE: 'Failed to generate or send daily picks. Check the GitHub Actions logs for details.' 
