@@ -84,89 +84,76 @@ interface Event {
 
 async function fetchOddsForSport(sport: SportKey): Promise<TransformedOdds[]> {
   console.log(`Fetching odds for ${sport}...`);
-  
   try {
-    const sportKey = SPORT_KEYS[sport];
-    const response = await axios.get<OddsResponse[]>(`${BASE_URL}/sports/${sportKey}/odds`, {
+    const response = await axios.get(`${BASE_URL}/sports/${SPORT_KEYS[sport]}/odds`, {
       params: {
         apiKey: API_KEY,
         regions: 'us',
-        markets: 'h2h,spreads,totals',
+        markets: 'spreads,totals,h2h',
         oddsFormat: 'american',
+        bookmakers: 'betmgm',  // Specifically request BetMGM odds
         dateFormat: 'iso'
       }
     });
-    
-    if (!response.data || response.data.length === 0) {
-      console.log(`No odds available for ${sport}`);
+
+    if (!Array.isArray(response.data)) {
+      console.warn(`API response for ${sport} is not an array:`, response.data);
       return [];
     }
 
-    // Filter for games today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    return response.data
-      .filter(event => {
-        const gameDate = new Date(event.commence_time);
-        return gameDate >= today && gameDate < tomorrow;
-      })
-      .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime())
-      .map((event) => {
-        const bookmaker = event.bookmakers?.find(b => b.key === 'fanduel') || event.bookmakers?.[0];
-        
-        if (!bookmaker) {
-          return {
-            sport: sport,
-            homeTeam: event.home_team,
-            awayTeam: event.away_team,
-            startTime: new Date(event.commence_time),
-            odds: {}
-          };
-        }
-        
-        const markets = bookmaker.markets;
-        const h2hMarket = markets.find(m => m.key === 'h2h');
-        const spreadsMarket = markets.find(m => m.key === 'spreads');
-        const totalsMarket = markets.find(m => m.key === 'totals');
-        
-        const transformedOdds: TransformedOdds = {
+    return response.data.map((event) => {
+      const bookmaker = event.bookmakers?.find(b => b.key === 'betmgm') || event.bookmakers?.[0];
+      
+      if (!bookmaker) {
+        return {
           sport: sport,
           homeTeam: event.home_team,
           awayTeam: event.away_team,
           startTime: new Date(event.commence_time),
           odds: {}
         };
-        
-        if (spreadsMarket?.outcomes?.length === 2) {
-          transformedOdds.odds.spread = {
-            home: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0,
-            away: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.point || 0,
-            point: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.price || -110
-          };
-        }
-        
-        if (totalsMarket?.outcomes?.length === 2) {
-          transformedOdds.odds.total = {
-            over: totalsMarket.outcomes[0]?.point || 0,
-            under: totalsMarket.outcomes.find(o => o.name === 'Under')?.price || -110,
-            point: totalsMarket.outcomes.find(o => o.name === 'Over')?.price || -110
-          };
-        }
-        
-        if (h2hMarket?.outcomes?.length === 2) {
-          transformedOdds.odds.moneyline = {
-            home: h2hMarket.outcomes.find(o => o.name === event.home_team)?.price || 0,
-            away: h2hMarket.outcomes.find(o => o.name === event.away_team)?.price || 0
-          };
-        }
-        
-        return transformedOdds;
-      });
+      }
+      
+      const markets = bookmaker.markets;
+      const h2hMarket = markets.find(m => m.key === 'h2h');
+      const spreadsMarket = markets.find(m => m.key === 'spreads');
+      const totalsMarket = markets.find(m => m.key === 'totals');
+      
+      const transformedOdds: TransformedOdds = {
+        sport: sport,
+        homeTeam: event.home_team,
+        awayTeam: event.away_team,
+        startTime: new Date(event.commence_time),
+        odds: {}
+      };
+      
+      if (spreadsMarket?.outcomes?.length === 2) {
+        transformedOdds.odds.spread = {
+          home: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0,
+          away: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.point || 0,
+          point: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.price || -110
+        };
+      }
+      
+      if (totalsMarket?.outcomes?.length === 2) {
+        transformedOdds.odds.total = {
+          over: totalsMarket.outcomes[0]?.point || 0,
+          under: totalsMarket.outcomes.find(o => o.name === 'Under')?.price || -110,
+          point: totalsMarket.outcomes.find(o => o.name === 'Over')?.price || -110
+        };
+      }
+      
+      if (h2hMarket?.outcomes?.length === 2) {
+        transformedOdds.odds.moneyline = {
+          home: h2hMarket.outcomes.find(o => o.name === event.home_team)?.price || 0,
+          away: h2hMarket.outcomes.find(o => o.name === event.away_team)?.price || 0
+        };
+      }
+      
+      return transformedOdds;
+    });
   } catch (error) {
-    console.error(`Error in fetchOddsForSport: ${error}`);
+    console.error(`Error fetching odds for ${sport}:`, error);
     return [];
   }
 }
