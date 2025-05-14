@@ -4,7 +4,6 @@ import { SportType } from '../models/types.js';
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
-  ttl: number;
 }
 
 interface ApiUsage {
@@ -14,8 +13,8 @@ interface ApiUsage {
 }
 
 export class CacheService {
+  private static readonly cache: Map<string, CacheEntry<any>> = new Map();
   private static instance: CacheService;
-  private cache: Map<string, CacheEntry<any>> = new Map();
   private apiCalls: Map<string, number> = new Map();
   private apiUsage: ApiUsage;
   private readonly STORAGE_KEY = 'ai_bet_api_cache';
@@ -64,34 +63,56 @@ export class CacheService {
     this.saveApiUsage();
   }
 
-  // Get value from cache
-  public get<T>(key: string): T | null {
+  /**
+   * Get a value from the cache
+   */
+  public static async get<T>(key: string): Promise<T | null> {
     const entry = this.cache.get(key);
     if (!entry) return null;
 
-    const now = Date.now();
-    if (now - entry.timestamp > entry.ttl * 1000) {
-      // Entry is expired
+    // Check if entry is expired
+    if (Date.now() - entry.timestamp > 3600000) { // 1 hour default
+      this.cache.delete(key);
       return null;
     }
 
     return entry.data as T;
   }
 
-  // Get expired value from cache
-  public getExpired<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-    return entry.data as T;
+  /**
+   * Set a value in the cache
+   */
+  public static async set<T>(key: string, value: T, duration: number = 3600000): Promise<void> {
+    this.cache.set(key, {
+      data: value,
+      timestamp: Date.now()
+    });
   }
 
-  // Set value in cache with TTL (time to live) in milliseconds
-  public set(key: string, data: any, ttl: number): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl
-    });
+  /**
+   * Clear a specific key from the cache
+   */
+  public static async clear(key: string): Promise<void> {
+    this.cache.delete(key);
+  }
+
+  /**
+   * Clear all expired entries from the cache
+   */
+  public static async clearExpired(): Promise<void> {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > 3600000) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Clear the entire cache
+   */
+  public static async clearAll(): Promise<void> {
+    this.cache.clear();
   }
 
   // Get cache key for sports data
@@ -235,7 +256,7 @@ export class CacheService {
   private cleanExpiredEntries(): void {
     const now = Date.now();
     for (const [key, entry] of this.cache.entries()) {
-      if (now > entry.timestamp + entry.ttl * 1000) {
+      if (now > entry.timestamp + 3600000) {
         this.cache.delete(key);
       }
     }
