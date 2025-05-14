@@ -21,6 +21,10 @@ export interface EnhancedFactors {
   teamPitchingFactor?: number;
   batterHandednessFactor?: number;
   ballparkFactor?: number;
+  // New MLB player factors
+  battingStrengthFactor?: number;
+  pitchingStrengthFactor?: number;
+  keyPlayerImpactFactor?: number;
 }
 
 interface ModelWeights {
@@ -47,10 +51,14 @@ export class PredictorModel {
     'recentFormFactor': { 'SPREAD': 0.12, 'MONEYLINE': 0.15, 'TOTAL': 0.05 },
     'headToHeadFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.08, 'TOTAL': 0.02 },
     'scoringDiffFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.05, 'TOTAL': 0.18 },
-    'pitcherMatchupFactor': { 'SPREAD': 0.25, 'MONEYLINE': 0.20, 'TOTAL': 0.25 },
-    'teamPitchingFactor': { 'SPREAD': 0.15, 'MONEYLINE': 0.10, 'TOTAL': 0.20 },
-    'batterHandednessFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.08, 'TOTAL': 0.05 },
-    'ballparkFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.07, 'TOTAL': 0.15 }
+    'pitcherMatchupFactor': { 'SPREAD': 0.15, 'MONEYLINE': 0.12, 'TOTAL': 0.15 },
+    'teamPitchingFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.08, 'TOTAL': 0.12 },
+    'batterHandednessFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.05, 'TOTAL': 0.03 },
+    'ballparkFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.05, 'TOTAL': 0.10 },
+    // New weights for player factors
+    'battingStrengthFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.10, 'TOTAL': 0.15 },
+    'pitchingStrengthFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.10, 'TOTAL': 0.15 },
+    'keyPlayerImpactFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.05, 'TOTAL': 0.05 }
   };
   
   /**
@@ -125,17 +133,24 @@ export class PredictorModel {
       };
     } else if (sport === 'MLB') {
       // MLB specific factors
-      const pitcherMatchupFactor = 0.5; // Placeholder
+      const pitcherMatchupFactor = this.calculateMlbPitcherMatchupFactor(homeStats, awayStats);
       const teamPitchingFactor = this.calculateMlbTeamPitchingFactor(homeStats, awayStats);
-      const batterHandednessFactor = 0.5; // Placeholder
+      const batterHandednessFactor = this.calculateMlbBatterHandednessFactor(homeStats, awayStats);
       const ballparkFactor = this.calculateMlbBallparkFactor(game.homeTeamName);
+      // New player factors
+      const battingStrengthFactor = this.calculateMlbBattingStrengthFactor(homeStats, awayStats);
+      const pitchingStrengthFactor = this.calculateMlbPitchingStrengthFactor(homeStats, awayStats);
+      const keyPlayerImpactFactor = this.calculateMlbKeyPlayerImpactFactor(homeStats, awayStats);
       
       return {
         ...factors,
         pitcherMatchupFactor,
         teamPitchingFactor,
         batterHandednessFactor,
-        ballparkFactor
+        ballparkFactor,
+        battingStrengthFactor,
+        pitchingStrengthFactor,
+        keyPlayerImpactFactor
       };
     }
     
@@ -221,16 +236,39 @@ export class PredictorModel {
   /**
    * MLB specific calculation functions
    */
-  private static calculateMlbTeamPitchingFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.era || !awayStats.era) return 0.5;
+  private static calculateMlbPitcherMatchupFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.teamERA || !awayStats.teamERA) return 0.5;
     
-    // For ERA, lower is better
-    const eraDiff = (awayStats.era ?? 0) - (homeStats.era ?? 0);
-    
-    // Normalize ERA difference (2 ERA difference is significant)
+    // Compare team ERAs
+    const eraDiff = awayStats.teamERA - homeStats.teamERA;
+    // Normalize: ~1.0 ERA difference is significant
     return Math.max(0, Math.min(1, (eraDiff / 2) + 0.5));
   }
-  
+
+  private static calculateMlbTeamPitchingFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.teamWHIP || !awayStats.teamWHIP) return 0.5;
+    
+    // Compare team WHIPs
+    const whipDiff = awayStats.teamWHIP - homeStats.teamWHIP;
+    // Normalize: ~0.2 WHIP difference is significant
+    return Math.max(0, Math.min(1, (whipDiff / 0.4) + 0.5));
+  }
+
+  private static calculateMlbBatterHandednessFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    // Compare team performance against left/right-handed pitchers
+    const homeVsLHP = homeStats.avgVsLHP || 0;
+    const homeVsRHP = homeStats.avgVsRHP || 0;
+    const awayVsLHP = awayStats.avgVsLHP || 0;
+    const awayVsRHP = awayStats.avgVsRHP || 0;
+    
+    // Calculate advantage based on handedness matchups
+    const homeAdvantage = Math.max(homeVsLHP, homeVsRHP);
+    const awayAdvantage = Math.max(awayVsLHP, awayVsRHP);
+    
+    // Normalize to 0-1 range
+    return Math.max(0, Math.min(1, (homeAdvantage - awayAdvantage + 0.3) / 0.6));
+  }
+
   private static calculateMlbBallparkFactor(homeTeam: string): number {
     // Ballpark factors (1.0 is neutral, >1.0 favors hitters, <1.0 favors pitchers)
     const ballparkFactors: Record<string, number> = {
@@ -251,5 +289,72 @@ export class PredictorModel {
     
     // Convert to 0-1 scale (0.8-1.2 range → 0-1)
     return Math.max(0, Math.min(1, (factor - 0.8) / 0.4));
+  }
+
+  private static calculateMlbBattingStrengthFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.keyPlayers?.batting || !awayStats.keyPlayers?.batting) return 0.5;
+    
+    const calculateTeamBattingStrength = (players: typeof homeStats.keyPlayers.batting) => {
+      return players.reduce((acc, player) => {
+        const ops = parseFloat(player.ops);
+        const wRCPlus = player.wRCPlus;
+        return acc + (ops * 0.6 + (wRCPlus / 150) * 0.4);
+      }, 0) / Math.max(players.length, 1);
+    };
+
+    const homeStrength = calculateTeamBattingStrength(homeStats.keyPlayers.batting);
+    const awayStrength = calculateTeamBattingStrength(awayStats.keyPlayers.batting);
+    
+    // Normalize to 0-1 range (assuming OPS typically ranges from 0.600 to 1.000)
+    return Math.max(0, Math.min(1, (homeStrength - awayStrength + 0.2) / 0.4));
+  }
+
+  private static calculateMlbPitchingStrengthFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.keyPlayers?.pitching || !awayStats.keyPlayers?.pitching) return 0.5;
+    
+    const calculateTeamPitchingStrength = (players: typeof homeStats.keyPlayers.pitching) => {
+      return players.reduce((acc, player) => {
+        const era = parseFloat(player.era);
+        const whip = parseFloat(player.whip);
+        const fip = parseFloat(player.fip);
+        return acc + ((4.5 - era) * 0.4 + (1.3 - whip) * 0.3 + (4.5 - fip) * 0.3);
+      }, 0) / Math.max(players.length, 1);
+    };
+
+    const homeStrength = calculateTeamPitchingStrength(homeStats.keyPlayers.pitching);
+    const awayStrength = calculateTeamPitchingStrength(awayStats.keyPlayers.pitching);
+    
+    // Normalize to 0-1 range (assuming ERA typically ranges from 2.00 to 6.00)
+    return Math.max(0, Math.min(1, (homeStrength - awayStrength + 2) / 4));
+  }
+
+  private static calculateMlbKeyPlayerImpactFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.keyPlayers || !awayStats.keyPlayers) return 0.5;
+    
+    // Calculate impact based on top performers
+    const getTopPlayerImpact = (players: typeof homeStats.keyPlayers.batting | typeof homeStats.keyPlayers.pitching) => {
+      if (!players || players.length === 0) return 0;
+      
+      // Sort by WAR (assuming higher WAR means more impact)
+      const sortedPlayers = [...players].sort((a, b) => 
+        parseFloat(b.war) - parseFloat(a.war)
+      );
+      
+      // Take top 3 players and calculate their combined impact
+      return sortedPlayers.slice(0, 3).reduce((acc, player) => 
+        acc + parseFloat(player.war), 0
+      );
+    };
+
+    const homeBattingImpact = getTopPlayerImpact(homeStats.keyPlayers.batting);
+    const homePitchingImpact = getTopPlayerImpact(homeStats.keyPlayers.pitching);
+    const awayBattingImpact = getTopPlayerImpact(awayStats.keyPlayers.batting);
+    const awayPitchingImpact = getTopPlayerImpact(awayStats.keyPlayers.pitching);
+
+    const homeTotalImpact = homeBattingImpact + homePitchingImpact;
+    const awayTotalImpact = awayBattingImpact + awayPitchingImpact;
+    
+    // Normalize to 0-1 range (assuming WAR typically ranges from 0 to 10 per player)
+    return Math.max(0, Math.min(1, (homeTotalImpact - awayTotalImpact + 15) / 30));
   }
 }

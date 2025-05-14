@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { AxiosError } from 'axios';
 import { TeamStats, H2HStats } from './predictionService.js';
 import { GameStatus } from '../models/types.js';
 
@@ -177,6 +178,108 @@ interface HeadToHeadStats {
   team2AvgRuns: number;
 }
 
+// Add new interfaces for player statistics
+interface MLBPlayerStats {
+  batting: {
+    avg: string;
+    obp: string;
+    slg: string;
+    ops: string;
+    wOBA: string;
+    wRCPlus: number;
+    bWAR: number;
+    homeRuns: number;
+    rbi: number;
+    stolenBases: number;
+    strikeOutRate: string;
+    walkRate: string;
+    babip: string;
+    iso: string;
+    hardHitRate: string;
+    barrelRate: string;
+    exitVelocity: string;
+    launchAngle: string;
+  };
+  pitching: {
+    era: string;
+    whip: string;
+    fip: string;
+    xFIP: string;
+    kPer9: string;
+    bbPer9: string;
+    hrPer9: string;
+    babip: string;
+    groundBallRate: string;
+    flyBallRate: string;
+    hardHitRate: string;
+    barrelRate: string;
+    exitVelocity: string;
+    spinRate: string;
+    pitchVelocity: string;
+  };
+  fielding: {
+    defensiveRunsSaved: number;
+    ultimateZoneRating: number;
+    outsAboveAverage: number;
+    fieldingPercentage: string;
+    errors: number;
+    assists: number;
+    putouts: number;
+  };
+  splits: {
+    vsLeft: {
+      avg: string;
+      ops: string;
+      homeRuns: number;
+      strikeOutRate: string;
+      walkRate: string;
+    };
+    vsRight: {
+      avg: string;
+      ops: string;
+      homeRuns: number;
+      strikeOutRate: string;
+      walkRate: string;
+    };
+    home: {
+      avg: string;
+      ops: string;
+      homeRuns: number;
+    };
+    away: {
+      avg: string;
+      ops: string;
+      homeRuns: number;
+    };
+  };
+  historical: {
+    last30Days: {
+      avg: string;
+      ops: string;
+      homeRuns: number;
+      era: string;
+      whip: string;
+    };
+    last7Days: {
+      avg: string;
+      ops: string;
+      homeRuns: number;
+      era: string;
+      whip: string;
+    };
+  };
+}
+
+interface MLBPlayerStatsResponse {
+  stats: Array<{
+    type: { displayName: string };
+    group: { displayName: string };
+    splits: Array<{
+      stat: Record<string, any>;
+    }>;
+  }>;
+}
+
 export class MLBStatsService {
   private static teamIdMap: Map<string, number> | null = null;
   private static teamFetchPromise: Promise<void> | null = null;
@@ -184,6 +287,8 @@ export class MLBStatsService {
   private static PITCHER_CACHE_DURATION = 6 * 60 * 60 * 1000; // Cache pitcher stats for 6 hours
   private static pitcherDetailsCache: Record<string, { data: PitcherDetails | null, timestamp: number }> = {};
   private static PITCHER_DETAILS_CACHE_DURATION = 24 * 60 * 60 * 1000; // Cache details for 24 hours
+  private static playerStatsCache: Record<string, { data: MLBPlayerStats | null, timestamp: number }> = {};
+  private static PLAYER_STATS_CACHE_DURATION = 6 * 60 * 60 * 1000; // Cache player stats for 6 hours
 
   private static async initializeTeamIdMap(): Promise<void> {
     try {
@@ -615,5 +720,358 @@ export class MLBStatsService {
       console.error(`[MLBStatsService] Error getting head-to-head stats for teams ${team1Id} and ${team2Id}:`, error);
       return null;
     }
+  }
+
+  public static async getPlayerStats(playerId: number): Promise<MLBPlayerStats | null> {
+    if (!playerId || typeof playerId !== 'number') {
+      console.error('[MLBStatsService] Invalid player ID provided:', playerId);
+      return null;
+    }
+
+    // Check cache first
+    const cacheKey = playerId.toString();
+    const cachedData = this.playerStatsCache[cacheKey];
+    const now = Date.now();
+
+    if (cachedData && (now - cachedData.timestamp) < this.PLAYER_STATS_CACHE_DURATION) {
+      console.log(`[MLBStatsService] Using cached player stats for player ${playerId}`);
+      return cachedData.data;
+    }
+
+    try {
+      const response = await axios.get<MLBPlayerStatsResponse>(`${BASE_URL}/people/${playerId}/stats`, {
+        params: {
+          season: CURRENT_MLB_SEASON,
+          stats: ['batting', 'pitching', 'fielding', 'splits', 'historical'],
+        },
+        timeout: 10000,
+        validateStatus: (status) => status === 200,
+      });
+
+      const data = response.data;
+      if (!data) {
+        console.warn(`[MLBStatsService] No data received for player ${playerId}`);
+        return null;
+      }
+
+      if (!data.stats || !Array.isArray(data.stats)) {
+        console.warn(`[MLBStatsService] Invalid stats data format for player ${playerId}`);
+        return null;
+      }
+
+      // Process the stats
+      const processedStats = this.processPlayerStats(data.stats);
+
+      // Cache the processed stats
+      this.playerStatsCache[cacheKey] = {
+        data: processedStats,
+        timestamp: now,
+      };
+
+      return processedStats;
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          console.error(`[MLBStatsService] API error for player ${playerId}:`, {
+            status: error.response.status,
+            statusText: error.response.statusText,
+            data: error.response.data,
+          });
+        } else if (error.request) {
+          console.error(`[MLBStatsService] No response received for player ${playerId}:`, error.message);
+        } else {
+          console.error(`[MLBStatsService] Request setup error for player ${playerId}:`, error.message);
+        }
+      } else {
+        console.error(`[MLBStatsService] Unexpected error for player ${playerId}:`, error);
+      }
+      return null;
+    }
+  }
+
+  public static clearPlayerStatsCache(): void {
+    this.playerStatsCache = {};
+    console.log('[MLBStatsService] Player stats cache cleared');
+  }
+
+  public static getPlayerStatsCacheSize(): number {
+    return Object.keys(this.playerStatsCache).length;
+  }
+
+  public static getPlayerStatsCacheAge(playerId: number): number | null {
+    const cacheKey = playerId.toString();
+    const cachedData = this.playerStatsCache[cacheKey];
+    if (!cachedData) {
+      return null;
+    }
+    return Date.now() - cachedData.timestamp;
+  }
+
+  private static processPlayerStats(stats: Array<{
+    type: { displayName: string };
+    group: { displayName: string };
+    splits: Array<{
+      stat: Record<string, any>;
+    }>;
+  }>): MLBPlayerStats {
+    try {
+      const result: MLBPlayerStats = {
+        batting: {
+          avg: '0.000',
+          obp: '0.000',
+          slg: '0.000',
+          ops: '0.000',
+          wOBA: '0.000',
+          wRCPlus: 0,
+          bWAR: 0,
+          homeRuns: 0,
+          rbi: 0,
+          stolenBases: 0,
+          strikeOutRate: '0.000',
+          walkRate: '0.000',
+          babip: '0.000',
+          iso: '0.000',
+          hardHitRate: '0.000',
+          barrelRate: '0.000',
+          exitVelocity: '0.0',
+          launchAngle: '0.0',
+        },
+        pitching: {
+          era: '0.00',
+          whip: '0.00',
+          fip: '0.00',
+          xFIP: '0.00',
+          kPer9: '0.0',
+          bbPer9: '0.0',
+          hrPer9: '0.0',
+          babip: '0.000',
+          groundBallRate: '0.000',
+          flyBallRate: '0.000',
+          hardHitRate: '0.000',
+          barrelRate: '0.000',
+          exitVelocity: '0.0',
+          spinRate: '0',
+          pitchVelocity: '0.0',
+        },
+        fielding: {
+          defensiveRunsSaved: 0,
+          ultimateZoneRating: 0,
+          outsAboveAverage: 0,
+          fieldingPercentage: '0.000',
+          errors: 0,
+          assists: 0,
+          putouts: 0,
+        },
+        splits: {
+          vsLeft: {
+            avg: '0.000',
+            ops: '0.000',
+            homeRuns: 0,
+            strikeOutRate: '0.000',
+            walkRate: '0.000',
+          },
+          vsRight: {
+            avg: '0.000',
+            ops: '0.000',
+            homeRuns: 0,
+            strikeOutRate: '0.000',
+            walkRate: '0.000',
+          },
+          home: {
+            avg: '0.000',
+            ops: '0.000',
+            homeRuns: 0,
+          },
+          away: {
+            avg: '0.000',
+            ops: '0.000',
+            homeRuns: 0,
+          },
+        },
+        historical: {
+          last30Days: {
+            avg: '0.000',
+            ops: '0.000',
+            homeRuns: 0,
+            era: '0.00',
+            whip: '0.00',
+          },
+          last7Days: {
+            avg: '0.000',
+            ops: '0.000',
+            homeRuns: 0,
+            era: '0.00',
+            whip: '0.00',
+          },
+        },
+      };
+
+      // Process each stat group
+      stats.forEach(statGroup => {
+        try {
+          const type = statGroup.type?.displayName;
+          const group = statGroup.group?.displayName;
+          const splits = statGroup.splits;
+
+          if (!type || !group || !Array.isArray(splits)) {
+            console.warn('[MLBStatsService] Invalid stat group format:', { type, group, splits });
+            return;
+          }
+
+          splits.forEach(split => {
+            try {
+              const stat = split.stat;
+              if (!stat || typeof stat !== 'object') {
+                console.warn('[MLBStatsService] Invalid stat format:', stat);
+                return;
+              }
+
+              switch (group) {
+                case 'hitting':
+                  if (type === 'season') {
+                    result.batting = {
+                      ...result.batting,
+                      avg: this.formatStat(stat.avg, '0.000'),
+                      obp: this.formatStat(stat.obp, '0.000'),
+                      slg: this.formatStat(stat.slg, '0.000'),
+                      ops: this.formatStat(stat.ops, '0.000'),
+                      wOBA: this.formatStat(stat.woba, '0.000'),
+                      wRCPlus: this.parseNumber(stat.wrcPlus, 0),
+                      bWAR: this.parseNumber(stat.war, 0),
+                      homeRuns: this.parseNumber(stat.homeRuns, 0),
+                      rbi: this.parseNumber(stat.rbi, 0),
+                      stolenBases: this.parseNumber(stat.stolenBases, 0),
+                      strikeOutRate: this.formatStat(stat.strikeOutRate, '0.000'),
+                      walkRate: this.formatStat(stat.walkRate, '0.000'),
+                      babip: this.formatStat(stat.babip, '0.000'),
+                      iso: this.formatStat(stat.iso, '0.000'),
+                      hardHitRate: this.formatStat(stat.hardHitRate, '0.000'),
+                      barrelRate: this.formatStat(stat.barrelRate, '0.000'),
+                      exitVelocity: this.formatStat(stat.exitVelocityAvg, '0.0'),
+                      launchAngle: this.formatStat(stat.launchAngleAvg, '0.0'),
+                    };
+                  }
+                  break;
+
+                case 'pitching':
+                  if (type === 'season') {
+                    result.pitching = {
+                      ...result.pitching,
+                      era: this.formatStat(stat.era, '0.00'),
+                      whip: this.formatStat(stat.whip, '0.00'),
+                      fip: this.formatStat(stat.fip, '0.00'),
+                      xFIP: this.formatStat(stat.xfip, '0.00'),
+                      kPer9: this.formatStat(stat.kPer9, '0.0'),
+                      bbPer9: this.formatStat(stat.bbPer9, '0.0'),
+                      hrPer9: this.formatStat(stat.hrPer9, '0.0'),
+                      babip: this.formatStat(stat.babip, '0.000'),
+                      groundBallRate: this.formatStat(stat.groundBallRate, '0.000'),
+                      flyBallRate: this.formatStat(stat.flyBallRate, '0.000'),
+                      hardHitRate: this.formatStat(stat.hardHitRate, '0.000'),
+                      barrelRate: this.formatStat(stat.barrelRate, '0.000'),
+                      exitVelocity: this.formatStat(stat.exitVelocityAvg, '0.0'),
+                      spinRate: this.formatStat(stat.spinRateAvg, '0'),
+                      pitchVelocity: this.formatStat(stat.pitchVelocityAvg, '0.0'),
+                    };
+                  }
+                  break;
+
+                case 'fielding':
+                  if (type === 'season') {
+                    result.fielding = {
+                      ...result.fielding,
+                      defensiveRunsSaved: this.parseNumber(stat.defensiveRunsSaved, 0),
+                      ultimateZoneRating: this.parseNumber(stat.ultimateZoneRating, 0),
+                      outsAboveAverage: this.parseNumber(stat.outsAboveAverage, 0),
+                      fieldingPercentage: this.formatStat(stat.fieldingPercentage, '0.000'),
+                      errors: this.parseNumber(stat.errors, 0),
+                      assists: this.parseNumber(stat.assists, 0),
+                      putouts: this.parseNumber(stat.putouts, 0),
+                    };
+                  }
+                  break;
+
+                case 'splits':
+                  if (type === 'vsRHP') {
+                    result.splits.vsRight = {
+                      avg: this.formatStat(stat.avg, '0.000'),
+                      ops: this.formatStat(stat.ops, '0.000'),
+                      homeRuns: this.parseNumber(stat.homeRuns, 0),
+                      strikeOutRate: this.formatStat(stat.strikeOutRate, '0.000'),
+                      walkRate: this.formatStat(stat.walkRate, '0.000'),
+                    };
+                  } else if (type === 'vsLHP') {
+                    result.splits.vsLeft = {
+                      avg: this.formatStat(stat.avg, '0.000'),
+                      ops: this.formatStat(stat.ops, '0.000'),
+                      homeRuns: this.parseNumber(stat.homeRuns, 0),
+                      strikeOutRate: this.formatStat(stat.strikeOutRate, '0.000'),
+                      walkRate: this.formatStat(stat.walkRate, '0.000'),
+                    };
+                  } else if (type === 'home') {
+                    result.splits.home = {
+                      avg: this.formatStat(stat.avg, '0.000'),
+                      ops: this.formatStat(stat.ops, '0.000'),
+                      homeRuns: this.parseNumber(stat.homeRuns, 0),
+                    };
+                  } else if (type === 'away') {
+                    result.splits.away = {
+                      avg: this.formatStat(stat.avg, '0.000'),
+                      ops: this.formatStat(stat.ops, '0.000'),
+                      homeRuns: this.parseNumber(stat.homeRuns, 0),
+                    };
+                  }
+                  break;
+
+                case 'gameLog':
+                  if (type === 'last30Days') {
+                    result.historical.last30Days = {
+                      avg: this.formatStat(stat.avg, '0.000'),
+                      ops: this.formatStat(stat.ops, '0.000'),
+                      homeRuns: this.parseNumber(stat.homeRuns, 0),
+                      era: this.formatStat(stat.era, '0.00'),
+                      whip: this.formatStat(stat.whip, '0.00'),
+                    };
+                  } else if (type === 'last7Days') {
+                    result.historical.last7Days = {
+                      avg: this.formatStat(stat.avg, '0.000'),
+                      ops: this.formatStat(stat.ops, '0.000'),
+                      homeRuns: this.parseNumber(stat.homeRuns, 0),
+                      era: this.formatStat(stat.era, '0.00'),
+                      whip: this.formatStat(stat.whip, '0.00'),
+                    };
+                  }
+                  break;
+              }
+            } catch (splitError) {
+              console.error('[MLBStatsService] Error processing split:', splitError);
+            }
+          });
+        } catch (groupError) {
+          console.error('[MLBStatsService] Error processing stat group:', groupError);
+        }
+      });
+
+      return result;
+    } catch (error) {
+      console.error('[MLBStatsService] Error processing player stats:', error);
+      throw error; // Re-throw to be handled by the caller
+    }
+  }
+
+  private static formatStat(value: any, defaultValue: string): string {
+    if (value === undefined || value === null || value === '') {
+      return defaultValue;
+    }
+    const num = parseFloat(value.toString());
+    return isNaN(num) ? defaultValue : num.toFixed(defaultValue.split('.')[1].length);
+  }
+
+  private static parseNumber(value: any, defaultValue: number): number {
+    if (value === undefined || value === null || value === '') {
+      return defaultValue;
+    }
+    const num = parseFloat(value.toString());
+    return isNaN(num) ? defaultValue : num;
   }
 }
