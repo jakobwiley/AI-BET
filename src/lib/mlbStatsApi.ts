@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { TeamStats, H2HStats } from './predictionService.js';
 import { GameStatus } from '../models/types.js';
+import { CacheService } from './cacheService.js';
 
 interface MLBTeam {
   id: number;
@@ -345,6 +346,7 @@ export class MLBStatsService {
   private static PITCHER_DETAILS_CACHE_DURATION = 24 * 60 * 60 * 1000; // Cache details for 24 hours
   private static playerStatsCache: Record<string, { data: MLBPlayerStats | null, timestamp: number }> = {};
   private static PLAYER_STATS_CACHE_DURATION = 6 * 60 * 60 * 1000; // Cache player stats for 6 hours
+  private static readonly CACHE_TTL = 3600; // 1 hour in seconds
 
   private static async initializeTeamIdMap(): Promise<void> {
     try {
@@ -1108,6 +1110,119 @@ export class MLBStatsService {
     } catch (error) {
       console.error(`Error fetching last game info for team ${teamId}:`, error);
       return null;
+    }
+  }
+
+  static async getSituationalStats(teamId: string): Promise<any> {
+    const cacheKey = `mlb_situational_stats_${teamId}`;
+    const cached = await CacheService.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await this.makeApiRequest(`/teams/${teamId}/stats`, {
+        group: 'hitting',
+        type: 'situational'
+      });
+
+      if (!response?.stats) {
+        throw new Error('Invalid response format for situational stats');
+      }
+
+      await CacheService.set(cacheKey, response, this.CACHE_TTL);
+      return response;
+    } catch (error) {
+      console.error('Error fetching situational stats:', error);
+      return null;
+    }
+  }
+
+  static async getBullpenUsage(teamId: string): Promise<any> {
+    const cacheKey = `mlb_bullpen_usage_${teamId}`;
+    const cached = await CacheService.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await this.makeApiRequest(`/teams/${teamId}/stats`, {
+        group: 'pitching',
+        type: 'bullpen'
+      });
+
+      if (!response?.stats) {
+        throw new Error('Invalid response format for bullpen usage');
+      }
+
+      await CacheService.set(cacheKey, response, this.CACHE_TTL);
+      return response;
+    } catch (error) {
+      console.error('Error fetching bullpen usage:', error);
+      return null;
+    }
+  }
+
+  static async getBatterPitcherMatchup(batterId: number, pitcherId: number): Promise<any> {
+    const cacheKey = `mlb_batter_pitcher_${batterId}_${pitcherId}`;
+    const cached = await CacheService.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await this.makeApiRequest(`/people/${batterId}/stats`, {
+        group: 'hitting',
+        type: 'vsPitcher',
+        pitcherId: pitcherId
+      });
+
+      if (!response?.stats) {
+        throw new Error('Invalid response format for batter-pitcher matchup');
+      }
+
+      await CacheService.set(cacheKey, response, this.CACHE_TTL);
+      return response;
+    } catch (error) {
+      console.error('Error fetching batter-pitcher matchup:', error);
+      return null;
+    }
+  }
+
+  static async getWeatherImpact(teamId: string): Promise<any> {
+    const cacheKey = `mlb_weather_impact_${teamId}`;
+    const cached = await CacheService.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await this.makeApiRequest(`/teams/${teamId}/stats`, {
+        group: 'hitting',
+        type: 'weather'
+      });
+
+      if (!response?.stats) {
+        throw new Error('Invalid response format for weather impact');
+      }
+
+      await CacheService.set(cacheKey, response, this.CACHE_TTL);
+      return response;
+    } catch (error) {
+      console.error('Error fetching weather impact:', error);
+      return null;
+    }
+  }
+
+  private static async makeApiRequest(endpoint: string, params: Record<string, any> = {}): Promise<any> {
+    const baseUrl = process.env.MLB_STATS_API_URL || 'https://statsapi.mlb.com/api/v1';
+    const url = new URL(`${baseUrl}${endpoint}`);
+    
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, value.toString());
+    });
+
+    try {
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error(`MLB Stats API error: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error making MLB Stats API request:', error);
+      throw error;
     }
   }
 }
