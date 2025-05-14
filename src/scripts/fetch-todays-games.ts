@@ -33,6 +33,10 @@ async function fetchTodaysGames() {
       });
 
       // Convert game data to Prisma-compatible format
+      let oddsObj = {};
+      if (game.odds && typeof game.odds === 'object' && !Array.isArray(game.odds)) {
+        oddsObj = game.odds;
+      }
       const gameData = {
         id: game.id,
         sport: game.sport,
@@ -43,7 +47,19 @@ async function fetchTodaysGames() {
         awayTeamId: game.awayTeamId,
         status: game.status,
         startTime: game.startTime,
-        oddsJson: game.odds ? (game.odds as unknown as Prisma.InputJsonValue) : Prisma.JsonNull
+        oddsJson: {
+          ...oddsObj,
+          // Advanced GameInfo fields (placeholders for now)
+          gameInfo: {
+            location: '',
+            weatherConditions: null,
+            umpireAssignments: [],
+            injuries: [],
+            suspensions: [],
+            restDaysHome: null,
+            restDaysAway: null
+          }
+        }
       };
 
       if (!existingGame) {
@@ -56,7 +72,7 @@ async function fetchTodaysGames() {
           where: { id: existingGame.id },
           data: {
             status: game.status,
-            oddsJson: game.odds ? (game.odds as unknown as Prisma.InputJsonValue) : Prisma.JsonNull
+            oddsJson: gameData.oddsJson
           }
         });
         console.log(`Updated existing game: ${game.homeTeamName} vs ${game.awayTeamName}`);

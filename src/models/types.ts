@@ -77,6 +77,9 @@ export interface Prediction {
     projectedWinner?: string;
     winProbability?: number;
   };
+  advancedMetrics?: Record<string, any>;
+  historicalData?: Record<string, any>;
+  bettingMarketData?: Record<string, any>;
 }
 
 export interface PlayerProp {
