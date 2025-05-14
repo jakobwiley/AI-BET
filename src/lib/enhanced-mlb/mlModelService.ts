@@ -228,7 +228,10 @@ export class MLModelService {
     }
   }
 
-  private static getModelIdFromPrediction(prediction: Prediction): string {
+  /**
+   * Get model ID from prediction
+   */
+  public static getModelIdFromPrediction(prediction: Prediction): string {
     // Extract model ID from prediction ID or reasoning
     const idParts = prediction.id.split('-');
     return idParts[1] || 'unknown';
