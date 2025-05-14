@@ -1,6 +1,7 @@
 import axios from 'axios';
-import { TeamStats, H2HStats } from './predictionService';
-import { CacheService } from './cacheService';
+import { TeamStats, H2HStats } from './predictionService.js';
+import { CacheService } from './cacheService.js';
+import { GameStatus } from '../models/types.js';
 
 const NBA_API_BASE_URL = 'https://stats.nba.com/stats';
 const FALLBACK_TO_BALLDONTLIE = process.env.USE_BALLDONTLIE_FALLBACK === 'true';

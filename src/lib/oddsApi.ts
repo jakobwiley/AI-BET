@@ -1,6 +1,6 @@
-import { Game, SportType, GameStatus } from '../models/types';
+import { Game, SportType, GameStatus } from '../models/types.js';
 import axios from 'axios';
-import { handleSportsApiError } from './errors';
+import { handleSportsApiError } from './errors.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -79,12 +79,12 @@ export class OddsApiService {
     // Determine game status based on commence_time
     const gameTime = new Date(event.commence_time);
     const now = new Date();
-    let status = GameStatus.SCHEDULED;
+    let status: GameStatus = 'SCHEDULED';
     
     if (gameTime < now) {
-      status = GameStatus.FINAL;
+      status = 'FINAL';
     } else if (Math.abs(gameTime.getTime() - now.getTime()) < 3 * 60 * 60 * 1000) { // Within 3 hours
-      status = GameStatus.IN_PROGRESS;
+      status = 'IN_PROGRESS';
     }
 
     if (!bookmaker) {
@@ -121,19 +121,19 @@ export class OddsApiService {
       status,
       odds: {
         spread: spreadsMarket?.outcomes?.length === 2 ? {
-          homeSpread: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0,
-          awaySpread: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.point || 0,
-          homeOdds: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.price || -110,
-          awayOdds: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.price || -110
+          homeSpread: String(spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0),
+          awaySpread: String(spreadsMarket.outcomes.find(o => o.name === event.away_team)?.point || 0),
+          homeOdds: String(spreadsMarket.outcomes.find(o => o.name === event.home_team)?.price || -110),
+          awayOdds: String(spreadsMarket.outcomes.find(o => o.name === event.away_team)?.price || -110)
         } : undefined,
         total: totalsMarket?.outcomes?.length === 2 ? {
-          overUnder: totalsMarket.outcomes[0]?.point || 0,
-          overOdds: totalsMarket.outcomes.find(o => o.name === 'Over')?.price || -110,
-          underOdds: totalsMarket.outcomes.find(o => o.name === 'Under')?.price || -110
+          overUnder: String(totalsMarket.outcomes[0]?.point || 0),
+          overOdds: String(totalsMarket.outcomes.find(o => o.name === 'Over')?.price || -110),
+          underOdds: String(totalsMarket.outcomes.find(o => o.name === 'Under')?.price || -110)
         } : undefined,
         moneyline: h2hMarket?.outcomes?.length === 2 ? {
-          homeOdds: h2hMarket.outcomes.find(o => o.name === event.home_team)?.price || 0,
-          awayOdds: h2hMarket.outcomes.find(o => o.name === event.away_team)?.price || 0
+          homeOdds: String(h2hMarket.outcomes.find(o => o.name === event.home_team)?.price || 0),
+          awayOdds: String(h2hMarket.outcomes.find(o => o.name === event.away_team)?.price || 0)
         } : undefined
       },
       probableHomePitcherName: undefined,

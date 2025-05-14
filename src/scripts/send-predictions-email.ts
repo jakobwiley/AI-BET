@@ -1,11 +1,11 @@
 import { PrismaClient, GameStatus } from '@prisma/client';
 import { format } from 'date-fns';
 import dotenv from 'dotenv';
-import EmailService from '../src/lib/emailService';
+import EmailService from '../lib/emailService.js';
 import { createInterface } from 'readline/promises';
-import { getYesterdaysResults, formatResultsSummary } from './get-yesterdays-results';
+import { getYesterdaysResults, formatResultsSummary } from './get-yesterdays-results.js';
 import { execSync } from 'child_process';
-import { populateTeamStats } from './populate-team-stats';
+import { populateTeamStats } from './populate-team-stats.js';
 
 dotenv.config();
 
@@ -242,7 +242,7 @@ async function main() {
   try {
     // Step 1: Update yesterday's prediction outcomes before summarizing
     console.log('Running analyze-yesterday-predictions.ts to update outcomes...');
-    execSync('npx tsx scripts/analyze-yesterday-predictions.ts', { stdio: 'inherit' });
+    execSync('npx tsx src/scripts/analyze-yesterday-predictions.ts', { stdio: 'inherit' });
     console.log('Outcome update complete. Proceeding to email generation.');
 
     const emailService = new EmailService();
@@ -263,7 +263,7 @@ async function main() {
       include: {
         predictions: true
       }
-    });
+    }) as unknown as Game[];
 
     if (games.length === 0) {
       console.log('No games with predictions found for today');

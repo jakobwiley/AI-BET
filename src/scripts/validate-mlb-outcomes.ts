@@ -72,11 +72,12 @@ async function validateMlbOutcomes() {
       for (const prediction of game.predictions) {
         let calculatedOutcome = prediction.outcome;
         let details = '';
+        const predictionValue = parseFloat(prediction.predictionValue);
 
         switch (prediction.predictionType) {
           case 'MONEYLINE':
-            details = `ML: ${prediction.predictionValue}, `;
-            if (prediction.predictionValue < 0) { // Betting on home team
+            details = `ML: ${predictionValue}, `;
+            if (predictionValue < 0) { // Betting on home team
               calculatedOutcome = homeWon ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
               details += `Bet on ${game.homeTeamName} (home) to win`;
             } else { // Betting on away team
@@ -87,20 +88,20 @@ async function validateMlbOutcomes() {
             break;
 
           case 'SPREAD':
-            const homeScoreWithSpread = game.homeScore + prediction.predictionValue;
+            const homeScoreWithSpread = game.homeScore + predictionValue;
             calculatedOutcome = homeScoreWithSpread > game.awayScore ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
-            details = `Spread: ${prediction.predictionValue > 0 ? '+' : ''}${prediction.predictionValue} ${game.homeTeamName}, ` +
+            details = `Spread: ${predictionValue > 0 ? '+' : ''}${predictionValue} ${game.homeTeamName}, ` +
                      `Adjusted score: ${homeScoreWithSpread}-${game.awayScore}`;
             break;
 
           case 'TOTAL':
-            details = `Total: ${Math.abs(prediction.predictionValue)}, Actual: ${totalScore}, `;
-            if (prediction.predictionValue > 0) { // Betting over
-              calculatedOutcome = totalScore > prediction.predictionValue ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
-              details += `Bet OVER ${prediction.predictionValue}`;
+            details = `Total: ${Math.abs(predictionValue)}, Actual: ${totalScore}, `;
+            if (predictionValue > 0) { // Betting over
+              calculatedOutcome = totalScore > predictionValue ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
+              details += `Bet OVER ${predictionValue}`;
             } else { // Betting under
-              calculatedOutcome = totalScore < Math.abs(prediction.predictionValue) ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
-              details += `Bet UNDER ${Math.abs(prediction.predictionValue)}`;
+              calculatedOutcome = totalScore < Math.abs(predictionValue) ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
+              details += `Bet UNDER ${Math.abs(predictionValue)}`;
             }
             break;
         }
@@ -118,7 +119,7 @@ async function validateMlbOutcomes() {
         gameValidation.predictions.push({
           id: prediction.id,
           type: prediction.predictionType,
-          value: prediction.predictionValue,
+          value: predictionValue,
           currentOutcome: prediction.outcome,
           calculatedOutcome,
           details

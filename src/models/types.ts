@@ -1,14 +1,10 @@
-export type SportType = 'NBA' | 'MLB';
+export type SportType = 'MLB' | 'NBA';
 
-export type PredictionType = 'SPREAD' | 'MONEYLINE' | 'TOTAL';
+export type PredictionType = 'SPREAD' | 'TOTAL' | 'MONEYLINE';
 
-export enum GameStatus {
-  SCHEDULED = 'SCHEDULED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  FINAL = 'FINAL',
-  POSTPONED = 'POSTPONED',
-  CANCELLED = 'CANCELLED'
-}
+export type GameStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'FINAL' | 'POSTPONED' | 'CANCELLED';
+
+export type PredictionOutcome = 'WIN' | 'LOSS' | 'PUSH' | 'PENDING';
 
 export enum PlayerPropType {
   POINTS = 'POINTS',
@@ -40,19 +36,19 @@ export interface Game {
   predictions?: Prediction[];
   odds?: {
     spread?: {
-      homeSpread: number;
-      awaySpread: number;
-      homeOdds: number;
-      awayOdds: number;
+      homeSpread: string;
+      awaySpread: string;
+      homeOdds: string;
+      awayOdds: string;
     };
     total?: {
-      overUnder: number;
-      overOdds: number;
-      underOdds: number;
+      overUnder: string;
+      overOdds: string;
+      underOdds: string;
     };
     moneyline?: {
-      homeOdds: number;
-      awayOdds: number;
+      homeOdds: string;
+      awayOdds: string;
     };
   };
   probableHomePitcherId?: number;
@@ -69,9 +65,18 @@ export interface Prediction {
   confidence: number;
   grade: string;
   reasoning: string;
-  outcome?: 'WIN' | 'LOSS' | 'PUSH';
+  outcome?: PredictionOutcome;
   createdAt: string;
   updatedAt?: string;
+  projectionJson?: {
+    projectedTeam?: string;
+    projectedMargin?: number;
+    projectedHome?: number;
+    projectedAway?: number;
+    projectedTotal?: number;
+    projectedWinner?: string;
+    winProbability?: number;
+  };
 }
 
 export interface PlayerProp {
@@ -87,7 +92,7 @@ export interface PlayerProp {
   reasoning?: string;
   createdAt?: string;
   game?: Game;
-  outcome?: 'WIN' | 'LOSS' | 'PENDING';
+  outcome?: PredictionOutcome;
 }
 
 export interface Team {

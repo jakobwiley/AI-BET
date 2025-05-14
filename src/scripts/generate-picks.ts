@@ -7,7 +7,7 @@ type Prediction = pkg.Prediction;
 type PredictionType = pkg.PredictionType;
 type PredictionOutcome = pkg.PredictionOutcome;
 
-import { getConfidenceGrade, Grade as GradeType } from '../lib/prediction.js';
+import { getConfidenceGrade, Grade, grades } from '../lib/prediction.js';
 import { sendWhatsAppMessage, formatWhatsAppNumber } from '../lib/whatsapp.js';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
@@ -23,11 +23,10 @@ interface FormattedPick {
 }
 
 type SportType = 'MLB' | 'NBA';
-const grades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'] as const;
-type Grade = typeof grades[number];
 
 interface PicksBySportAndGrade {
-  [sport: string]: Record<Grade, FormattedPick[]>;
+  MLB: Record<Grade, FormattedPick[]>;
+  NBA: Record<Grade, FormattedPick[]>;
 }
 
 type GameWithPredictions = Game & {
@@ -76,18 +75,20 @@ const formatPrediction = (prediction: PredictionWithGrade, game: GameWithOdds, m
   let betDescription = '';
   let odds = '';
 
+  const predictionValue = parseFloat(prediction.predictionValue);
+
   if (prediction.predictionType === 'SPREAD' && game.odds?.spread) {
-    const spreadOdds = game.odds.spread[prediction.predictionValue > 0 ? 'homeOdds' : 'awayOdds'];
+    const spreadOdds = game.odds.spread[predictionValue > 0 ? 'homeOdds' : 'awayOdds'];
     odds = ` (${spreadOdds})`;
-    betDescription = `${prediction.predictionValue > 0 ? game.homeTeamName : game.awayTeamName} ${prediction.predictionValue}`;
+    betDescription = `${predictionValue > 0 ? game.homeTeamName : game.awayTeamName} ${predictionValue}`;
   } else if (prediction.predictionType === 'TOTAL' && game.odds?.total) {
-    const totalOdds = game.odds.total[prediction.predictionValue > game.odds.total.overUnder ? 'overOdds' : 'underOdds'];
+    const totalOdds = game.odds.total[predictionValue > game.odds.total.overUnder ? 'overOdds' : 'underOdds'];
     odds = ` (${totalOdds})`;
-    betDescription = `${game.odds.total.overUnder} ${prediction.predictionValue > game.odds.total.overUnder ? 'OVER' : 'UNDER'}`;
+    betDescription = `${game.odds.total.overUnder} ${predictionValue > game.odds.total.overUnder ? 'OVER' : 'UNDER'}`;
   } else if (prediction.predictionType === 'MONEYLINE' && game.odds?.moneyline) {
-    const mlOdds = game.odds.moneyline[prediction.predictionValue > 0 ? 'homeOdds' : 'awayOdds'];
+    const mlOdds = game.odds.moneyline[predictionValue > 0 ? 'homeOdds' : 'awayOdds'];
     odds = ` (${mlOdds})`;
-    betDescription = `${prediction.predictionValue > 0 ? game.homeTeamName : game.awayTeamName} ML`;
+    betDescription = `${predictionValue > 0 ? game.homeTeamName : game.awayTeamName} ML`;
   }
 
   return `${matchup}\n${betDescription}${odds} (Grade: ${grade}, Confidence: ${confidencePercentage}%)`;
@@ -150,7 +151,7 @@ const generatePicks = async (): Promise<void> => {
         
         if (!seenPicks.has(pickKey) && (game.sport === 'MLB' || game.sport === 'NBA')) {
           seenPicks.add(pickKey);
-          picksBySportAndGrade[game.sport][grade].push({
+          picksBySportAndGrade[game.sport as SportType][grade].push({
             pick: formattedPick,
             confidence: prediction.confidence
           });
@@ -159,37 +160,34 @@ const generatePicks = async (): Promise<void> => {
     }
 
     // Sort picks by confidence
-    Object.keys(picksBySportAndGrade).forEach((sport: string) => {
-      if (sport === 'MLB' || sport === 'NBA') {
-        Object.keys(picksBySportAndGrade[sport]).forEach((grade: string) => {
-          if (grade in picksBySportAndGrade[sport]) {
-            picksBySportAndGrade[sport][grade as Grade].sort((a, b) => b.confidence - a.confidence);
-          }
-        });
-      }
+    (Object.keys(picksBySportAndGrade) as SportType[]).forEach((sport) => {
+      Object.keys(picksBySportAndGrade[sport]).forEach((grade) => {
+        if (grade in picksBySportAndGrade[sport]) {
+          const picks = picksBySportAndGrade[sport][grade as Grade];
+          picks.sort((a, b) => b.confidence - a.confidence);
+        }
+      });
     });
 
     let output = `Daily Picks for ${today.toLocaleDateString()}\n\n`;
 
-    Object.keys(picksBySportAndGrade).forEach((sport: string) => {
-      if (sport === 'MLB' || sport === 'NBA') {
-        const hasPicks = Object.values(picksBySportAndGrade[sport]).some(picks => picks.length > 0);
-        if (hasPicks) {
-          output += `${sport} Picks:\n`;
-          Object.keys(picksBySportAndGrade[sport]).forEach((grade: string) => {
-            if (grade in picksBySportAndGrade[sport]) {
-              const picks = picksBySportAndGrade[sport][grade as Grade];
-              if (picks && picks.length > 0) {
-                output += `${grade} Ratings\n`;
-                picks.forEach(({pick}: FormattedPick) => {
-                  output += `${pick}\n`;
-                });
-                output += '\n';
-              }
+    (Object.keys(picksBySportAndGrade) as SportType[]).forEach((sport) => {
+      const hasPicks = Object.values(picksBySportAndGrade[sport]).some(picks => picks.length > 0);
+      if (hasPicks) {
+        output += `${sport} Picks:\n`;
+        Object.keys(picksBySportAndGrade[sport]).forEach((grade) => {
+          if (grade in picksBySportAndGrade[sport]) {
+            const picks = picksBySportAndGrade[sport][grade as Grade];
+            if (picks && picks.length > 0) {
+              output += `${grade} Ratings\n`;
+              picks.forEach(({pick}) => {
+                output += `${pick}\n`;
+              });
+              output += '\n';
             }
-          });
-          output += '-'.repeat(50) + '\n\n';
-        }
+          }
+        });
+        output += '-'.repeat(50) + '\n\n';
       }
     });
 

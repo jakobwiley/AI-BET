@@ -13,7 +13,7 @@ export interface GameStats {
 export interface PredictionInput {
   predictionType: PredictionType;
   rawConfidence: number;  // Original confidence from base model
-  predictionValue: string;
+  predictionValue: number;  // Changed from string to number
   game: GameStats;
   recentHomeScores?: number[];  // Last 5 games
   recentAwayScores?: number[];  // Last 5 games
@@ -115,38 +115,25 @@ export class EnhancedPredictionModel {
     return confidence;
   }
 
-  private validateTotalPrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
-    const totalMatch = value.match(/^(OVER|UNDER)\s*(\d+(\.\d+)?)$/i);
-    if (!totalMatch) {
-      return { isValid: false, warning: 'Invalid total format', confidenceAdjustment: 0.7 };
-    }
-
-    const totalValue = parseFloat(totalMatch[2]);
-
+  private validateTotalPrediction(value: number, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
     // Check for reasonable total range based on sport (assuming baseball for now)
-    if (totalValue < 5) {
+    if (value < 5) {
       return { isValid: true, warning: 'Unusually low total', confidenceAdjustment: 0.75 };
     }
-    if (totalValue > 12) {
+    if (value > 12) {
       return { isValid: true, warning: 'Unusually high total', confidenceAdjustment: 0.8 };
     }
 
     // Check for half-runs in baseball (unusual)
-    if (totalValue % 1 !== 0) {
+    if (value % 1 !== 0) {
       return { isValid: true, warning: 'Non-integer total value', confidenceAdjustment: 0.9 };
     }
 
     return { isValid: true, confidenceAdjustment: 1.0 };
   }
 
-  private validateSpreadPrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
-    const spreadMatch = value.match(/^([+-]?\d+(\.\d+)?)$/);
-    if (!spreadMatch) {
-      return { isValid: false, warning: 'Invalid spread format', confidenceAdjustment: 0.7 };
-    }
-
-    const spreadValue = parseFloat(value);
-    const absSpread = Math.abs(spreadValue);
+  private validateSpreadPrediction(value: number, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
+    const absSpread = Math.abs(value);
 
     // Check for reasonable spread ranges
     if (absSpread === 0) {
@@ -162,14 +149,8 @@ export class EnhancedPredictionModel {
     return { isValid: true, confidenceAdjustment: 1.0 };
   }
 
-  private validateMoneylinePrediction(value: string, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
-    const moneylineMatch = value.match(/^([+-]?\d+)$/);
-    if (!moneylineMatch) {
-      return { isValid: false, warning: 'Invalid moneyline format', confidenceAdjustment: 0.7 };
-    }
-
-    const moneylineValue = parseInt(value);
-    const absMoneyline = Math.abs(moneylineValue);
+  private validateMoneylinePrediction(value: number, game: GameStats): { isValid: boolean; warning?: string; confidenceAdjustment: number } {
+    const absMoneyline = Math.abs(value);
 
     // Check for reasonable moneyline ranges
     if (absMoneyline < 100) {

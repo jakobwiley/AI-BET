@@ -1,5 +1,5 @@
 import { PrismaClient, SportType, Prisma } from '@prisma/client';
-import { OddsApiService } from '../src/lib/oddsApi';
+import { OddsApiService } from '../lib/oddsApi.js';
 import dotenv from 'dotenv';
 
 dotenv.config();

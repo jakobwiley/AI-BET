@@ -13,7 +13,7 @@ interface GameWithPredictions {
   predictions: Array<{
     id: string;
     predictionType: PredictionType;
-    predictionValue: number;
+    predictionValue: string;
     outcome: PredictionOutcome;
   }>;
 }
@@ -55,12 +55,13 @@ async function evaluatePredictions() {
       for (const prediction of game.predictions) {
         try {
           let outcome: PredictionOutcome = PredictionOutcome.PENDING;
+          const predictionValue = parseFloat(prediction.predictionValue);
 
           switch (prediction.predictionType) {
             case PredictionType.SPREAD:
               // For MLB, spread is usually called "run line" and is typically -1.5 for favorite
               const actualSpread = game.homeScore - game.awayScore;
-              outcome = actualSpread > prediction.predictionValue ? 
+              outcome = actualSpread > predictionValue ? 
                 PredictionOutcome.WIN : PredictionOutcome.LOSS;
               break;
 
@@ -68,16 +69,16 @@ async function evaluatePredictions() {
               // Moneyline prediction is simple win/loss
               // predictionValue > 0 means predicting home team win
               const homeWon = game.homeScore > game.awayScore;
-              outcome = (prediction.predictionValue > 0 && homeWon) || 
-                       (prediction.predictionValue < 0 && !homeWon) ?
+              outcome = (predictionValue > 0 && homeWon) || 
+                       (predictionValue < 0 && !homeWon) ?
                 PredictionOutcome.WIN : PredictionOutcome.LOSS;
               break;
 
             case PredictionType.TOTAL:
               const totalScore = game.homeScore + game.awayScore;
               // predictionValue > 0 means OVER, < 0 means UNDER
-              outcome = (prediction.predictionValue > 0 && totalScore > Math.abs(prediction.predictionValue)) ||
-                       (prediction.predictionValue < 0 && totalScore < Math.abs(prediction.predictionValue)) ?
+              outcome = (predictionValue > 0 && totalScore > Math.abs(predictionValue)) ||
+                       (predictionValue < 0 && totalScore < Math.abs(predictionValue)) ?
                 PredictionOutcome.WIN : PredictionOutcome.LOSS;
               break;
           }

@@ -61,7 +61,7 @@ async function generatePredictions() {
               id: predictionId,
               gameId: game.id,
               predictionType: type,
-              predictionValue,
+              predictionValue: predictionValue.toString(),
               confidence,
               reasoning,
               createdAt: new Date(),

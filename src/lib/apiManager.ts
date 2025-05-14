@@ -1,8 +1,8 @@
-import { SportType } from '../models/types';
-import { NBAStatsService } from './nbaStatsApi';
-import { NBAApiService } from './nbaApiService';
-import { MLBStatsService } from './mlbStatsApi';
-import { CacheService } from './cacheService';
+import { SportType } from '../models/types.js';
+import { NBAStatsService } from './nbaStatsApi.js';
+import { NBAApiService } from './nbaApiService.js';
+import { MLBStatsService } from './mlbStatsApi.js';
+import { CacheService } from './cacheService.js';
 
 /**
  * Defines the different types of sports data we might need

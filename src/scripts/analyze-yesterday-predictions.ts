@@ -1,6 +1,6 @@
 import pkg, { type PredictionOutcome as PredictionOutcomeType } from '@prisma/client';
 const { PrismaClient, PredictionOutcome, GameStatus } = pkg;
-import { OddsApiService } from '../src/lib/oddsApi.js';
+import { OddsApiService } from '../lib/oddsApi.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
