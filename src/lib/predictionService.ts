@@ -33,6 +33,19 @@ export interface TeamStats {
   avgVsRHP?: number;
   opsVsRHP?: number;
   lastTenWins?: number;
+  // Park factor properties
+  homeRuns?: number;
+  awayRuns?: number;
+  homeHits?: number;
+  awayHits?: number;
+  homeDoubles?: number;
+  awayDoubles?: number;
+  homeTriples?: number;
+  awayTriples?: number;
+  homeWalks?: number;
+  awayWalks?: number;
+  homeStrikeouts?: number;
+  awayStrikeouts?: number;
   // Player statistics
   keyPlayers?: {
     batting: Array<{
@@ -43,6 +56,13 @@ export interface TeamStats {
       wOBA: string;
       wRCPlus: number;
       war: string;
+      hardHitRate?: string;
+      barrelRate?: string;
+      exitVelocity?: string;
+      launchAngle?: string;
+      strikeOutRate?: string;
+      walkRate?: string;
+      babip?: string;
     }>;
     pitching: Array<{
       era: string;
@@ -52,6 +72,16 @@ export interface TeamStats {
       k9: string;
       bb9: string;
       war: string;
+      groundBallRate?: string;
+      flyBallRate?: string;
+      hardHitRate?: string;
+      barrelRate?: string;
+      exitVelocity?: string;
+      spinRate?: string;
+      pitchVelocity?: string;
+      kPer9?: string;
+      bbPer9?: string;
+      hrPer9?: string;
     }>;
   };
 }

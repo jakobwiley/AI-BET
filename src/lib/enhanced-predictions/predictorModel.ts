@@ -1,5 +1,5 @@
-import { Game, PredictionType, SportType, Prediction } from '../../models/types';
-import { TeamStats, H2HStats } from '../predictionService';
+import { Game, PredictionType, SportType, Prediction } from '../../models/types.js';
+import { TeamStats, H2HStats } from '../predictionService.js';
 
 export interface EnhancedFactors {
   // Base factors

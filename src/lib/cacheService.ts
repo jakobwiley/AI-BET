@@ -15,20 +15,20 @@ interface ApiUsage {
 export class CacheService {
   private static readonly cache: Map<string, CacheEntry<any>> = new Map();
   private static instance: CacheService;
-  private apiCalls: Map<string, number> = new Map();
-  private apiUsage: ApiUsage;
-  private readonly STORAGE_KEY = 'ai_bet_api_cache';
-  private readonly USAGE_KEY = 'ai_bet_api_usage';
-  private readonly MONTHLY_LIMIT = 500;
+  private static apiCalls: Map<string, number> = new Map();
+  private static apiUsage: ApiUsage;
+  private static readonly STORAGE_KEY = 'ai_bet_api_cache';
+  private static readonly USAGE_KEY = 'ai_bet_api_usage';
+  private static readonly MONTHLY_LIMIT = 500;
 
   private constructor() {
     // Clear all storage on initialization
     if (typeof window !== 'undefined') {
       localStorage.clear();
     }
-    this.apiUsage = {
+    CacheService.apiUsage = {
       used: 0,
-      limit: this.MONTHLY_LIMIT,
+      limit: CacheService.MONTHLY_LIMIT,
       lastResetDate: new Date()
     };
   }
@@ -41,38 +41,38 @@ export class CacheService {
   }
 
   // Get current API usage
-  public getApiUsage(): ApiUsage {
-    return { ...this.apiUsage };
+  public static getApiUsage(): ApiUsage {
+    return { ...CacheService.apiUsage };
   }
 
   // Get remaining API calls
-  public getRemainingCalls(): number {
-    return Math.max(0, this.MONTHLY_LIMIT - this.apiUsage.used);
+  public static getRemainingCalls(): number {
+    return Math.max(0, CacheService.MONTHLY_LIMIT - CacheService.apiUsage.used);
   }
 
   // Check if we've reached the API limit
-  public hasReachedLimit(): boolean {
-    return this.apiUsage.used >= this.MONTHLY_LIMIT;
+  public static hasReachedLimit(): boolean {
+    return CacheService.apiUsage.used >= CacheService.MONTHLY_LIMIT;
   }
 
   // Record an API call
-  public recordApiCall(endpoint: string): void {
-    const count = this.apiCalls.get(endpoint) || 0;
-    this.apiCalls.set(endpoint, count + 1);
-    this.apiUsage.used++;
-    this.saveApiUsage();
+  public static recordApiCall(endpoint: string): void {
+    const count = CacheService.apiCalls.get(endpoint) || 0;
+    CacheService.apiCalls.set(endpoint, count + 1);
+    CacheService.apiUsage.used++;
+    CacheService.saveApiUsage();
   }
 
   /**
    * Get a value from the cache
    */
   public static async get<T>(key: string): Promise<T | null> {
-    const entry = this.cache.get(key);
+    const entry = CacheService.cache.get(key);
     if (!entry) return null;
 
     // Check if entry is expired
     if (Date.now() - entry.timestamp > 3600000) { // 1 hour default
-      this.cache.delete(key);
+      CacheService.cache.delete(key);
       return null;
     }
 
@@ -83,7 +83,7 @@ export class CacheService {
    * Set a value in the cache
    */
   public static async set<T>(key: string, value: T, duration: number = 3600000): Promise<void> {
-    this.cache.set(key, {
+    CacheService.cache.set(key, {
       data: value,
       timestamp: Date.now()
     });
@@ -93,7 +93,7 @@ export class CacheService {
    * Clear a specific key from the cache
    */
   public static async clear(key: string): Promise<void> {
-    this.cache.delete(key);
+    CacheService.cache.delete(key);
   }
 
   /**
@@ -101,9 +101,9 @@ export class CacheService {
    */
   public static async clearExpired(): Promise<void> {
     const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
+    for (const [key, entry] of CacheService.cache.entries()) {
       if (now - entry.timestamp > 3600000) {
-        this.cache.delete(key);
+        CacheService.cache.delete(key);
       }
     }
   }
@@ -112,7 +112,7 @@ export class CacheService {
    * Clear the entire cache
    */
   public static async clearAll(): Promise<void> {
-    this.cache.clear();
+    CacheService.cache.clear();
   }
 
   // Get cache key for sports data
@@ -163,39 +163,34 @@ export class CacheService {
   }
 
   // Delete an item from cache
-  public delete(key: string): void {
-    this.cache.delete(key);
-  }
-
-  // Clear the entire cache
-  public clear(): void {
-    this.cache.clear();
+  public static delete(key: string): void {
+    CacheService.cache.delete(key);
   }
 
   // Save the cache to localStorage (in browser) or memory (in server)
-  private saveToStorage(): void {
+  private static saveToStorage(): void {
     if (typeof window !== 'undefined') {
       const serializedCache: Record<string, CacheEntry<any>> = {};
-      this.cache.forEach((value, key) => {
+      CacheService.cache.forEach((value, key) => {
         serializedCache[key] = value;
       });
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(serializedCache));
+      localStorage.setItem(CacheService.STORAGE_KEY, JSON.stringify(serializedCache));
     }
   }
 
   // Load the cache from localStorage (in browser)
-  private loadFromStorage(): void {
+  private static loadFromStorage(): void {
     if (typeof window !== 'undefined') {
-      const cachedData = localStorage.getItem(this.STORAGE_KEY);
+      const cachedData = localStorage.getItem(CacheService.STORAGE_KEY);
       if (cachedData) {
         try {
           const parsedData = JSON.parse(cachedData);
           Object.keys(parsedData).forEach(key => {
-            this.cache.set(key, parsedData[key]);
+            CacheService.cache.set(key, parsedData[key]);
           });
           
           // Clean expired items
-          this.cleanExpiredEntries();
+          CacheService.cleanExpiredEntries();
         } catch (e) {
           console.error('Failed to parse cached data:', e);
         }
@@ -203,105 +198,89 @@ export class CacheService {
     }
   }
 
-  // Save API usage to localStorage
-  private saveApiUsage(): void {
+  private static saveApiUsage(): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(this.USAGE_KEY, JSON.stringify(this.apiUsage));
+      localStorage.setItem(CacheService.USAGE_KEY, JSON.stringify(CacheService.apiUsage));
     }
   }
 
-  // Load API usage from localStorage
-  private loadApiUsage(): ApiUsage {
+  private static loadApiUsage(): ApiUsage {
     if (typeof window !== 'undefined') {
-      const usageData = localStorage.getItem(this.USAGE_KEY);
-      if (usageData) {
+      const usage = localStorage.getItem(CacheService.USAGE_KEY);
+      if (usage) {
         try {
-          return JSON.parse(usageData);
+          return JSON.parse(usage);
         } catch (e) {
           console.error('Failed to parse API usage data:', e);
         }
       }
     }
-    
-    // Default usage object
     return {
       used: 0,
-      limit: this.MONTHLY_LIMIT,
+      limit: CacheService.MONTHLY_LIMIT,
       lastResetDate: new Date()
     };
   }
 
-  // Check if we need to reset the monthly counter
-  private checkAndResetMonthlyCounter(): void {
-    const currentMonthStart = this.getCurrentMonthStart();
-    
-    if (this.apiUsage.lastResetDate.toDateString() !== currentMonthStart.toDateString()) {
-      // Reset counter for new month
-      this.apiUsage = {
+  private static checkAndResetMonthlyCounter(): void {
+    const currentMonth = CacheService.getCurrentMonthStart();
+    if (currentMonth > CacheService.apiUsage.lastResetDate) {
+      CacheService.apiUsage = {
         used: 0,
-        limit: this.MONTHLY_LIMIT,
-        lastResetDate: currentMonthStart
+        limit: CacheService.MONTHLY_LIMIT,
+        lastResetDate: currentMonth
       };
-      this.saveApiUsage();
+      CacheService.saveApiUsage();
     }
   }
 
-  // Get the first day of current month as ISO string
-  private getCurrentMonthStart(): Date {
+  private static getCurrentMonthStart(): Date {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   }
 
-  // Clean expired items from cache
-  private cleanExpiredEntries(): void {
+  private static cleanExpiredEntries(): void {
     const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
-      if (now > entry.timestamp + 3600000) {
-        this.cache.delete(key);
+    for (const [key, entry] of CacheService.cache.entries()) {
+      if (now - entry.timestamp > 3600000) {
+        CacheService.cache.delete(key);
       }
     }
   }
 
-  // Force refresh specific data
-  public forceRefresh(pattern: string): void {
-    const keysToDelete: string[] = [];
-    this.cache.forEach((_, key) => {
-      if (key.startsWith(pattern)) {
-        keysToDelete.push(key);
-      }
-    });
-    keysToDelete.forEach(key => this.cache.delete(key));
-    this.saveToStorage();
-    console.log(`[CacheService] Forced refresh for pattern: ${pattern}`);
-  }
-
-  // Clear all sports data cache
-  public clearSportsData(): void {
-    for (const [key] of this.cache) {
-      if (key.startsWith('oddsapi:') || key.startsWith('espnapi:')) {
-        this.cache.delete(key);
+  public static forceRefresh(pattern: string): void {
+    for (const key of CacheService.cache.keys()) {
+      if (key.includes(pattern)) {
+        CacheService.cache.delete(key);
       }
     }
   }
 
-  // Clear specific sport's cache
-  public clearSportCache(sport: SportType): void {
-    this.forceRefresh(`sports_data:${sport}`);
+  public static clearSportsData(): void {
+    for (const key of CacheService.cache.keys()) {
+      if (key.startsWith('sports_data:')) {
+        CacheService.cache.delete(key);
+      }
+    }
   }
 
-  public has(key: string): boolean {
-    return this.cache.has(key);
+  public static clearSportCache(sport: SportType): void {
+    CacheService.forceRefresh(`sports_data:${sport}`);
   }
 
-  public size(): number {
-    return this.cache.size;
+  public static has(key: string): boolean {
+    return CacheService.cache.has(key);
   }
 
-  public getApiCallCount(endpoint: string): number {
-    return this.apiCalls.get(endpoint) || 0;
+  public static size(): number {
+    return CacheService.cache.size;
   }
 
-  public clearApiCalls(): void {
-    this.apiCalls.clear();
+  public static getApiCallCount(endpoint: string): number {
+    return CacheService.apiCalls.get(endpoint) || 0;
+  }
+
+  public static clearApiCalls(): void {
+    CacheService.apiCalls.clear();
   }
 } 

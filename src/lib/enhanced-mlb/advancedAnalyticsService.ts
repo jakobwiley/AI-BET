@@ -245,16 +245,16 @@ export class AdvancedAnalyticsService {
         },
         lateInningPressure: {
           innings7to9: {
-            battingAverage: parseFloat(keyPlayers.batting[0]?.avg || '0'),
-            ops: parseFloat(keyPlayers.batting[0]?.ops || '0'),
-            wOBA: parseFloat(keyPlayers.batting[0]?.wOBA || '0'),
-            hardHitRate: parseFloat(keyPlayers.batting[0]?.hardHitRate || '0'),
-            barrelRate: parseFloat(keyPlayers.batting[0]?.barrelRate || '0'),
-            exitVelocity: parseFloat(keyPlayers.batting[0]?.exitVelocity || '0'),
-            launchAngle: parseFloat(keyPlayers.batting[0]?.launchAngle || '0'),
-            strikeoutRate: parseFloat(keyPlayers.batting[0]?.strikeOutRate || '0'),
-            walkRate: parseFloat(keyPlayers.batting[0]?.walkRate || '0'),
-            babip: parseFloat(keyPlayers.batting[0]?.babip || '0')
+            battingAverage: 0,
+            ops: 0,
+            wOBA: 0,
+            hardHitRate: 0,
+            barrelRate: 0,
+            exitVelocity: 0,
+            launchAngle: 0,
+            strikeoutRate: 0,
+            walkRate: 0,
+            babip: 0
           },
           extraInnings: {
             battingAverage: 0,
@@ -271,21 +271,70 @@ export class AdvancedAnalyticsService {
         }
       };
 
-      // Calculate enhanced RISP stats from player data
-      const rispStats = keyPlayers.batting.reduce((acc, player) => {
+      // Calculate RISP stats with weighted averages based on player roles
+      const rispStats = keyPlayers.batting.reduce((acc, player, index) => {
+        const weight = this.calculatePlayerWeight(index, keyPlayers.batting.length);
         const avg = parseFloat(player.avg);
         const wOBA = parseFloat(player.wOBA);
-        const hardHitRate = parseFloat(player.hardHitRate);
-        const barrelRate = parseFloat(player.barrelRate);
-        const exitVelocity = parseFloat(player.exitVelocity);
-        const launchAngle = parseFloat(player.launchAngle);
-        const strikeoutRate = parseFloat(player.strikeOutRate);
-        const walkRate = parseFloat(player.walkRate);
-        const babip = parseFloat(player.babip);
+        const hardHitRate = parseFloat(player.hardHitRate || '0');
+        const barrelRate = parseFloat(player.barrelRate || '0');
+        const exitVelocity = parseFloat(player.exitVelocity || '0');
+        const launchAngle = parseFloat(player.launchAngle || '0');
+        const strikeoutRate = parseFloat(player.strikeOutRate || '0');
+        const walkRate = parseFloat(player.walkRate || '0');
+        const babip = parseFloat(player.babip || '0');
 
         if (!isNaN(avg)) {
-          acc.atBats += 30;
-          acc.hits += Math.round(avg * 30);
+          acc.atBats += 30 * weight;
+          acc.hits += Math.round(avg * 30 * weight);
+          acc.wOBA += wOBA * weight;
+          acc.hardHitRate += hardHitRate * weight;
+          acc.barrelRate += barrelRate * weight;
+          acc.exitVelocity += exitVelocity * weight;
+          acc.launchAngle += launchAngle * weight;
+          acc.strikeoutRate += strikeoutRate * weight;
+          acc.walkRate += walkRate * weight;
+          acc.babip += babip * weight;
+          acc.totalWeight += weight;
+        }
+        return acc;
+      }, { atBats: 0, hits: 0, wOBA: 0, hardHitRate: 0, barrelRate: 0, exitVelocity: 0, launchAngle: 0, strikeoutRate: 0, walkRate: 0, babip: 0, totalWeight: 0 });
+
+      // Update RISP stats with weighted averages
+      if (rispStats.totalWeight > 0) {
+        situationalStats.runnersInScoringPosition = {
+          atBats: rispStats.atBats,
+          hits: rispStats.hits,
+          battingAverage: rispStats.hits / rispStats.atBats,
+          sluggingPercentage: 0, // Not available in current API
+          wOBA: rispStats.wOBA / rispStats.totalWeight,
+          hardHitRate: rispStats.hardHitRate / rispStats.totalWeight,
+          barrelRate: rispStats.barrelRate / rispStats.totalWeight,
+          exitVelocity: rispStats.exitVelocity / rispStats.totalWeight,
+          launchAngle: rispStats.launchAngle / rispStats.totalWeight,
+          strikeoutRate: rispStats.strikeoutRate / rispStats.totalWeight,
+          walkRate: rispStats.walkRate / rispStats.totalWeight,
+          babip: rispStats.babip / rispStats.totalWeight
+        };
+      }
+
+      // Calculate late-inning pressure stats with recency bias
+      const recentGames = keyPlayers.batting.slice(0, 5); // Focus on most recent games
+      const lateInningStats = recentGames.reduce((acc, player) => {
+        const avg = parseFloat(player.avg);
+        const ops = parseFloat(player.ops);
+        const wOBA = parseFloat(player.wOBA);
+        const hardHitRate = parseFloat(player.hardHitRate || '0');
+        const barrelRate = parseFloat(player.barrelRate || '0');
+        const exitVelocity = parseFloat(player.exitVelocity || '0');
+        const launchAngle = parseFloat(player.launchAngle || '0');
+        const strikeoutRate = parseFloat(player.strikeOutRate || '0');
+        const walkRate = parseFloat(player.walkRate || '0');
+        const babip = parseFloat(player.babip || '0');
+
+        if (!isNaN(avg)) {
+          acc.battingAverage += avg;
+          acc.ops += ops;
           acc.wOBA += wOBA;
           acc.hardHitRate += hardHitRate;
           acc.barrelRate += barrelRate;
@@ -297,23 +346,21 @@ export class AdvancedAnalyticsService {
           acc.count++;
         }
         return acc;
-      }, { atBats: 0, hits: 0, wOBA: 0, hardHitRate: 0, barrelRate: 0, exitVelocity: 0, launchAngle: 0, strikeoutRate: 0, walkRate: 0, babip: 0, count: 0 });
+      }, { battingAverage: 0, ops: 0, wOBA: 0, hardHitRate: 0, barrelRate: 0, exitVelocity: 0, launchAngle: 0, strikeoutRate: 0, walkRate: 0, babip: 0, count: 0 });
 
-      // Update situational stats with calculated values
-      if (rispStats.count > 0) {
-        situationalStats.runnersInScoringPosition = {
-          atBats: rispStats.atBats,
-          hits: rispStats.hits,
-          battingAverage: rispStats.hits / rispStats.atBats,
-          sluggingPercentage: 0, // Not available in current API
-          wOBA: rispStats.wOBA / rispStats.count,
-          hardHitRate: rispStats.hardHitRate / rispStats.count,
-          barrelRate: rispStats.barrelRate / rispStats.count,
-          exitVelocity: rispStats.exitVelocity / rispStats.count,
-          launchAngle: rispStats.launchAngle / rispStats.count,
-          strikeoutRate: rispStats.strikeoutRate / rispStats.count,
-          walkRate: rispStats.walkRate / rispStats.count,
-          babip: rispStats.babip / rispStats.count
+      // Update late-inning pressure stats
+      if (lateInningStats.count > 0) {
+        situationalStats.lateInningPressure.innings7to9 = {
+          battingAverage: lateInningStats.battingAverage / lateInningStats.count,
+          ops: lateInningStats.ops / lateInningStats.count,
+          wOBA: lateInningStats.wOBA / lateInningStats.count,
+          hardHitRate: lateInningStats.hardHitRate / lateInningStats.count,
+          barrelRate: lateInningStats.barrelRate / lateInningStats.count,
+          exitVelocity: lateInningStats.exitVelocity / lateInningStats.count,
+          launchAngle: lateInningStats.launchAngle / lateInningStats.count,
+          strikeoutRate: lateInningStats.strikeoutRate / lateInningStats.count,
+          walkRate: lateInningStats.walkRate / lateInningStats.count,
+          babip: lateInningStats.babip / lateInningStats.count
         };
       }
 
@@ -327,6 +374,16 @@ export class AdvancedAnalyticsService {
   }
 
   /**
+   * Calculate player weight based on position in lineup
+   */
+  private static calculatePlayerWeight(index: number, totalPlayers: number): number {
+    // Give more weight to players higher in the lineup
+    const baseWeight = 1.0;
+    const positionFactor = (totalPlayers - index) / totalPlayers;
+    return baseWeight * (1 + positionFactor);
+  }
+
+  /**
    * Get park factors for a specific ballpark
    */
   static async getParkFactors(ballparkId: string): Promise<ParkFactors | null> {
@@ -335,13 +392,47 @@ export class AdvancedAnalyticsService {
     if (cached) return cached;
 
     try {
-      // TODO: Implement park factors calculation
-      // This would require historical game data and statistical analysis
-      return null;
+      // Get team stats for the current season
+      const teamStats = await MLBStatsService.getTeamStats(ballparkId);
+      if (!teamStats) return null;
+
+      // Get team's home and away stats
+      const homeStats = await MLBStatsService.getTeamStats(ballparkId, { 
+        startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+      });
+      const awayStats = await MLBStatsService.getTeamStats(ballparkId, {
+        startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+      });
+
+      if (!homeStats || !awayStats) return null;
+
+      // Calculate park factors
+      const parkFactors: ParkFactors = {
+        homeRuns: this.calculateParkFactor(homeStats.homeRuns, awayStats.awayRuns),
+        hits: this.calculateParkFactor(homeStats.homeHits, awayStats.awayHits),
+        doubles: this.calculateParkFactor(homeStats.homeDoubles, awayStats.awayDoubles),
+        triples: this.calculateParkFactor(homeStats.homeTriples, awayStats.awayTriples),
+        walks: this.calculateParkFactor(homeStats.homeWalks, awayStats.awayWalks),
+        strikeouts: this.calculateParkFactor(homeStats.homeStrikeouts, awayStats.awayStrikeouts)
+      };
+
+      // Cache the result
+      await CacheService.set(cacheKey, parkFactors, this.CACHE_DURATION);
+      return parkFactors;
     } catch (error) {
       console.error('Error calculating park factors:', error);
       return null;
     }
+  }
+
+  /**
+   * Calculate park factor for a specific stat
+   */
+  private static calculateParkFactor(homeStat: number, awayStat: number): number {
+    if (awayStat === 0) return 1.0; // Avoid division by zero
+    return homeStat / awayStat;
   }
 
   /**

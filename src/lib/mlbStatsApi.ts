@@ -99,6 +99,19 @@ interface MLBTeamStatsResponse {
         // Specific batting stats for vs L/R might be nested here too
         avg?: string; 
         ops?: string;
+        // Park factor properties
+        homeRuns?: number;
+        awayRuns?: number;
+        homeHits?: number;
+        awayHits?: number;
+        homeDoubles?: number;
+        awayDoubles?: number;
+        homeTriples?: number;
+        awayTriples?: number;
+        homeWalks?: number;
+        awayWalks?: number;
+        homeStrikeouts?: number;
+        awayStrikeouts?: number;
       };
       // Split details tell us what kind of split it is
       split?: { 
@@ -445,24 +458,48 @@ export class MLBStatsService {
   }
 
   private static processTeamStats(data: any): TeamStats {
-    // Implementation of team stats processing
+    const stats = data.stats[0]?.splits[0]?.stat;
+    if (!stats) return null;
+
     return {
-      wins: 0,
-      losses: 0,
-      homeWins: 0,
-      homeLosses: 0,
-      awayWins: 0,
-      awayLosses: 0,
-      pointsFor: 0,
-      pointsAgainst: 0,
-      lastTenGames: '',
-      streak: 0,
-      winPercentage: 0,
-      lastTenWins: 0,
-      avgRunsScored: 0,
-      avgRunsAllowed: 0,
-      homeWinPercentage: 0,
-      awayWinPercentage: 0
+      wins: stats.wins || 0,
+      losses: stats.losses || 0,
+      homeWins: stats.homeWins || 0,
+      homeLosses: stats.homeLosses || 0,
+      awayWins: stats.awayWins || 0,
+      awayLosses: stats.awayLosses || 0,
+      pointsFor: stats.runsScored || 0,
+      pointsAgainst: stats.runsAllowed || 0,
+      lastTenGames: '0-0', // This will be updated by fetchTeamRecord
+      streak: 0, // This will be updated by fetchTeamRecord
+      winPercentage: (stats.wins || 0) / ((stats.wins || 0) + (stats.losses || 0)) || 0,
+      homeWinPercentage: (stats.homeWins || 0) / ((stats.homeWins || 0) + (stats.homeLosses || 0)) || 0,
+      awayWinPercentage: (stats.awayWins || 0) / ((stats.awayWins || 0) + (stats.awayLosses || 0)) || 0,
+      // MLB specific
+      runsScored: stats.runsScored || 0,
+      runsAllowed: stats.runsAllowed || 0,
+      battingAverage: stats.avg || '0.000',
+      era: stats.era || '0.00',
+      teamERA: stats.era ? parseFloat(stats.era) : 0,
+      teamWHIP: stats.whip ? parseFloat(stats.whip) : 0,
+      // Park factor properties
+      homeRuns: stats.homeRuns || 0,
+      awayRuns: stats.awayRuns || 0,
+      homeHits: stats.homeHits || 0,
+      awayHits: stats.awayHits || 0,
+      homeDoubles: stats.homeDoubles || 0,
+      awayDoubles: stats.awayDoubles || 0,
+      homeTriples: stats.homeTriples || 0,
+      awayTriples: stats.awayTriples || 0,
+      homeWalks: stats.homeWalks || 0,
+      awayWalks: stats.awayWalks || 0,
+      homeStrikeouts: stats.homeStrikeouts || 0,
+      awayStrikeouts: stats.awayStrikeouts || 0,
+      // Player statistics will be populated separately
+      keyPlayers: {
+        batting: [],
+        pitching: []
+      }
     };
   }
 
@@ -724,22 +761,27 @@ export class MLBStatsService {
     }
   }
 
-  public static async getPlayerStats(playerId: number): Promise<MLBPlayerStats | null> {
+  public static async getPlayerStats(playerId: string | number): Promise<MLBPlayerStats | null> {
     try {
-      const cacheKey = playerId.toString();
-      const cachedData = this.playerStatsCache[cacheKey];
-      
-      if (cachedData && Date.now() - cachedData.timestamp < this.PLAYER_STATS_CACHE_DURATION) {
+      const numericId = typeof playerId === 'string' ? parseInt(playerId, 10) : playerId;
+      if (isNaN(numericId)) {
+        console.error(`[MLBStatsService] Invalid player ID: ${playerId}`);
+        return null;
+      }
+
+      // Check cache first
+      const cacheKey = `player_stats_${numericId}`;
+      const cachedData = MLBStatsService.playerStatsCache[cacheKey];
+      if (cachedData && Date.now() - cachedData.timestamp < MLBStatsService.PLAYER_STATS_CACHE_DURATION) {
         return cachedData.data;
       }
 
-      const response = await axios.get(`${BASE_URL}/people/${playerId}/stats`, {
+      const response = await axios.get(`${BASE_URL}/people/${numericId}/stats`, {
         params: {
-          season: CURRENT_MLB_SEASON,
-          stats: ['season', 'vsRHP', 'vsLHP', 'home', 'away', 'last30Days', 'last7Days'],
-          group: ['hitting', 'pitching', 'fielding']
-        },
-        timeout: 10000,
+          stats: 'season',
+          group: 'hitting,pitching,fielding',
+          season: CURRENT_MLB_SEASON
+        }
       });
 
       const data = response.data as { stats?: Array<{
@@ -749,32 +791,21 @@ export class MLBStatsService {
       }> };
 
       if (!data || !Array.isArray(data.stats)) {
-        console.error(`[MLBStatsService] Invalid response format for player ${playerId}`);
+        console.error(`[MLBStatsService] Invalid response format for player ${numericId}`);
         return null;
       }
 
-      const processedStats = this.processPlayerStats(data.stats);
-      this.playerStatsCache[cacheKey] = {
+      const processedStats = MLBStatsService.processPlayerStats(data.stats);
+      
+      // Cache the results
+      MLBStatsService.playerStatsCache[cacheKey] = {
         data: processedStats,
         timestamp: Date.now()
       };
 
       return processedStats;
     } catch (error) {
-      if (error && typeof error === 'object') {
-        const err = error as { response?: { status: number; statusText: string; data: any }; message?: string };
-        if (err.response) {
-          console.error(`[MLBStatsService] API error for player ${playerId}:`, {
-            status: err.response.status,
-            statusText: err.response.statusText,
-            data: err.response.data,
-          });
-        } else if (err.message) {
-          console.error(`[MLBStatsService] Error for player ${playerId}:`, err.message);
-        }
-      } else {
-        console.error(`[MLBStatsService] Unexpected error for player ${playerId}:`, error);
-      }
+      console.error(`[MLBStatsService] Error fetching player stats for ID ${playerId}:`, error);
       return null;
     }
   }

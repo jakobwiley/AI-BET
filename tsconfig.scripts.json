@@ -3,15 +3,16 @@
   "compilerOptions": {
     "module": "node16",
     "moduleResolution": "node16",
-    "outDir": "dist",
-    "noEmit": false,
-    "jsx": "react",
-    "plugins": [],
-    "allowImportingTsExtensions": false
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "outDir": "dist/scripts",
+    "rootDir": ".",
+    "noEmit": false
   },
   "include": [
-    "src/scripts/**/*",
-    "src/lib/**/*"
+    "src/scripts/**/*"
   ],
   "exclude": [
     "node_modules",
