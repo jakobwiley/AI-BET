@@ -1,4 +1,4 @@
-import { SportType } from '@/models/types';
+import { SportType } from '../models/types.js';
 
 // Types for cache entries
 interface CacheEntry<T> {

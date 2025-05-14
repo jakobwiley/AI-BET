@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "tsc",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
@@ -15,7 +15,8 @@
     "test:e2e:ui": "playwright test --ui",
     "codegen": "playwright codegen",
     "build:css": "tailwindcss -i ./src/app/globals.css -o ./src/app/output.css --minify",
-    "analyze": "npm run build && node dist/scripts/automated-prediction-analysis.js"
+    "analyze": "npm run build && node dist/scripts/automated-prediction-analysis.js",
+    "pipeline": "npm run build && node dist/scripts/run-daily-pipeline.js"
   },
   "dependencies": {
     "@auth/core": "^0.38.0",

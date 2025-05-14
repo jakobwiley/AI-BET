@@ -45,7 +45,8 @@ async function fixMlbPredictions() {
           switch (prediction.predictionType) {
             case 'MONEYLINE':
               // Negative value means betting on home team, positive means away team
-              if (prediction.predictionValue < 0) {
+              const mlValue = parseFloat(prediction.predictionValue);
+              if (mlValue < 0) {
                 newOutcome = game.homeScore > game.awayScore ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
               } else {
                 newOutcome = game.awayScore > game.homeScore ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
@@ -53,17 +54,19 @@ async function fixMlbPredictions() {
               break;
 
             case 'SPREAD':
-              const homeScoreWithSpread = game.homeScore + prediction.predictionValue;
+              const spreadValue = parseFloat(prediction.predictionValue);
+              const homeScoreWithSpread = game.homeScore + spreadValue;
               newOutcome = homeScoreWithSpread > game.awayScore ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
               break;
 
             case 'TOTAL':
+              const totalValue = parseFloat(prediction.predictionValue);
               const totalScore = game.homeScore + game.awayScore;
               // Positive value means betting over, negative means under
-              if (prediction.predictionValue > 0) {
-                newOutcome = totalScore > Math.abs(prediction.predictionValue) ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
+              if (totalValue > 0) {
+                newOutcome = totalScore > Math.abs(totalValue) ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
               } else {
-                newOutcome = totalScore < Math.abs(prediction.predictionValue) ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
+                newOutcome = totalScore < Math.abs(totalValue) ? PredictionOutcome.WIN : PredictionOutcome.LOSS;
               }
               break;
           }

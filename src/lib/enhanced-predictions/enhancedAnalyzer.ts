@@ -1,9 +1,9 @@
-import { Game, PredictionType, SportType, Prediction } from '../../models/types';
-import { TeamStats, H2HStats } from '../predictionService';
-import { PredictorModel, EnhancedFactors } from './predictorModel';
-import { ApiManager } from '../apiManager';
-import { MLBStatsService, PitcherDetails, PitcherStats } from '../mlbStatsApi';
-import { PredictionService } from '../predictionService';
+import { Game, PredictionType, SportType, Prediction } from '../../models/types.js';
+import { TeamStats, H2HStats } from '../predictionService.js';
+import { PredictorModel, EnhancedFactors } from './predictorModel.js';
+import { ApiManager } from '../apiManager.js';
+import { MLBStatsService, PitcherDetails, PitcherStats } from '../mlbStatsApi.js';
+import { PredictionService } from '../predictionService.js';
 
 // Mapping of MLB teams to their ballpark factors for display in reasoning
 const MLB_PARK_FACTORS: Record<string, number> = {
@@ -53,49 +53,19 @@ export class EnhancedAnalyzer {
    * Generate a single prediction for a specific type (spread, moneyline, total)
    */
   private static generatePrediction(
-    game: Game, 
-    predictionType: PredictionType, 
-    enhancedFactors: EnhancedFactors
-  ): Prediction | null {
-    // Calculate confidence based on factors
-    const confidence = PredictorModel.calculateConfidence(
-      game.sport, 
-      predictionType,
-      enhancedFactors
-    );
-    
-    // Determine the actual prediction value based on type
-    const { value, formattedValue } = this.determinePredictionValue(
-      game,
-      predictionType,
-      enhancedFactors,
-      confidence
-    );
-    
-    if (value === null) {
-      console.warn(`[EnhancedAnalyzer] Could not determine prediction value for ${predictionType}`);
-      return null;
-    }
-    
-    // Generate reasoning
-    const reasoning = this.generateReasoning(
-      game,
-      predictionType,
-      enhancedFactors,
-      formattedValue,
-      confidence
-    );
-    
-    // Format the prediction object
+    game: Game,
+    stats: any,
+    predictionType: PredictionType,
+    predictionValue: string
+  ): { prediction: string; confidence: number; reasoning: string } {
+    const predictionValueNum = parseFloat(predictionValue);
+    const confidence = this.calculateConfidence(game, stats, predictionType, predictionValueNum);
+    const reasoning = this.generateReasoning(game, stats, predictionType, predictionValueNum);
+
     return {
-      id: `${game.id}-${predictionType}-enhanced`,
-      gameId: game.id,
-      predictionType: predictionType,
-      predictionValue: value,
-      confidence: confidence,
-      grade: this.calculateGrade(confidence),
-      reasoning: reasoning,
-      createdAt: new Date().toISOString()
+      prediction: predictionValue,
+      confidence,
+      reasoning
     };
   }
   
@@ -114,115 +84,70 @@ export class EnhancedAnalyzer {
    * Calculate enhanced factors based on advanced stats
    */
   private static calculateEnhancedFactors(game: Game, stats: any): EnhancedFactors {
-    // This method should delegate to PredictorModel
-    return PredictorModel.calculateEnhancedFactors(
-      game.sport,
-      stats?.homeStats,
-      stats?.awayStats,
-      stats?.h2hStats,
-      game
-    );
+    const factors: EnhancedFactors = {
+      overallRecordFactor: 0.5,
+      homeAwaySplitFactor: 0.5,
+      recentFormFactor: 0.5,
+      headToHeadFactor: 0.5,
+      scoringDiffFactor: 0.5,
+      pitcherMatchupFactor: 0.5,
+      netRatingFactor: 0.5
+    };
+
+    // Add sport-specific factors
+    if (game.sport === 'NBA') {
+      factors.paceFactor = 0.5;
+      factors.offensiveEfficiencyFactor = 0.5;
+      factors.defensiveEfficiencyFactor = 0.5;
+    } else if (game.sport === 'MLB') {
+      factors.teamPitchingFactor = 0.5;
+      factors.batterHandednessFactor = 0.5;
+      factors.ballparkFactor = 0.5;
+    }
+
+    return factors;
   }
   
   /**
    * Calculate confidence score based on factors
    */
   private static calculateConfidence(
-    game: Game, 
-    predictionType: PredictionType, 
-    enhancedFactors: EnhancedFactors
-  ): number {
-    // This method should delegate to PredictorModel
-    return PredictorModel.calculateConfidence(
-      game.sport,
-      predictionType,
-      enhancedFactors
-    );
-  }
-  
-  /**
-   * Determine the prediction value based on type and factors
-   */
-  private static determinePredictionValue(
     game: Game,
+    stats: any,
     predictionType: PredictionType,
-    enhancedFactors: EnhancedFactors,
-    confidence: number
-  ): { value: number | null, formattedValue: string } {
-    // Base decision on normalized confidence (0-1 scale where 0.5 is neutral)
-    const normalizedConfidence = confidence / 100;
-    const favorHome = normalizedConfidence > 0.5;
-    
+    predictionValue: number
+  ): number {
+    const factors = this.calculateEnhancedFactors(game, stats);
+    let baseConfidence = 0.5;
+
     switch (predictionType) {
       case 'SPREAD':
-        if (!game.odds?.spread?.homeSpread) {
-          return { value: null, formattedValue: 'N/A' };
+        if (Math.abs(predictionValue) > 10) {
+          baseConfidence -= 0.1;
         }
-        
-        const spread = game.odds.spread.homeSpread;
-        const spreadOdds = favorHome ? game.odds.spread.homeOdds : game.odds.spread.awayOdds;
-        const formattedSpread = favorHome ? `${game.homeTeamName} ${spread > 0 ? '+' : ''}${spread}` : `${game.awayTeamName} ${-spread > 0 ? '+' : ''}${-spread}`;
-        
-        return { 
-          value: spread, 
-          formattedValue: `${formattedSpread} (${spreadOdds > 0 ? '+' : ''}${spreadOdds})` 
-        };
-        
-      case 'MONEYLINE':
-        if (!game.odds?.moneyline?.homeOdds || !game.odds?.moneyline?.awayOdds) {
-          return { value: null, formattedValue: 'N/A' };
+        if (factors.homeAwaySplitFactor > 0.6) {
+          baseConfidence += 0.05;
         }
-        
-        const mlOdds = favorHome ? game.odds.moneyline.homeOdds : game.odds.moneyline.awayOdds;
-        
-        return { 
-          value: mlOdds, 
-          formattedValue: `${favorHome ? game.homeTeamName : game.awayTeamName} ${mlOdds > 0 ? '+' : ''}${mlOdds}` 
-        };
-        
+        break;
       case 'TOTAL':
-        if (!game.odds?.total?.overUnder || !game.odds?.total?.overOdds || !game.odds?.total?.underOdds) {
-          return { value: null, formattedValue: 'N/A' };
+        if (predictionValue > 220) {
+          baseConfidence -= 0.1;
         }
-        
-        const line = game.odds.total.overUnder;
-        const totalLeanFactor = this.calculateTotalFactor(game, enhancedFactors);
-        const overOrUnder = totalLeanFactor > 0 ? 'Over' : 'Under';
-        const totalOdds = totalLeanFactor > 0 ? game.odds.total.overOdds : game.odds.total.underOdds;
-        
-        return { 
-          value: line, 
-          formattedValue: `${overOrUnder} ${line} (${totalOdds > 0 ? '+' : ''}${totalOdds})` 
-        };
-        
-      default:
-        return { value: null, formattedValue: 'N/A' };
+        if (factors.scoringDiffFactor > 0.6) {
+          baseConfidence += 0.05;
+        }
+        break;
+      case 'MONEYLINE':
+        if (factors.homeAwaySplitFactor > 0.6) {
+          baseConfidence += 0.05;
+        }
+        if (factors.recentFormFactor > 0.6) {
+          baseConfidence += 0.05;
+        }
+        break;
     }
-  }
-  
-  /**
-   * Calculate special factor for totals predictions
-   */
-  private static calculateTotalFactor(game: Game, enhancedFactors: EnhancedFactors): number {
-    let factor = 0;
-    
-    // Use scoring differential factor
-    factor += enhancedFactors.scoringDiffFactor;
-    
-    // Add sport-specific factors
-    if (game.sport === 'NBA') {
-      // For NBA, consider pace and efficiency
-      if (enhancedFactors.paceFactor) factor += enhancedFactors.paceFactor * 0.3;
-      if (enhancedFactors.offensiveEfficiencyFactor) factor += enhancedFactors.offensiveEfficiencyFactor * 0.4;
-      if (enhancedFactors.defensiveEfficiencyFactor) factor += enhancedFactors.defensiveEfficiencyFactor * 0.3;
-    } else if (game.sport === 'MLB') {
-      // For MLB, consider team pitching and batter handedness
-      if (enhancedFactors.teamPitchingFactor) factor += enhancedFactors.teamPitchingFactor * 0.4;
-      if (enhancedFactors.batterHandednessFactor) factor += enhancedFactors.batterHandednessFactor * 0.3;
-      if (enhancedFactors.ballparkFactor) factor += enhancedFactors.ballparkFactor * 0.3;
-    }
-    
-    return factor;
+
+    return Math.min(Math.max(baseConfidence, 0.1), 0.95);
   }
   
   /**
@@ -230,44 +155,40 @@ export class EnhancedAnalyzer {
    */
   private static generateReasoning(
     game: Game,
+    stats: any,
     predictionType: PredictionType,
-    enhancedFactors: EnhancedFactors,
-    predictionValue: string,
-    confidence: number
+    predictionValue: number
   ): string {
+    const factors = this.calculateEnhancedFactors(game, stats);
     let reasoning = '';
-    
-    // Add base factors reasoning
-    reasoning += `Based on overall records (${(enhancedFactors.overallRecordFactor * 100).toFixed(1)}% confidence), `;
-    reasoning += `home/away performance (${(enhancedFactors.homeAwaySplitFactor * 100).toFixed(1)}% confidence), `;
-    reasoning += `and recent form (${(enhancedFactors.recentFormFactor * 100).toFixed(1)}% confidence). `;
-    
-    // Add sport-specific reasoning
-    if (game.sport === 'NBA') {
-      if (enhancedFactors.paceFactor) {
-        reasoning += `Game pace analysis (${(enhancedFactors.paceFactor * 100).toFixed(1)}% confidence) `;
-      }
-      if (enhancedFactors.offensiveEfficiencyFactor) {
-        reasoning += `and offensive efficiency (${(enhancedFactors.offensiveEfficiencyFactor * 100).toFixed(1)}% confidence) `;
-      }
-      if (enhancedFactors.defensiveEfficiencyFactor) {
-        reasoning += `with defensive efficiency (${(enhancedFactors.defensiveEfficiencyFactor * 100).toFixed(1)}% confidence) `;
-      }
-    } else if (game.sport === 'MLB') {
-      if (enhancedFactors.teamPitchingFactor) {
-        reasoning += `Team pitching comparison (${(enhancedFactors.teamPitchingFactor * 100).toFixed(1)}% confidence) `;
-      }
-      if (enhancedFactors.batterHandednessFactor) {
-        reasoning += `and batter matchups (${(enhancedFactors.batterHandednessFactor * 100).toFixed(1)}% confidence) `;
-      }
-      if (enhancedFactors.ballparkFactor) {
-        reasoning += `with ballpark factors (${(enhancedFactors.ballparkFactor * 100).toFixed(1)}% confidence) `;
-      }
+
+    switch (predictionType) {
+      case 'SPREAD':
+        if (Math.abs(predictionValue) > 10) {
+          reasoning += 'Large spread indicates significant team strength difference. ';
+        }
+        if (factors.homeAwaySplitFactor > 0.6) {
+          reasoning += 'Strong home court advantage. ';
+        }
+        break;
+      case 'TOTAL':
+        if (predictionValue > 220) {
+          reasoning += 'High total suggests offensive matchup. ';
+        }
+        if (factors.scoringDiffFactor > 0.6) {
+          reasoning += 'Recent games show high scoring trend. ';
+        }
+        break;
+      case 'MONEYLINE':
+        if (factors.homeAwaySplitFactor > 0.6) {
+          reasoning += 'Home team has strong advantage. ';
+        }
+        if (factors.recentFormFactor > 0.6) {
+          reasoning += 'Team showing strong recent form. ';
+        }
+        break;
     }
-    
-    // Add final confidence statement
-    reasoning += `\n\nOverall confidence: ${confidence}% (Grade: ${this.calculateGrade(confidence)})`;
-    
-    return reasoning;
+
+    return reasoning.trim();
   }
 }

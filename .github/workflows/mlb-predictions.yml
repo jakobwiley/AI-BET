@@ -1,0 +1,40 @@
+name: MLB Predictions
+
+on:
+  schedule:
+    # Run at 4 AM UTC (midnight EST) every day
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  run-predictions:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build TypeScript
+        run: npm run build
+        
+      - name: Run MLB Prediction Workflow
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          ODDS_API_HOST: ${{ secrets.ODDS_API_HOST }}
+        run: node dist/scripts/mlb-prediction-workflow.js
+        
+      - name: Commit and push if changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update MLB predictions" && git push) 

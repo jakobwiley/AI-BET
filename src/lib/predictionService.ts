@@ -1,4 +1,4 @@
-import { Game, Prediction, PredictionType } from '@/models/types';
+import { Game, Prediction, PredictionType } from '../models/types.js';
 
 // Team statistics interface
 export interface TeamStats {

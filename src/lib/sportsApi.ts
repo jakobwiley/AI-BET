@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { Game, PlayerProp, Prediction, SportType, PredictionType, GameStatus, PlayerPropType } from '@/models/types';
-import { handleSportsApiError } from '@/lib/errors';
-import { OddsApiService } from './oddsApi';
+import { Game, PlayerProp, Prediction, SportType, PredictionType, GameStatus, PlayerPropType } from '../models/types.js';
+import { handleSportsApiError } from './errors.js';
+import { OddsApiService } from './oddsApi.js';
 
 // API keys from environment variables
 const SPORTS_DATA_API_KEY = process.env.SPORTS_DATA_API_KEY;
@@ -97,7 +97,7 @@ export class SportsApiService {
           awayTeamId: `away-team-${i}`,
           homeTeamName: ['Lakers', 'Warriors', 'Celtics', 'Bucks', 'Heat'][i % 5],
           awayTeamName: ['Nets', 'Suns', 'Mavericks', 'Nuggets', '76ers'][i % 5],
-          status: GameStatus.SCHEDULED,
+          status: 'SCHEDULED' as GameStatus,
           predictions: []
         });
       } else {
@@ -110,7 +110,7 @@ export class SportsApiService {
           awayTeamId: `away-team-${i}`,
           homeTeamName: ['Yankees', 'Dodgers', 'Red Sox', 'Cubs', 'Astros'][i % 5],
           awayTeamName: ['Braves', 'Giants', 'Cardinals', 'Mets', 'Blue Jays'][i % 5],
-          status: GameStatus.SCHEDULED,
+          status: 'SCHEDULED' as GameStatus,
           predictions: []
         });
       }
@@ -160,7 +160,7 @@ export class SportsApiService {
         id: `prediction-${gameId}-${type}`,
         gameId,
         predictionType: type,
-        predictionValue: value,
+        predictionValue: String(value),
         confidence: confidence / 100, // Store as decimal but display as percentage
         reasoning,
         createdAt: new Date().toISOString(),

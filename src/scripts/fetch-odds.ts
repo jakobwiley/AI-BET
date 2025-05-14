@@ -3,6 +3,7 @@
 import { PrismaClient, SportType, Prisma } from '@prisma/client';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import { OddsApiService } from '../lib/oddsApi.js';
 
 dotenv.config();
 

@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { TeamStats, H2HStats } from './predictionService';
+import { TeamStats, H2HStats } from './predictionService.js';
+import { GameStatus } from '../models/types.js';
 
 interface MLBTeam {
   id: number;

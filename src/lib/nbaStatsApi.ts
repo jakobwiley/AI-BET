@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { TeamStats, H2HStats } from './predictionService';
+import { TeamStats, H2HStats } from './predictionService.js';
 
 const BASE_URL = 'https://stats.nba.com/stats';
 
