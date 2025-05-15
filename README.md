@@ -94,3 +94,62 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Sports data provided by SportsData.io and The Odds API
 - Icons by FontAwesome via react-icons 
+
+# AI-BET: MLB Game Predictions
+
+## Quick Start
+
+To fetch today's MLB games and odds, and generate predictions:
+
+1. **Fetch Today's Games**
+```bash
+npx tsx src/scripts/fetch-todays-games.ts
+```
+This will fetch today's MLB games from the Odds API and store them in the database.
+
+2. **Show Today's Odds**
+```bash
+npx tsx src/scripts/show-odds.ts
+```
+This will display the odds for today's games.
+
+3. **Generate Predictions**
+```bash
+npx tsx scripts/test-ml-model.ts
+```
+This will use the enhanced prediction model to generate predictions for today's games.
+
+## Script Details
+
+### `fetch-todays-games.ts`
+- Fetches MLB games scheduled for today
+- Stores games in the database with basic info (teams, date, time)
+- Uses OddsApiService to get fresh data
+- Includes retry logic for reliability
+
+### `show-odds.ts`
+- Retrieves today's games from the database
+- Displays odds in a readable format
+- Shows moneyline, spread, and total for each game
+
+### `test-ml-model.ts`
+- Uses the EnhancedPredictionModel to generate predictions
+- Takes into account:
+  - Team win rates
+  - Recent scores
+  - Historical accuracy
+  - Current odds
+- Outputs predictions with confidence levels and reasoning
+
+## Data Flow
+1. Games are fetched and stored in the database
+2. Odds are fetched and attached to games
+3. Prediction model analyzes the data and generates picks
+4. Results are displayed with confidence levels and reasoning
+
+## Troubleshooting
+If you encounter issues:
+1. Check that the Odds API key is set in your .env file
+2. Verify the database connection
+3. Check the logs for any error messages
+4. Ensure you're running the scripts in the correct order 

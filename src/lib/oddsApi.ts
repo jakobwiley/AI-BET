@@ -363,4 +363,10 @@ export class OddsApiService {
     }
     return results;
   }
+
+  async getTodaysOdds(): Promise<{ gameId: string; odds: any }[]> {
+    // Placeholder implementation to fetch today's odds
+    // Replace with actual API call or data fetching logic
+    return [];
+  }
 } 

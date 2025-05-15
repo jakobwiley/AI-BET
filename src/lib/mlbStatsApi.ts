@@ -401,32 +401,33 @@ export class MLBStatsService {
     if (!this.teamIdMap && !this.teamFetchPromise) {
       this.teamFetchPromise = this.initializeTeamIdMap();
     }
-    
     if (!this.teamIdMap) {
       await this.teamFetchPromise;
     }
-    
     // Handle special cases and normalize team name
     const normalizedName = teamName
       .toLowerCase()
-      .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+      .replace(/\s+/g, ' ')
       .trim();
-    
+
+    // DEBUG: Log all available keys and the normalized name
+    if (process.env.DEBUG_TEAM_ID_MAP === '1') {
+      console.log('[MLBStatsService] Available teamIdMap keys:', Array.from(this.teamIdMap?.keys() || []));
+      console.log('[MLBStatsService] Looking up normalized name:', normalizedName);
+    }
+
     // Try to find the team ID
     const id = this.teamIdMap?.get(normalizedName);
-    
     if (!id) {
       // Try without spaces
       const noSpaceName = normalizedName.replace(/\s+/g, '');
       const noSpaceId = this.teamIdMap?.get(noSpaceName);
-      
       if (!noSpaceId) {
         console.warn(`[MLBStatsService] Team ID not found for: "${teamName}" (Normalized: "${normalizedName}")`);
         return null;
       }
       return noSpaceId;
     }
-    
     return id;
   }
 
@@ -444,65 +445,53 @@ export class MLBStatsService {
         return null;
       }
 
-      const response = await axios.get(`${BASE_URL}/teams/${teamId}/stats`, {
+      // Use the /standings endpoint for robust stats fetching
+      const response = await axios.get('https://statsapi.mlb.com/api/v1/standings', {
         params: {
+          leagueId: '103,104', // AL and NL
           season: CURRENT_MLB_SEASON,
-          startDate: options?.startDate,
-          endDate: options?.endDate
+          teamId: teamId,
+          standingsTypes: 'regularSeason'
         }
       });
 
-      return this.processTeamStats(response.data);
+      // Find the team record in the response
+      const standingsData = response.data as { records: Array<{ teamRecords: any[] }> };
+      const teamRecord = standingsData.records.flatMap((r: any) => r.teamRecords)
+        .find((tr: any) => tr.team.id === teamId);
+
+      if (!teamRecord) {
+        console.warn(`[MLBStatsService] No stats found for team ID ${teamId}`);
+        return null;
+      }
+
+      const splitRecords = teamRecord.splitRecords || [];
+      const homeRecord = splitRecords.find((r: any) => r.type === 'home') || { wins: 0, losses: 0 };
+      const awayRecord = splitRecords.find((r: any) => r.type === 'away') || { wins: 0, losses: 0 };
+      const lastTenRecord = splitRecords.find((r: any) => r.type === 'lastTen') || { wins: 0, losses: 0 };
+
+      return {
+        wins: teamRecord.wins || 0,
+        losses: teamRecord.losses || 0,
+        homeWins: homeRecord.wins || 0,
+        homeLosses: homeRecord.losses || 0,
+        awayWins: awayRecord.wins || 0,
+        awayLosses: awayRecord.losses || 0,
+        pointsFor: teamRecord.runsScored || 0,
+        pointsAgainst: teamRecord.runsAllowed || 0,
+        lastTenGames: `${lastTenRecord.wins || 0}-${lastTenRecord.losses || 0}`,
+        streak: teamRecord.streak?.streakNumber || 0,
+        winPercentage: teamRecord.winningPercentage || 0,
+        lastTenWins: lastTenRecord.wins || 0,
+        avgRunsScored: teamRecord.runsScored ? teamRecord.runsScored / (teamRecord.gamesPlayed || 1) : 0,
+        avgRunsAllowed: teamRecord.runsAllowed ? teamRecord.runsAllowed / (teamRecord.gamesPlayed || 1) : 0,
+        homeWinPercentage: homeRecord.wins / (homeRecord.wins + homeRecord.losses || 1),
+        awayWinPercentage: awayRecord.wins / (awayRecord.wins + awayRecord.losses || 1)
+      };
     } catch (error) {
       console.error(`Error fetching team stats for ${teamIdOrName}:`, error);
       return null;
     }
-  }
-
-  private static processTeamStats(data: any): TeamStats {
-    const stats = data.stats[0]?.splits[0]?.stat;
-    if (!stats) return null;
-
-    return {
-      wins: stats.wins || 0,
-      losses: stats.losses || 0,
-      homeWins: stats.homeWins || 0,
-      homeLosses: stats.homeLosses || 0,
-      awayWins: stats.awayWins || 0,
-      awayLosses: stats.awayLosses || 0,
-      pointsFor: stats.runsScored || 0,
-      pointsAgainst: stats.runsAllowed || 0,
-      lastTenGames: '0-0', // This will be updated by fetchTeamRecord
-      streak: 0, // This will be updated by fetchTeamRecord
-      winPercentage: (stats.wins || 0) / ((stats.wins || 0) + (stats.losses || 0)) || 0,
-      homeWinPercentage: (stats.homeWins || 0) / ((stats.homeWins || 0) + (stats.homeLosses || 0)) || 0,
-      awayWinPercentage: (stats.awayWins || 0) / ((stats.awayWins || 0) + (stats.awayLosses || 0)) || 0,
-      // MLB specific
-      runsScored: stats.runsScored || 0,
-      runsAllowed: stats.runsAllowed || 0,
-      battingAverage: stats.avg || '0.000',
-      era: stats.era || '0.00',
-      teamERA: stats.era ? parseFloat(stats.era) : 0,
-      teamWHIP: stats.whip ? parseFloat(stats.whip) : 0,
-      // Park factor properties
-      homeRuns: stats.homeRuns || 0,
-      awayRuns: stats.awayRuns || 0,
-      homeHits: stats.homeHits || 0,
-      awayHits: stats.awayHits || 0,
-      homeDoubles: stats.homeDoubles || 0,
-      awayDoubles: stats.awayDoubles || 0,
-      homeTriples: stats.homeTriples || 0,
-      awayTriples: stats.awayTriples || 0,
-      homeWalks: stats.homeWalks || 0,
-      awayWalks: stats.awayWalks || 0,
-      homeStrikeouts: stats.homeStrikeouts || 0,
-      awayStrikeouts: stats.awayStrikeouts || 0,
-      // Player statistics will be populated separately
-      keyPlayers: {
-        batting: [],
-        pitching: []
-      }
-    };
   }
 
   public static async getH2HStats(homeTeamName: string, awayTeamName: string): Promise<H2HStats | null> {
