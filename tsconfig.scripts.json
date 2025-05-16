@@ -9,13 +9,16 @@
     },
     "outDir": "dist/scripts",
     "rootDir": ".",
-    "noEmit": false
+    "noEmit": false,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true
   },
   "include": [
-    "src/scripts/**/*"
+    "scripts/**/*",
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist"
   ]
-} 

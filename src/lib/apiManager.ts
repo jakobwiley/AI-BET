@@ -1,4 +1,4 @@
-import { SportType } from '../models/types.js';
+import type { SportType } from '../models/types.ts';
 import { NBAStatsService } from './nbaStatsApi.js';
 import { NBAApiService } from './nbaApiService.js';
 import { MLBStatsService } from './mlbStatsApi.js';
@@ -99,7 +99,7 @@ export class ApiManager {
     }
     
     const cacheKey = `team_stats:${sport}:${teamName}`;
-    const cachedData = await this.cacheService.get(cacheKey);
+    const cachedData = await CacheService.get<any>(cacheKey);
     if (cachedData) {
       return cachedData;
     }
@@ -107,7 +107,7 @@ export class ApiManager {
     try {
       const result = await provider.getTeamStats(teamName);
       if (result) {
-        await this.cacheService.set(cacheKey, result, 6 * 60 * 60); // 6 hours
+        await CacheService.set(cacheKey, result, 6 * 60 * 60); // 6 hours
       }
       return result;
     } catch (error) {
@@ -132,7 +132,7 @@ export class ApiManager {
     
     const teams = [team1, team2].sort();
     const cacheKey = `h2h_stats:${sport}:${teams[0]}:${teams[1]}`;
-    const cachedData = await this.cacheService.get(cacheKey);
+    const cachedData = await CacheService.get<any>(cacheKey);
     if (cachedData) {
       return cachedData;
     }
@@ -140,7 +140,7 @@ export class ApiManager {
     try {
       const result = await provider.getH2HStats(team1, team2);
       if (result) {
-        await this.cacheService.set(cacheKey, result, 6 * 60 * 60); // 6 hours
+        await CacheService.set(cacheKey, result, 6 * 60 * 60); // 6 hours
       }
       return result;
     } catch (error) {

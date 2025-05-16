@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { Game, PlayerProp, Prediction, SportType, PredictionType, GameStatus, PlayerPropType } from '../models/types.js';
+import type { Game, PlayerProp, Prediction, SportType, PredictionType, GameStatus } from '../models/types.ts';
+import { PlayerPropType } from '../models/types.ts';
 import { handleSportsApiError } from './errors.js';
 import { OddsApiService } from './oddsApi.js';
 
@@ -255,4 +256,4 @@ export class SportsApiService {
     
     return props;
   }
-} 
+}

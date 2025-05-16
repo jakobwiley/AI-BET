@@ -1,13 +1,15 @@
 // Custom error class for sports API errors
 export class SportsApiError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly status?: number,
-    public readonly details?: any
-  ) {
+  public readonly code: string;
+  public readonly status?: number;
+  public readonly details?: any;
+
+  constructor(message: string, code: string, status?: number, details?: any) {
     super(message);
     this.name = 'SportsApiError';
+    this.code = code;
+    this.status = status;
+    this.details = details;
   }
 }
 
@@ -45,4 +47,4 @@ export const handleSportsApiError = (error: unknown, context: string): never => 
     undefined,
     error
   );
-}; 
+};

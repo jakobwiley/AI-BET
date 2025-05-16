@@ -1,6 +1,6 @@
 import { OddsApiService } from '../lib/oddsApi.js';
 import { PredictionService } from '../lib/predictionService.js';
-import { Prediction } from '../models/types.js';
+import type { Prediction } from '../models/types.ts';
 import { config } from 'dotenv';
 
 // Load environment variables

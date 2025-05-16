@@ -6,22 +6,22 @@ export type GameStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'FINAL' | 'POSTPONED' | '
 
 export type PredictionOutcome = 'WIN' | 'LOSS' | 'PUSH' | 'PENDING';
 
-export enum PlayerPropType {
-  POINTS = 'POINTS',
-  REBOUNDS = 'REBOUNDS',
-  ASSISTS = 'ASSISTS',
-  BLOCKS = 'BLOCKS',
-  STEALS = 'STEALS',
-  TURNOVERS = 'TURNOVERS',
-  THREE_POINTERS = 'THREE_POINTERS',
-  HITS = 'HITS',
-  RUNS = 'RUNS',
-  RBI = 'RBI',
-  STRIKEOUTS = 'STRIKEOUTS',
-  HOME_RUNS = 'HOME_RUNS',
-  STOLEN_BASES = 'STOLEN_BASES',
-  WALKS = 'WALKS'
-}
+
+export type PlayerPropType =
+  | 'POINTS'
+  | 'REBOUNDS'
+  | 'ASSISTS'
+  | 'BLOCKS'
+  | 'STEALS'
+  | 'TURNOVERS'
+  | 'THREE_POINTERS'
+  | 'HITS'
+  | 'RUNS'
+  | 'RBI'
+  | 'STRIKEOUTS'
+  | 'HOME_RUNS'
+  | 'STOLEN_BASES'
+  | 'WALKS';
 
 export interface Game {
   id: string;
@@ -36,19 +36,19 @@ export interface Game {
   predictions?: Prediction[];
   odds?: {
     spread?: {
-      homeSpread: string;
-      awaySpread: string;
-      homeOdds: string;
-      awayOdds: string;
+      homeSpread: number;
+      awaySpread: number;
+      homeOdds: number;
+      awayOdds: number;
     };
     total?: {
-      overUnder: string;
-      overOdds: string;
-      underOdds: string;
+      overUnder: number;
+      overOdds: number;
+      underOdds: number;
     };
     moneyline?: {
-      homeOdds: string;
-      awayOdds: string;
+      homeOdds: number;
+      awayOdds: number;
     };
   };
   probableHomePitcherId?: number;
@@ -124,5 +124,4 @@ export interface Player {
 }
 
 export interface PredictionResponse {
-  game: Game;
-} 
+  game: Game;} 

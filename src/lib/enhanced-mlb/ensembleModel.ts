@@ -1,6 +1,6 @@
-import { Game, Prediction, PredictionType } from '../../models/types.js';
-import { MLModelService } from './mlModelService.js';
-import { CacheService } from '../cacheService.js';
+import type { Game, Prediction, PredictionType } from '../../models/types.ts';
+import { MLModelService } from './mlModelService.ts';
+import { CacheService } from '../cacheService.ts';
 
 interface ModelPrediction {
   modelId: string;

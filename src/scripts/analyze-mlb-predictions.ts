@@ -1,4 +1,5 @@
 import { PrismaClient, PredictionType, PredictionOutcome, GameStatus, SportType } from '@prisma/client';
+import { subDays } from 'date-fns';
 import { format } from 'date-fns';
 
 const prisma = new PrismaClient();
@@ -7,214 +8,225 @@ interface PredictionAnalysis {
   total: number;
   correct: number;
   incorrect: number;
-  winRate: number;
-  averageConfidence: number;
-  profitLoss: number;
-  roi: number;
-}
-
-interface DetailedAnalysis {
-  overall: PredictionAnalysis;
-  byGrade: Record<string, PredictionAnalysis>;
-  byType: Record<PredictionType, PredictionAnalysis>;
-  byConfidenceRange: Record<string, PredictionAnalysis>;
-}
-
-// Calculate grade based on confidence level
-function calculateGrade(confidence: number): string {
-  const confidencePercent = confidence > 1 ? confidence : confidence * 100;
-  
-  if (confidencePercent >= 90) return 'A+';
-  if (confidencePercent >= 85) return 'A';
-  if (confidencePercent >= 80) return 'A-';
-  if (confidencePercent >= 75) return 'B+';
-  if (confidencePercent >= 70) return 'B';
-  if (confidencePercent >= 65) return 'B-';
-  if (confidencePercent >= 60) return 'C+';
-  return 'C';
-}
-
-function getConfidenceRange(confidence: number): string {
-  const confidencePercent = confidence > 1 ? confidence : confidence * 100;
-  if (confidencePercent >= 90) return '90-100%';
-  if (confidencePercent >= 80) return '80-89%';
-  if (confidencePercent >= 70) return '70-79%';
-  if (confidencePercent >= 60) return '60-69%';
-  return '<60%';
-}
-
-function initializeAnalysis(): PredictionAnalysis {
-  return {
-    total: 0,
-    correct: 0,
-    incorrect: 0,
-    winRate: 0,
-    averageConfidence: 0,
-    profitLoss: 0,
-    roi: 0
+  pushes: number;
+  pending: number;
+  accuracy: number;
+  byType: Record<PredictionType, {
+    total: number;
+    correct: number;
+    incorrect: number;
+    pushes: number;
+    pending: number;
+    accuracy: number;
+  }>;
+  byConfidence: Record<string, {
+    total: number;
+    correct: number;
+    incorrect: number;
+    pushes: number;
+    pending: number;
+    accuracy: number;
+  }>;
+  recentTrends: {
+    last7Days: {
+      total: number;
+      correct: number;
+      accuracy: number;
+    };
+    last14Days: {
+      total: number;
+      correct: number;
+      accuracy: number;
+    };
+    last30Days: {
+      total: number;
+      correct: number;
+      accuracy: number;
+    };
   };
 }
 
-function calculateROI(profitLoss: number, totalBets: number): number {
-  if (totalBets === 0) return 0;
-  const totalInvestment = totalBets * 5; // Now using $5 per bet
-  return (profitLoss / totalInvestment) * 100;
-}
-
-async function analyzeMlbPredictions() {
+async function analyzeMLBPredictions() {
   try {
-    console.log('🔄 Starting MLB prediction analysis...');
+    console.log('📊 Analyzing MLB predictions...');
 
-    // Get all MLB games with final status and their predictions
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    const fourteenDaysAgo = subDays(new Date(), 14);
+    const sevenDaysAgo = subDays(new Date(), 7);
+
+    // Get all MLB games with predictions from the last 30 days
     const games = await prisma.game.findMany({
       where: {
         sport: SportType.MLB,
-        status: GameStatus.FINAL,
+        gameDate: {
+          gte: thirtyDaysAgo
+        },
         predictions: {
-          some: {} // Only games with predictions
+          some: {}
         }
       },
       include: {
         predictions: true
+      },
+      orderBy: {
+        gameDate: 'desc'
       }
     });
 
-    console.log(`Found ${games.length} completed MLB games with predictions`);
+    console.log(`Found ${games.length} MLB games with predictions in the last 30 days`);
 
-    const analysis: DetailedAnalysis = {
-      overall: initializeAnalysis(),
-      byGrade: {},
-      byType: {
-        SPREAD: initializeAnalysis(),
-        MONEYLINE: initializeAnalysis(),
-        TOTAL: initializeAnalysis()
-      },
-      byConfidenceRange: {}
+    // Initialize analysis object
+    const analysis: PredictionAnalysis = {
+      total: 0,
+      correct: 0,
+      incorrect: 0,
+      pushes: 0,
+      pending: 0,
+      accuracy: 0,
+      byType: {} as PredictionAnalysis['byType'],
+      byConfidence: {},
+      recentTrends: {
+        last7Days: { total: 0, correct: 0, accuracy: 0 },
+        last14Days: { total: 0, correct: 0, accuracy: 0 },
+        last30Days: { total: 0, correct: 0, accuracy: 0 }
+      }
     };
 
     // Process each game's predictions
     for (const game of games) {
+      const gameDate = new Date(game.gameDate);
+      const isLast7Days = gameDate >= sevenDaysAgo;
+      const isLast14Days = gameDate >= fourteenDaysAgo;
+      const isLast30Days = gameDate >= thirtyDaysAgo;
+
       for (const prediction of game.predictions) {
-        // Get prediction categories
-        const grade = calculateGrade(prediction.confidence);
-        const confidenceRange = getConfidenceRange(prediction.confidence);
-        const type = prediction.predictionType;
+        // Update totals
+        analysis.total++;
+        if (isLast30Days) analysis.recentTrends.last30Days.total++;
+        if (isLast14Days) analysis.recentTrends.last14Days.total++;
+        if (isLast7Days) analysis.recentTrends.last7Days.total++;
 
-        // Initialize category analyses if they don't exist
-        if (!analysis.byGrade[grade]) {
-          analysis.byGrade[grade] = initializeAnalysis();
+        // Initialize type stats if needed
+        if (!analysis.byType[prediction.predictionType]) {
+          analysis.byType[prediction.predictionType] = {
+            total: 0,
+            correct: 0,
+            incorrect: 0,
+            pushes: 0,
+            pending: 0,
+            accuracy: 0
+          };
         }
-        if (!analysis.byConfidenceRange[confidenceRange]) {
-          analysis.byConfidenceRange[confidenceRange] = initializeAnalysis();
+
+        // Initialize confidence stats if needed
+        const confidenceKey = Math.round(prediction.confidence * 100).toString();
+        if (!analysis.byConfidence[confidenceKey]) {
+          analysis.byConfidence[confidenceKey] = {
+            total: 0,
+            correct: 0,
+            incorrect: 0,
+            pushes: 0,
+            pending: 0,
+            accuracy: 0
+          };
         }
 
-        // Update all relevant analyses
-        [
-          analysis.overall,
-          analysis.byGrade[grade],
-          analysis.byType[type],
-          analysis.byConfidenceRange[confidenceRange]
-        ].forEach(categoryAnalysis => {
-          categoryAnalysis.total++;
-          categoryAnalysis.averageConfidence += prediction.confidence;
+        // Update type and confidence stats
+        analysis.byType[prediction.predictionType].total++;
+        analysis.byConfidence[confidenceKey].total++;
 
-          if (prediction.outcome === PredictionOutcome.WIN) {
-            categoryAnalysis.correct++;
-            // Calculate profit based on American odds
-            const odds = Math.abs(Number(prediction.predictionValue));
-            if (typeof odds === 'number' && !isNaN(odds) && odds > 0) {
-              // American odds payout calculation for $5 bet
-              if (Number(prediction.predictionValue) > 0) {
-                categoryAnalysis.profitLoss += 5 * (odds / 100);
-              } else {
-                categoryAnalysis.profitLoss += 5 * (100 / odds);
-              }
-            } else {
-              // If odds are missing or invalid, treat as even money
-              categoryAnalysis.profitLoss += 5;
-            }
-          } else if (prediction.outcome === PredictionOutcome.LOSS) {
-            categoryAnalysis.incorrect++;
-            categoryAnalysis.profitLoss -= 5; // Now using $5 bet size
-          }
-        });
+        // Update outcome counts
+        switch (prediction.outcome) {
+          case PredictionOutcome.WIN:
+            analysis.correct++;
+            analysis.byType[prediction.predictionType].correct++;
+            analysis.byConfidence[confidenceKey].correct++;
+            if (isLast30Days) analysis.recentTrends.last30Days.correct++;
+            if (isLast14Days) analysis.recentTrends.last14Days.correct++;
+            if (isLast7Days) analysis.recentTrends.last7Days.correct++;
+            break;
+          case PredictionOutcome.LOSS:
+            analysis.incorrect++;
+            analysis.byType[prediction.predictionType].incorrect++;
+            analysis.byConfidence[confidenceKey].incorrect++;
+            break;
+          case PredictionOutcome.PUSH:
+            analysis.pushes++;
+            analysis.byType[prediction.predictionType].pushes++;
+            analysis.byConfidence[confidenceKey].pushes++;
+            break;
+          case PredictionOutcome.PENDING:
+            analysis.pending++;
+            analysis.byType[prediction.predictionType].pending++;
+            analysis.byConfidence[confidenceKey].pending++;
+            break;
+        }
       }
     }
 
-    // Calculate final metrics for all categories
-    const finalizeAnalysis = (analysis: PredictionAnalysis) => {
-      if (analysis.total > 0) {
-        analysis.winRate = (analysis.correct / analysis.total) * 100;
-        analysis.averageConfidence = (analysis.averageConfidence / analysis.total) * 100;
-        analysis.roi = calculateROI(analysis.profitLoss, analysis.total);
-      }
-    };
+    // Calculate accuracies
+    analysis.accuracy = analysis.correct / (analysis.correct + analysis.incorrect);
+    
+    for (const type of Object.keys(analysis.byType)) {
+      const typeStats = analysis.byType[type as PredictionType];
+      typeStats.accuracy = typeStats.correct / (typeStats.correct + typeStats.incorrect);
+    }
 
-    finalizeAnalysis(analysis.overall);
-    Object.values(analysis.byGrade).forEach(finalizeAnalysis);
-    Object.values(analysis.byType).forEach(finalizeAnalysis);
-    Object.values(analysis.byConfidenceRange).forEach(finalizeAnalysis);
+    for (const confidence of Object.keys(analysis.byConfidence)) {
+      const confidenceStats = analysis.byConfidence[confidence];
+      confidenceStats.accuracy = confidenceStats.correct / (confidenceStats.correct + confidenceStats.incorrect);
+    }
 
-    // Print results
-    console.log('\n📊 MLB Prediction Analysis Results');
-    console.log('================================');
+    analysis.recentTrends.last7Days.accuracy = 
+      analysis.recentTrends.last7Days.correct / analysis.recentTrends.last7Days.total;
+    analysis.recentTrends.last14Days.accuracy = 
+      analysis.recentTrends.last14Days.correct / analysis.recentTrends.last14Days.total;
+    analysis.recentTrends.last30Days.accuracy = 
+      analysis.recentTrends.last30Days.correct / analysis.recentTrends.last30Days.total;
 
-    console.log('\n📈 Overall Performance:');
-    console.log(`Total Predictions: ${analysis.overall.total}`);
-    console.log(`Correct: ${analysis.overall.correct}`);
-    console.log(`Incorrect: ${analysis.overall.incorrect}`);
-    console.log(`Win Rate: ${analysis.overall.winRate.toFixed(1)}%`);
-    console.log(`Average Confidence: ${analysis.overall.averageConfidence.toFixed(1)}%`);
-    console.log(`Profit/Loss: $${analysis.overall.profitLoss.toFixed(2)}`);
-    console.log(`ROI: ${analysis.overall.roi.toFixed(1)}%`);
+    // Print analysis results
+    console.log('\n=== MLB Prediction Analysis ===');
+    console.log(`Date Range: ${format(thirtyDaysAgo, 'MMM d, yyyy')} to ${format(new Date(), 'MMM d, yyyy')}`);
+    console.log(`\nOverall Performance:`);
+    console.log(`Total Predictions: ${analysis.total}`);
+    console.log(`Correct: ${analysis.correct}`);
+    console.log(`Incorrect: ${analysis.incorrect}`);
+    console.log(`Pushes: ${analysis.pushes}`);
+    console.log(`Pending: ${analysis.pending}`);
+    console.log(`Accuracy: ${(analysis.accuracy * 100).toFixed(1)}%`);
 
-    console.log('\n📊 Performance by Prediction Type:');
-    Object.entries(analysis.byType).forEach(([type, stats]) => {
-      if (stats.total > 0) {
-        console.log(`\n${type}:`);
-        console.log(`Total: ${stats.total}`);
-        console.log(`Win Rate: ${stats.winRate.toFixed(1)}%`);
-        console.log(`Profit/Loss: $${stats.profitLoss.toFixed(2)}`);
-        console.log(`ROI: ${stats.roi.toFixed(1)}%`);
-      }
-    });
+    console.log('\nPerformance by Prediction Type:');
+    for (const [type, stats] of Object.entries(analysis.byType)) {
+      console.log(`\n${type}:`);
+      console.log(`  Total: ${stats.total}`);
+      console.log(`  Correct: ${stats.correct}`);
+      console.log(`  Incorrect: ${stats.incorrect}`);
+      console.log(`  Pushes: ${stats.pushes}`);
+      console.log(`  Pending: ${stats.pending}`);
+      console.log(`  Accuracy: ${(stats.accuracy * 100).toFixed(1)}%`);
+    }
 
-    console.log('\n📝 Performance by Grade:');
-    Object.entries(analysis.byGrade)
-      .sort(([gradeA], [gradeB]) => gradeA.localeCompare(gradeB))
-      .forEach(([grade, stats]) => {
-        if (stats.total > 0) {
-          console.log(`\n${grade}:`);
-          console.log(`Total: ${stats.total}`);
-          console.log(`Win Rate: ${stats.winRate.toFixed(1)}%`);
-          console.log(`Profit/Loss: $${stats.profitLoss.toFixed(2)}`);
-          console.log(`ROI: ${stats.roi.toFixed(1)}%`);
-        }
-      });
+    console.log('\nPerformance by Confidence Level:');
+    for (const [confidence, stats] of Object.entries(analysis.byConfidence)) {
+      console.log(`\n${confidence}% Confidence:`);
+      console.log(`  Total: ${stats.total}`);
+      console.log(`  Correct: ${stats.correct}`);
+      console.log(`  Incorrect: ${stats.incorrect}`);
+      console.log(`  Pushes: ${stats.pushes}`);
+      console.log(`  Pending: ${stats.pending}`);
+      console.log(`  Accuracy: ${(stats.accuracy * 100).toFixed(1)}%`);
+    }
 
-    console.log('\n📈 Performance by Confidence Range:');
-    Object.entries(analysis.byConfidenceRange)
-      .sort(([rangeA], [rangeB]) => {
-        const numA = parseInt(rangeA);
-        const numB = parseInt(rangeB);
-        return numB - numA;
-      })
-      .forEach(([range, stats]) => {
-        if (stats.total > 0) {
-          console.log(`\n${range}:`);
-          console.log(`Total: ${stats.total}`);
-          console.log(`Win Rate: ${stats.winRate.toFixed(1)}%`);
-          console.log(`Profit/Loss: $${stats.profitLoss.toFixed(2)}`);
-          console.log(`ROI: ${stats.roi.toFixed(1)}%`);
-        }
-      });
+    console.log('\nRecent Trends:');
+    console.log(`Last 7 Days: ${(analysis.recentTrends.last7Days.accuracy * 100).toFixed(1)}% (${analysis.recentTrends.last7Days.correct}/${analysis.recentTrends.last7Days.total})`);
+    console.log(`Last 14 Days: ${(analysis.recentTrends.last14Days.accuracy * 100).toFixed(1)}% (${analysis.recentTrends.last14Days.correct}/${analysis.recentTrends.last14Days.total})`);
+    console.log(`Last 30 Days: ${(analysis.recentTrends.last30Days.accuracy * 100).toFixed(1)}% (${analysis.recentTrends.last30Days.correct}/${analysis.recentTrends.last30Days.total})`);
 
   } catch (error) {
-    console.error('Error analyzing MLB predictions:', error);
+    console.error('Error analyzing predictions:', error);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-// Run the analysis
-analyzeMlbPredictions(); 
+analyzeMLBPredictions(); 

@@ -3,7 +3,7 @@ import { EnhancedAnalyzer } from '../lib/enhanced-predictions/enhancedAnalyzer.j
 import { getConfidenceGrade } from '../lib/prediction.js';
 import { subDays } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
-import { Game } from '../models/types.js';
+import type { Game } from '../models/types.ts';
 
 const prisma = new PrismaClient();
 

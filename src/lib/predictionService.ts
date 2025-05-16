@@ -1,1 +1,2 @@
- 
+import { Game, Prediction, PredictionType } from '../models/types.js';
+// ... rest of the file ... 

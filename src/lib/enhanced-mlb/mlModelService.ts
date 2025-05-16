@@ -1,6 +1,6 @@
-import { Prediction, Game } from '../../models/types.js';
+import type { Game, Prediction, PredictionType } from '../../models/types.ts';
 import { PredictionOutcome } from '@prisma/client';
-import { CacheService } from '../cacheService.js';
+import { CacheService } from '../cacheService.ts';
 
 interface ModelPerformance {
   modelId: string;

@@ -24,6 +24,7 @@ model Game {
   probableAwayPitcherId Int?         @map("probable_away_pitcher_id")
   awayScore             Int?         @map("away_score")
   homeScore             Int?         @map("home_score")
+  mlbGameId             String?      // Add this field for MLB game IDs
   predictions           Prediction[]
 
   @@map("games")

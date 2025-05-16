@@ -1,7 +1,7 @@
-import { Game, Prediction, PredictionType } from '../../models/types.js';
-import { MLBStatsService } from '../mlbStatsApi.js';
-import { CacheService } from '../cacheService.js';
-import { EnsembleModel } from './ensembleModel.js';
+import type { Game, Prediction, PredictionType } from '../../models/types.ts';
+import { MLBStatsService } from '../mlbStatsApi.ts';
+import { CacheService } from '../cacheService.ts';
+import { EnsembleModel } from './ensembleModel.ts';
 
 interface PredictionFactors {
   // Team Factors
@@ -33,10 +33,10 @@ export class EnhancedPredictionService {
   constructor() {
     this.ensembleModel = new EnsembleModel({
       minModels: 3,
-      confidenceThreshold: 0.70,
-      performanceWeight: 0.4,
+      confidenceThreshold: 0.65,
+      performanceWeight: 0.5,
       calibrationWeight: 0.3,
-      recencyWeight: 0.3
+      recencyWeight: 0.2
     });
   }
 
@@ -46,10 +46,27 @@ export class EnhancedPredictionService {
   public async generatePrediction(game: Game): Promise<Prediction> {
     try {
       // Get pitcher IDs with fallback
-      const homePitcherId = game.probableHomePitcherId;
-      const awayPitcherId = game.probableAwayPitcherId;
+      let homePitcherId = game.probableHomePitcherId;
+      let awayPitcherId = game.probableAwayPitcherId;
+
+      // If missing and game is in the past, fetch actual starting pitchers
+      const now = new Date();
+      const gameDate = new Date(game.gameDate);
+      if ((!homePitcherId || !awayPitcherId) && gameDate < now) {
+        if (game.id && game.id.startsWith('mlb-game-')) {
+          // Extract MLB gamePk from id
+          const gamePk = Number(game.id.replace('mlb-game-', ''));
+          if (!isNaN(gamePk)) {
+            const actualPitchers = await MLBStatsService.getActualStartingPitchers(gamePk);
+            if (actualPitchers) {
+              homePitcherId = actualPitchers.homePitcherId;
+              awayPitcherId = actualPitchers.awayPitcherId;
+            }
+          }
+        }
+      }
       if (!homePitcherId || !awayPitcherId) {
-        throw new Error('Missing probable pitcher IDs for this game');
+        throw new Error('Missing starting pitcher IDs for this game');
       }
 
       // Get odds with fallback
@@ -330,18 +347,168 @@ export class EnhancedPredictionService {
     factors: PredictionFactors,
     total: number
   ): Promise<Prediction> {
-    // Implementation for total prediction
+    // Calculate expected total runs using our advanced metrics
+    const expectedTotal = this.calculateExpectedTotal(
+      factors.expectedRuns,
+      factors.parkFactor,
+      factors.startingPitcherMatchup,
+      factors.bullpenStrength,
+      factors.lineupStrength,
+      factors.platoonAdvantage,
+      factors.situationalHitting
+    );
+
+    // Determine if we should predict OVER or UNDER based on our expected total vs the line
+    const direction = expectedTotal > total ? 'OVER' : 'UNDER';
+    
+    // Calculate confidence based on how far our expected total is from the line
+    // and the strength of our supporting factors
+    const confidence = this.calculateTotalConfidence(
+      expectedTotal,
+      total,
+      factors.startingPitcherMatchup,
+      factors.bullpenStrength,
+      factors.parkFactor
+    );
+
     return {
       id: `${game.id}-total`,
       gameId: game.id,
       predictionType: 'TOTAL',
-      predictionValue: factors.expectedRuns > total ? 'OVER' : 'UNDER',
-      confidence: Math.round(factors.winProbability * 100),
-      grade: this.calculateGrade(factors.winProbability),
-      reasoning: 'Total prediction based on expected runs',
+      predictionValue: `${direction.charAt(0).toLowerCase()}${total}`,
+      confidence,
+      grade: this.calculateGrade(confidence),
+      reasoning: this.generateTotalReasoning(
+        expectedTotal,
+        total,
+        direction,
+        factors,
+        game
+      ),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+  }
+
+  private calculateExpectedTotal(
+    expectedRuns: number,
+    parkFactor: number,
+    startingPitcherMatchup: number,
+    bullpenStrength: number,
+    lineupStrength: number,
+    platoonAdvantage: number,
+    situationalHitting: number
+  ): number {
+    // Base expected runs adjusted for park factor
+    let total = expectedRuns * parkFactor;
+
+    // Adjust for starting pitcher matchup (0-1 scale, 1 being strongest)
+    total *= (1 + (startingPitcherMatchup - 0.5) * 0.2);
+
+    // Adjust for bullpen strength (0-1 scale, 1 being strongest)
+    total *= (1 + (bullpenStrength - 0.5) * 0.15);
+
+    // Adjust for lineup strength and platoon advantages
+    total *= (1 + (lineupStrength - 0.5) * 0.1);
+    total *= (1 + (platoonAdvantage - 0.5) * 0.1);
+
+    // Adjust for situational hitting (0-1 scale, 1 being strongest)
+    total *= (1 + (situationalHitting - 0.5) * 0.1);
+
+    return Math.round(total * 10) / 10; // Round to 1 decimal place
+  }
+
+  private calculateTotalConfidence(
+    expectedTotal: number,
+    line: number,
+    startingPitcherMatchup: number,
+    bullpenStrength: number,
+    parkFactor: number
+  ): number {
+    // Base confidence starts at 0.55
+    let confidence = 0.55;
+
+    // Adjust based on how far our expected total is from the line
+    const difference = Math.abs(expectedTotal - line);
+    if (difference > 2) {
+      confidence += 0.15; // Strong difference
+    } else if (difference > 1) {
+      confidence += 0.10; // Moderate difference
+    } else if (difference > 0.5) {
+      confidence += 0.05; // Small difference
+    }
+
+    // Adjust based on starting pitcher matchup strength
+    if (startingPitcherMatchup > 0.7) {
+      confidence += 0.10; // Strong pitcher matchup
+    } else if (startingPitcherMatchup < 0.3) {
+      confidence -= 0.05; // Weak pitcher matchup
+    }
+
+    // Adjust based on bullpen strength
+    if (bullpenStrength > 0.7) {
+      confidence += 0.05; // Strong bullpen
+    } else if (bullpenStrength < 0.3) {
+      confidence -= 0.05; // Weak bullpen
+    }
+
+    // Adjust based on park factor
+    if (Math.abs(parkFactor - 1.0) > 0.1) {
+      confidence += 0.05; // Significant park factor
+    }
+
+    // Cap confidence between 0.55 and 0.85
+    return Math.min(0.85, Math.max(0.55, confidence));
+  }
+
+  private generateTotalReasoning(
+    expectedTotal: number,
+    line: number,
+    direction: 'OVER' | 'UNDER',
+    factors: PredictionFactors,
+    game: Game
+  ): string {
+    const reasons = [];
+
+    // Add expected total vs line comparison
+    reasons.push(`Expected total of ${expectedTotal.toFixed(1)} runs vs line of ${line}`);
+
+    // Add park factor impact
+    if (factors.parkFactor > 1.1) {
+      reasons.push('Strong hitter-friendly park factor');
+    } else if (factors.parkFactor < 0.9) {
+      reasons.push('Strong pitcher-friendly park factor');
+    }
+
+    // Add pitcher matchup impact
+    if (factors.startingPitcherMatchup > 0.7) {
+      reasons.push('Strong starting pitcher matchup');
+    } else if (factors.startingPitcherMatchup < 0.3) {
+      reasons.push('Weak starting pitcher matchup');
+    }
+
+    // Add bullpen impact
+    if (factors.bullpenStrength > 0.7) {
+      reasons.push('Strong bullpen advantage');
+    } else if (factors.bullpenStrength < 0.3) {
+      reasons.push('Weak bullpen disadvantage');
+    }
+
+    // Add lineup strength
+    if (factors.lineupStrength > 0.7) {
+      reasons.push('Strong offensive lineup');
+    } else if (factors.lineupStrength < 0.3) {
+      reasons.push('Weak offensive lineup');
+    }
+
+    // Add situational hitting
+    if (factors.situationalHitting > 0.7) {
+      reasons.push('Strong situational hitting metrics');
+    } else if (factors.situationalHitting < 0.3) {
+      reasons.push('Weak situational hitting metrics');
+    }
+
+    return reasons.join('\n• ');
   }
 
   private calculateGrade(probability: number): string {

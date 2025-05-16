@@ -1,6 +1,6 @@
 import { PrismaClient, PredictionOutcome } from '@prisma/client';
 import { MLModelService } from '../lib/enhanced-mlb/mlModelService.js';
-import { Prediction } from '../models/types.js';
+import type { Prediction } from '../models/types.ts';
 
 const prisma = new PrismaClient();
 

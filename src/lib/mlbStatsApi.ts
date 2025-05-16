@@ -1,7 +1,6 @@
 import axios from 'axios';
-import { TeamStats, H2HStats } from './predictionService.js';
-import { GameStatus } from '../models/types.js';
-import { CacheService } from './cacheService.js';
+import type { TeamStats, H2HStats } from './predictionService.js';
+import { CacheService } from './cacheService.ts';
 
 interface MLBTeam {
   id: number;
@@ -16,6 +15,7 @@ interface MLBTeam {
     id: number;
     name: string;
   };
+  abbreviation?: string;
 }
 
 interface MLBGame {
@@ -46,86 +46,6 @@ interface MLBGame {
   };
 }
 
-interface MLBTeamStats {
-  stats: Array<{
-    splits: Array<{
-      stat: {
-        gamesPlayed: number;
-        wins: number;
-        losses: number;
-        runsScored: number;
-        runsAllowed: number;
-        homeWins?: number;
-        homeLosses?: number;
-        awayWins?: number;
-        awayLosses?: number;
-      };
-    }>;
-  }>;
-}
-
-// Add interface for Pitching stats within the split
-interface MLBPitchingStats {
-    era?: string; 
-    whip?: string;
-    runsAllowed?: number;
-    // Add other relevant pitching stats if needed
-}
-
-// Interface for specific stat splits like vsLeft/vsRight
-interface MLBBattingSplitStats {
-    avg?: string; // Batting Average
-    ops?: string; // On-base + Slugging
-    // Add runsScored, homeRuns etc. if needed per split
-}
-
-// Update MLBTeamStats to potentially include pitching group
-interface MLBTeamStatsResponse {
-  stats: Array<{
-    group?: { displayName: string }; 
-    splits: Array<{
-      // Existing stat structure for overall/home/away/lastX
-      stat: {
-        gamesPlayed?: number;
-        wins?: number;
-        losses?: number;
-        runsScored?: number;
-        runsAllowed?: number;
-        era?: string;
-        whip?: string;
-        homeWins?: number;
-        homeLosses?: number;
-        awayWins?: number;
-        awayLosses?: number;
-        // Specific batting stats for vs L/R might be nested here too
-        avg?: string; 
-        ops?: string;
-        // Park factor properties
-        homeRuns?: number;
-        awayRuns?: number;
-        homeHits?: number;
-        awayHits?: number;
-        homeDoubles?: number;
-        awayDoubles?: number;
-        homeTriples?: number;
-        awayTriples?: number;
-        homeWalks?: number;
-        awayWalks?: number;
-        homeStrikeouts?: number;
-        awayStrikeouts?: number;
-      };
-      // Split details tell us what kind of split it is
-      split?: { 
-        type?: string; // e.g., 'season', 'vsLeft', 'vsRight'
-        isHome?: boolean;
-        isAway?: boolean;
-        statType?: string;
-        numGames?: number;
-      };
-    }>;
-  }>;
-}
-
 // Renamed and exported
 export interface PitcherStats {
   era?: string;
@@ -135,10 +55,6 @@ export interface PitcherStats {
   strikeOuts?: number;
   walks?: number;
   inningsPitched?: string;
-}
-
-interface MLBPitcherStatsResponse {
-  stats: Array<{ type: { displayName: string }, group: { displayName: string }, splits: Array<{ stat: PitcherStats }> }>
 }
 
 // Interface for pitcher details (including handedness)
@@ -155,8 +71,12 @@ interface MLBPersonResponse {
     people: PitcherDetails[];
 }
 
+interface MLBPitcherStatsResponse {
+  stats: Array<{ type: { displayName: string }, group: { displayName: string }, splits: Array<{ stat: PitcherStats }> }>;
+}
+
 const BASE_URL = 'https://statsapi.mlb.com/api/v1';
-const CURRENT_MLB_SEASON = 2024; // Use current season data
+const CURRENT_MLB_SEASON = new Date().getFullYear(); // Dynamically use the current year for the current season
 
 interface MLBTeamRecord {
   records: Array<{
@@ -321,20 +241,178 @@ export interface MLBPlayerStats {
   };
 }
 
-interface MLBPlayerStatsResponse {
-  stats: Array<{
-    type: { displayName: string };
-    group: { displayName: string };
-    splits: Array<{
-      stat: Record<string, any>;
-    }>;
-  }>;
-}
-
 interface LastGameInfo {
   date: string;
   location: string;
   nextGameLocation: string;
+}
+
+interface SituationalStats {
+  vsLeft: {
+    avg: string;
+    ops: string;
+    homeRuns: number;
+    strikeOutRate: string;
+    walkRate: string;
+    hardHitRate: string;
+    barrelRate: string;
+    exitVelocity: string;
+    launchAngle: string;
+    babip: string;
+    wOBA: string;
+    wRCPlus: number;
+  };
+  vsRight: {
+    avg: string;
+    ops: string;
+    homeRuns: number;
+    strikeOutRate: string;
+    walkRate: string;
+    hardHitRate: string;
+    barrelRate: string;
+    launchAngle: string;
+    babip: string;
+    wOBA: string;
+    wRCPlus: number;
+  };
+  home: {
+    avg: string;
+    ops: string;
+    homeRuns: number;
+    strikeOutRate: string;
+    walkRate: string;
+    hardHitRate: string;
+    barrelRate: string;
+    exitVelocity: string;
+    launchAngle: string;
+    babip: string;
+    wOBA: string;
+    wRCPlus: number;
+  };
+  away: {
+    avg: string;
+    ops: string;
+    homeRuns: number;
+    strikeOutRate: string;
+    walkRate: string;
+    hardHitRate: string;
+    barrelRate: string;
+    exitVelocity: string;
+    launchAngle: string;
+    babip: string;
+    wOBA: string;
+    wRCPlus: number;
+  };
+  last30Days: {
+    avg: string;
+    ops: string;
+    homeRuns: number;
+    strikeOutRate: string;
+    walkRate: string;
+    hardHitRate: string;
+    barrelRate: string;
+    exitVelocity: string;
+    launchAngle: string;
+    babip: string;
+    wOBA: string;
+    wRCPlus: number;
+  };
+  highLeverage: {
+    avg: string;
+    ops: string;
+    homeRuns: number;
+    strikeOutRate: string;
+    walkRate: string;
+    hardHitRate: string;
+    barrelRate: string;
+    exitVelocity: string;
+    launchAngle: string;
+    babip: string;
+    wOBA: string;
+    wRCPlus: number;
+  };
+  runnersInScoringPosition: {
+    avg: string;
+    ops: string;
+    homeRuns: number;
+    strikeOutRate: string;
+    walkRate: string;
+    hardHitRate: string;
+    barrelRate: string;
+    exitVelocity: string;
+    launchAngle: string;
+    babip: string;
+    wOBA: string;
+    wRCPlus: number;
+  };
+}
+
+interface BullpenStats {
+  era: string;
+  whip: string;
+  inningsPitched: string;
+  strikeOuts: number;
+  walks: number;
+  homeRuns: number;
+  last7Days: {
+    era: string;
+    whip: string;
+    inningsPitched: string;
+    strikeOuts: number;
+    walks: number;
+    homeRuns: number;
+    usage: {
+      highLeverage: number;
+      mediumLeverage: number;
+      lowLeverage: number;
+    };
+    restDays: {
+      zero: number;
+      one: number;
+      two: number;
+      threePlus: number;
+    };
+  };
+  last30Days: {
+    era: string;
+    whip: string;
+    inningsPitched: string;
+    strikeOuts: number;
+    walks: number;
+    homeRuns: number;
+  };
+  splits: {
+    vsLeft: {
+      era: string;
+      whip: string;
+      strikeOutRate: string;
+      walkRate: string;
+    };
+    vsRight: {
+      era: string;
+      whip: string;
+      strikeOutRate: string;
+      walkRate: string;
+    };
+  };
+  highLeverage: {
+    era: string;
+    whip: string;
+    inningsPitched: string;
+    strikeOuts: number;
+    walks: number;
+    homeRuns: number;
+  };
+}
+
+interface BoxscoreTeam {
+  pitchers: number[];
+}
+interface BoxscoreResponse {
+  teams: {
+    home: BoxscoreTeam;
+    away: BoxscoreTeam;
+  };
 }
 
 export class MLBStatsService {
@@ -347,6 +425,40 @@ export class MLBStatsService {
   private static playerStatsCache: Record<string, { data: MLBPlayerStats | null, timestamp: number }> = {};
   private static PLAYER_STATS_CACHE_DURATION = 6 * 60 * 60 * 1000; // Cache player stats for 6 hours
   private static readonly CACHE_TTL = 3600; // 1 hour in seconds
+
+  // Add static map of MLB team abbreviations to IDs
+  private static TEAM_ABBREVIATIONS: Record<string, number> = {
+    'ari': 109, // Arizona Diamondbacks
+    'atl': 144, // Atlanta Braves
+    'bal': 110, // Baltimore Orioles
+    'bos': 111, // Boston Red Sox
+    'chc': 112, // Chicago Cubs
+    'cin': 113, // Cincinnati Reds
+    'cle': 114, // Cleveland Guardians
+    'col': 115, // Colorado Rockies
+    'cws': 145, // Chicago White Sox
+    'det': 116, // Detroit Tigers
+    'hou': 117, // Houston Astros
+    'kc': 118, 'kcr': 118, // Kansas City Royals
+    'laa': 108, // Los Angeles Angels
+    'lad': 119, // Los Angeles Dodgers
+    'mia': 146, 'fla': 146, // Miami Marlins (formerly FLA)
+    'mil': 158, // Milwaukee Brewers
+    'min': 142, // Minnesota Twins
+    'nym': 121, // New York Mets
+    'nyy': 147, // New York Yankees
+    'oak': 133, // Oakland Athletics
+    'phi': 143, // Philadelphia Phillies
+    'pit': 134, // Pittsburgh Pirates
+    'sd': 135, 'sdp': 135, // San Diego Padres
+    'sea': 136, // Seattle Mariners
+    'sf': 137, 'sfg': 137, // San Francisco Giants
+    'stl': 138, // St. Louis Cardinals
+    'tb': 139, 'tbr': 139, 'tam': 139, // Tampa Bay Rays
+    'tex': 140, // Texas Rangers
+    'tor': 141, // Toronto Blue Jays
+    'was': 120, 'wsn': 120, 'wsh': 120 // Washington Nationals
+  };
 
   private static async initializeTeamIdMap(): Promise<void> {
     try {
@@ -370,6 +482,18 @@ export class MLBStatsService {
             this.teamIdMap?.set(team.name.toLowerCase(), team.id);
             this.teamIdMap?.set(team.teamName.toLowerCase(), team.id);
             this.teamIdMap?.set(team.locationName.toLowerCase(), team.id);
+            
+            // Add mapping for abbreviation (from MLB API)
+            if (team.abbreviation) {
+              this.teamIdMap?.set(team.abbreviation.toLowerCase(), team.id);
+            }
+
+            // Add mapping for our static abbreviation map
+            for (const [abbr, id] of Object.entries(MLBStatsService.TEAM_ABBREVIATIONS)) {
+              if (id === team.id) {
+                this.teamIdMap?.set(abbr, team.id);
+              }
+            }
             
             // Handle special cases
             if (team.name.toLowerCase().includes('st. louis')) {
@@ -408,25 +532,28 @@ export class MLBStatsService {
     const normalizedName = teamName
       .toLowerCase()
       .replace(/\s+/g, ' ')
+      .replace(/-/g, '')
       .trim();
 
-    // DEBUG: Log all available keys and the normalized name
-    if (process.env.DEBUG_TEAM_ID_MAP === '1') {
-      console.log('[MLBStatsService] Available teamIdMap keys:', Array.from(this.teamIdMap?.keys() || []));
-      console.log('[MLBStatsService] Looking up normalized name:', normalizedName);
-    }
-
     // Try to find the team ID
-    const id = this.teamIdMap?.get(normalizedName);
+    let id = this.teamIdMap?.get(normalizedName);
     if (!id) {
       // Try without spaces
       const noSpaceName = normalizedName.replace(/\s+/g, '');
-      const noSpaceId = this.teamIdMap?.get(noSpaceName);
-      if (!noSpaceId) {
-        console.warn(`[MLBStatsService] Team ID not found for: "${teamName}" (Normalized: "${normalizedName}")`);
-        return null;
-      }
-      return noSpaceId;
+      id = this.teamIdMap?.get(noSpaceName);
+    }
+    if (!id) {
+      // Try with hyphens removed
+      const hyphenless = normalizedName.replace(/-/g, '');
+      id = this.teamIdMap?.get(hyphenless);
+    }
+    if (!id) {
+      // Try static abbreviation map
+      id = MLBStatsService.TEAM_ABBREVIATIONS[normalizedName];
+    }
+    if (!id) {
+      console.warn(`[MLBStatsService] Team ID not found for: "${teamName}" (Normalized: "${normalizedName}")`);
+      return null;
     }
     return id;
   }
@@ -1102,116 +1229,272 @@ export class MLBStatsService {
     }
   }
 
-  static async getSituationalStats(teamId: string): Promise<any> {
-    const cacheKey = `mlb_situational_stats_${teamId}`;
-    const cached = await CacheService.get(cacheKey);
-    if (cached) return cached;
-
+  static async getSituationalStats(teamId: string): Promise<SituationalStats | null> {
     try {
-      const response = await this.makeApiRequest(`/teams/${teamId}/stats`, {
-        group: 'hitting',
-        type: 'situational'
-      });
-
-      if (!response?.stats) {
-        throw new Error('Invalid response format for situational stats');
+      const cacheKey = `situational_stats_${teamId}`;
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        return cachedData as SituationalStats;
       }
 
-      await CacheService.set(cacheKey, response, this.CACHE_TTL);
-      return response;
+      const stats = await this.makeApiRequest(`/teams/${teamId}/stats`, {
+        stats: 'vsRHP,vsLHP,home,away,last30Days,highLeverage,runnersInScoringPosition',
+        group: 'hitting',
+        season: CURRENT_MLB_SEASON
+      });
+
+      if (!stats || !stats.stats || stats.stats.length === 0) {
+        return null;
+      }
+
+      const processedStats = this.processSituationalStats(stats.stats);
+      await CacheService.set(cacheKey, processedStats, this.CACHE_TTL);
+      return processedStats;
     } catch (error) {
       console.error('Error fetching situational stats:', error);
       return null;
     }
   }
 
-  static async getBullpenUsage(teamId: string): Promise<any> {
-    const cacheKey = `mlb_bullpen_usage_${teamId}`;
-    const cached = await CacheService.get(cacheKey);
-    if (cached) return cached;
+  private static processSituationalStats(stats: any[]): SituationalStats {
+    const result: Partial<SituationalStats> = {};
+    
+    stats.forEach(statGroup => {
+      const splitType = statGroup.splits[0]?.split?.type;
+      if (!splitType) return;
 
+      const stat = statGroup.splits[0].stat;
+      const processedStat = {
+        avg: this.formatStat(stat.avg, '.000'),
+        ops: this.formatStat(stat.ops, '.000'),
+        homeRuns: this.parseNumber(stat.homeRuns, 0),
+        strikeOutRate: this.formatStat(stat.strikeOutRate, '.000'),
+        walkRate: this.formatStat(stat.walkRate, '.000'),
+        hardHitRate: this.formatStat(stat.hardHitRate, '.000'),
+        barrelRate: this.formatStat(stat.barrelRate, '.000'),
+        exitVelocity: this.formatStat(stat.exitVelocity, '.0'),
+        launchAngle: this.formatStat(stat.launchAngle, '.0'),
+        babip: this.formatStat(stat.babip, '.000'),
+        wOBA: this.formatStat(stat.wOBA, '.000'),
+        wRCPlus: this.parseNumber(stat.wRCPlus, 100)
+      };
+
+      switch (splitType) {
+        case 'vsLHP':
+          result.vsLeft = processedStat;
+          break;
+        case 'vsRHP':
+          result.vsRight = processedStat;
+          break;
+        case 'home':
+          result.home = processedStat;
+          break;
+        case 'away':
+          result.away = processedStat;
+          break;
+        case 'last30Days':
+          result.last30Days = processedStat;
+          break;
+        case 'highLeverage':
+          result.highLeverage = processedStat;
+          break;
+        case 'runnersInScoringPosition':
+          result.runnersInScoringPosition = processedStat;
+          break;
+      }
+    });
+
+    return result as SituationalStats;
+  }
+
+  static async getBullpenUsage(teamId: string): Promise<BullpenStats | null> {
     try {
-      const response = await this.makeApiRequest(`/teams/${teamId}/stats`, {
-        group: 'pitching',
-        type: 'bullpen'
-      });
-
-      if (!response?.stats) {
-        throw new Error('Invalid response format for bullpen usage');
+      const cacheKey = `bullpen_usage_${teamId}`;
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        return cachedData as BullpenStats;
       }
 
-      await CacheService.set(cacheKey, response, this.CACHE_TTL);
-      return response;
+      const stats = await this.makeApiRequest(`/teams/${teamId}/stats`, {
+        stats: 'season,last7Days,last30Days,vsRHP,vsLHP,highLeverage',
+        group: 'pitching',
+        season: CURRENT_MLB_SEASON
+      });
+
+      if (!stats || !stats.stats || stats.stats.length === 0) {
+        return null;
+      }
+
+      const processedStats = this.processBullpenStats(stats.stats);
+      await CacheService.set(cacheKey, processedStats, this.CACHE_TTL);
+      return processedStats;
     } catch (error) {
       console.error('Error fetching bullpen usage:', error);
       return null;
     }
   }
 
-  static async getBatterPitcherMatchup(batterId: number, pitcherId: number): Promise<any> {
-    const cacheKey = `mlb_batter_pitcher_${batterId}_${pitcherId}`;
-    const cached = await CacheService.get(cacheKey);
-    if (cached) return cached;
+  private static processBullpenStats(stats: any[]): BullpenStats {
+    const result: Partial<BullpenStats> = {};
+    
+    stats.forEach(statGroup => {
+      const splitType = statGroup.splits[0]?.split?.type;
+      if (!splitType) return;
 
-    try {
-      const response = await this.makeApiRequest(`/people/${batterId}/stats`, {
-        group: 'hitting',
-        type: 'vsPitcher',
-        pitcherId: pitcherId
-      });
+      const stat = statGroup.splits[0].stat;
+      const processedStat = {
+        era: this.formatStat(stat.era, '0.00'),
+        whip: this.formatStat(stat.whip, '0.00'),
+        inningsPitched: this.formatStat(stat.inningsPitched, '0.0'),
+        strikeOuts: this.parseNumber(stat.strikeOuts, 0),
+        walks: this.parseNumber(stat.walks, 0),
+        homeRuns: this.parseNumber(stat.homeRuns, 0)
+      };
 
-      if (!response?.stats) {
-        throw new Error('Invalid response format for batter-pitcher matchup');
+      switch (splitType) {
+        case 'season':
+          result.era = processedStat.era;
+          result.whip = processedStat.whip;
+          result.inningsPitched = processedStat.inningsPitched;
+          result.strikeOuts = processedStat.strikeOuts;
+          result.walks = processedStat.walks;
+          result.homeRuns = processedStat.homeRuns;
+          break;
+        case 'last7Days':
+          result.last7Days = {
+            ...processedStat,
+            usage: {
+              highLeverage: this.parseNumber(stat.highLeverageUsage, 0),
+              mediumLeverage: this.parseNumber(stat.mediumLeverageUsage, 0),
+              lowLeverage: this.parseNumber(stat.lowLeverageUsage, 0)
+            },
+            restDays: {
+              zero: this.parseNumber(stat.zeroDaysRest, 0),
+              one: this.parseNumber(stat.oneDayRest, 0),
+              two: this.parseNumber(stat.twoDaysRest, 0),
+              threePlus: this.parseNumber(stat.threePlusDaysRest, 0)
+            }
+          };
+          break;
+        case 'last30Days':
+          result.last30Days = processedStat;
+          break;
+        case 'vsLHP':
+          result.splits = {
+            ...result.splits,
+            vsLeft: {
+              era: processedStat.era,
+              whip: processedStat.whip,
+              strikeOutRate: this.formatStat(stat.strikeOutRate, '.000'),
+              walkRate: this.formatStat(stat.walkRate, '.000')
+            }
+          };
+          break;
+        case 'vsRHP':
+          result.splits = {
+            ...result.splits,
+            vsRight: {
+              era: processedStat.era,
+              whip: processedStat.whip,
+              strikeOutRate: this.formatStat(stat.strikeOutRate, '.000'),
+              walkRate: this.formatStat(stat.walkRate, '.000')
+            }
+          };
+          break;
+        case 'highLeverage':
+          result.highLeverage = processedStat;
+          break;
       }
+    });
 
-      await CacheService.set(cacheKey, response, this.CACHE_TTL);
-      return response;
-    } catch (error) {
-      console.error('Error fetching batter-pitcher matchup:', error);
-      return null;
-    }
-  }
-
-  static async getWeatherImpact(teamId: string): Promise<any> {
-    const cacheKey = `mlb_weather_impact_${teamId}`;
-    const cached = await CacheService.get(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const response = await this.makeApiRequest(`/teams/${teamId}/stats`, {
-        group: 'hitting',
-        type: 'weather'
-      });
-
-      if (!response?.stats) {
-        throw new Error('Invalid response format for weather impact');
-      }
-
-      await CacheService.set(cacheKey, response, this.CACHE_TTL);
-      return response;
-    } catch (error) {
-      console.error('Error fetching weather impact:', error);
-      return null;
-    }
+    return result as BullpenStats;
   }
 
   private static async makeApiRequest(endpoint: string, params: Record<string, any> = {}): Promise<any> {
     const baseUrl = process.env.MLB_STATS_API_URL || 'https://statsapi.mlb.com/api/v1';
     const url = new URL(`${baseUrl}${endpoint}`);
     
+    // Add required parameters
+    params.hydrate = 'stats(group=[hitting,pitching],type=[vsRHP,vsLHP,home,away,last30Days,season,last7Days])';
+    params.fields = 'stats,group,type,splits,stat';
+    
     Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.append(key, value.toString());
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, value.toString());
+      }
     });
 
     try {
+      console.log(`Making MLB Stats API request to: ${url.toString()}`);
       const response = await fetch(url.toString());
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`MLB Stats API error response: ${errorText}`);
         throw new Error(`MLB Stats API error: ${response.statusText}`);
       }
-      return await response.json();
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error('Error making MLB Stats API request:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Fetch the actual starting pitcher IDs for a given gamePk (game ID) from the MLB API.
+   * Returns { homePitcherId, awayPitcherId } or null if not found.
+   */
+  static async getActualStartingPitchers(gamePk: number): Promise<{ homePitcherId: number, awayPitcherId: number } | null> {
+    try {
+      // The boxscore endpoint contains the actual starting pitchers
+      const response = await axios.get<BoxscoreResponse>(`https://statsapi.mlb.com/api/v1/game/${gamePk}/boxscore`);
+      const boxscore = response.data;
+      // Find the pitcher who started for each team
+      const homePitchers = boxscore.teams.home.pitchers;
+      const awayPitchers = boxscore.teams.away.pitchers;
+      // The first pitcher in the list is the starter
+      const homePitcherId = homePitchers?.[0];
+      const awayPitcherId = awayPitchers?.[0];
+      if (homePitcherId && awayPitcherId) {
+        return { homePitcherId, awayPitcherId };
+      }
+      return null;
+    } catch (error) {
+      console.error(`[MLBStatsService] Error fetching actual starting pitchers for gamePk ${gamePk}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Search for MLB games by team names and date
+   */
+  static async searchGames(
+    homeTeam: string,
+    awayTeam: string,
+    gameDate: Date
+  ): Promise<MLBGame[]> {
+    try {
+      const dateStr = gameDate.toISOString().split('T')[0];
+      const response = await fetch(
+        `https://statsapi.mlb.com/api/v1/schedule?date=${dateStr}&sportId=1`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const games = data.dates[0]?.games || [];
+      
+      // Filter games by team names
+      return games.filter((game: MLBGame) => {
+        const homeTeamMatch = game.teams.home.team.name.toLowerCase() === homeTeam.toLowerCase();
+        const awayTeamMatch = game.teams.away.team.name.toLowerCase() === awayTeam.toLowerCase();
+        return homeTeamMatch && awayTeamMatch;
+      });
+    } catch (error) {
+      console.error('Error searching MLB games:', error);
+      return [];
     }
   }
 }

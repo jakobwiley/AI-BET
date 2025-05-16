@@ -1,6 +1,6 @@
-import { Game, SportType, GameStatus } from '../models/types.js';
+import type { Game, SportType, GameStatus } from '../models/types.ts';
 import axios from 'axios';
-import { handleSportsApiError } from './errors.js';
+import { handleSportsApiError } from './errors.ts';
 import fs from 'fs';
 import path from 'path';
 
@@ -121,19 +121,19 @@ export class OddsApiService {
       status,
       odds: {
         spread: spreadsMarket?.outcomes?.length === 2 ? {
-          homeSpread: String(spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0),
-          awaySpread: String(spreadsMarket.outcomes.find(o => o.name === event.away_team)?.point || 0),
-          homeOdds: String(spreadsMarket.outcomes.find(o => o.name === event.home_team)?.price || -110),
-          awayOdds: String(spreadsMarket.outcomes.find(o => o.name === event.away_team)?.price || -110)
+          homeSpread: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.point || 0,
+          awaySpread: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.point || 0,
+          homeOdds: spreadsMarket.outcomes.find(o => o.name === event.home_team)?.price || -110,
+          awayOdds: spreadsMarket.outcomes.find(o => o.name === event.away_team)?.price || -110
         } : undefined,
         total: totalsMarket?.outcomes?.length === 2 ? {
-          overUnder: String(totalsMarket.outcomes[0]?.point || 0),
-          overOdds: String(totalsMarket.outcomes.find(o => o.name === 'Over')?.price || -110),
-          underOdds: String(totalsMarket.outcomes.find(o => o.name === 'Under')?.price || -110)
+          overUnder: totalsMarket.outcomes[0]?.point || 0,
+          overOdds: totalsMarket.outcomes.find(o => o.name === 'Over')?.price || -110,
+          underOdds: totalsMarket.outcomes.find(o => o.name === 'Under')?.price || -110
         } : undefined,
         moneyline: h2hMarket?.outcomes?.length === 2 ? {
-          homeOdds: String(h2hMarket.outcomes.find(o => o.name === event.home_team)?.price || 0),
-          awayOdds: String(h2hMarket.outcomes.find(o => o.name === event.away_team)?.price || 0)
+          homeOdds: h2hMarket.outcomes.find(o => o.name === event.home_team)?.price || 0,
+          awayOdds: h2hMarket.outcomes.find(o => o.name === event.away_team)?.price || 0
         } : undefined
       },
       probableHomePitcherName: undefined,

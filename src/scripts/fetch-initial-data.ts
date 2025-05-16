@@ -3,7 +3,7 @@ import { PredictionService, TeamStats, H2HStats } from '../lib/predictionService
 import { NBAStatsService } from '../lib/nbaStatsApi.js';
 import { MLBStatsService } from '../lib/mlbStatsApi.js';
 import { prisma } from '../lib/prisma.js';
-import { Game, GameStatus } from '../models/types.js';
+import type { Game, GameStatus } from '../models/types.ts';
 import { PrismaClient, SportType, PredictionType, Prisma } from '@prisma/client';
 import { parseISO } from 'date-fns';
 
