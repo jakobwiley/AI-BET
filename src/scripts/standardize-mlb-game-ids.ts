@@ -1,7 +1,19 @@
 import { PrismaClient, SportType } from '@prisma/client';
-import { MLBStatsService } from '../lib/mlbStatsApi.js';
+import { MLBStatsService } from '../lib/mlbStatsApi.ts';
 
 const prisma = new PrismaClient();
+
+// Helper function to normalize team names for fuzzy matching
+function normalizeTeamName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Helper function to check if two team names are a close match
+function isCloseMatch(name1: string, name2: string): boolean {
+  const normalized1 = normalizeTeamName(name1);
+  const normalized2 = normalizeTeamName(name2);
+  return normalized1.includes(normalized2) || normalized2.includes(normalized1);
+}
 
 async function standardizeMLBGameIds() {
   try {
@@ -23,11 +35,14 @@ async function standardizeMLBGameIds() {
         console.log(`\nProcessing game: ${game.awayTeamName} @ ${game.homeTeamName} (${game.gameDate})`);
         console.log(`Old ID: ${game.id}`);
 
-        // Search for the game in MLB API
+        // Extract the date part only (ignoring time)
+        const gameDate = new Date(game.gameDate.toISOString().split('T')[0]);
+
+        // Search for the game in MLB API using only the date
         const mlbGames = await MLBStatsService.searchGames(
           game.awayTeamName,
           game.homeTeamName,
-          game.gameDate
+          gameDate
         );
 
         if (mlbGames.length === 0) {
@@ -35,7 +50,18 @@ async function standardizeMLBGameIds() {
           continue;
         }
 
-        const mlbGame = mlbGames[0];
+        // Check for close matches in team names
+        const closeMatches = mlbGames.filter(mlbGame => 
+          isCloseMatch(mlbGame.teams.away.team.name, game.awayTeamName) && 
+          isCloseMatch(mlbGame.teams.home.team.name, game.homeTeamName)
+        );
+
+        if (closeMatches.length === 0) {
+          console.log(`No close match found for ${game.id}`);
+          continue;
+        }
+
+        const mlbGame = closeMatches[0];
         const newId = mlbGame.gamePk.toString();
         console.log(`Numeric MLB game ID: ${newId}`);
 

@@ -36,19 +36,19 @@ export interface Game {
   predictions?: Prediction[];
   odds?: {
     spread?: {
-      homeSpread: number;
-      awaySpread: number;
-      homeOdds: number;
-      awayOdds: number;
+      homeSpread: string;
+      awaySpread: string;
+      homeOdds: string;
+      awayOdds: string;
     };
     total?: {
-      overUnder: number;
-      overOdds: number;
-      underOdds: number;
+      overUnder: string;
+      overOdds: string;
+      underOdds: string;
     };
     moneyline?: {
-      homeOdds: number;
-      awayOdds: number;
+      homeOdds: string;
+      awayOdds: string;
     };
   };
   probableHomePitcherId?: number;

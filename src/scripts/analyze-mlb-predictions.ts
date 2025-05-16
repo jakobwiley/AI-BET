@@ -1,6 +1,7 @@
 import { PrismaClient, PredictionType, PredictionOutcome, GameStatus, SportType } from '@prisma/client';
 import { subDays } from 'date-fns';
 import { format } from 'date-fns';
+import { get2025RegularSeasonMLBGames } from './utils/filterRegularSeasonMLBGames.ts';
 
 const prisma = new PrismaClient();
 
@@ -50,30 +51,10 @@ async function analyzeMLBPredictions() {
   try {
     console.log('📊 Analyzing MLB predictions...');
 
-    const thirtyDaysAgo = subDays(new Date(), 30);
-    const fourteenDaysAgo = subDays(new Date(), 14);
-    const sevenDaysAgo = subDays(new Date(), 7);
+    // Get all 2025 regular season MLB games
+    const games = await get2025RegularSeasonMLBGames();
 
-    // Get all MLB games with predictions from the last 30 days
-    const games = await prisma.game.findMany({
-      where: {
-        sport: SportType.MLB,
-        gameDate: {
-          gte: thirtyDaysAgo
-        },
-        predictions: {
-          some: {}
-        }
-      },
-      include: {
-        predictions: true
-      },
-      orderBy: {
-        gameDate: 'desc'
-      }
-    });
-
-    console.log(`Found ${games.length} MLB games with predictions in the last 30 days`);
+    console.log(`Found ${games.length} 2025 regular season MLB games with predictions`);
 
     // Initialize analysis object
     const analysis: PredictionAnalysis = {
@@ -94,10 +75,11 @@ async function analyzeMLBPredictions() {
 
     // Process each game's predictions
     for (const game of games) {
+      if (!game.predictions || game.predictions.length === 0) continue;
       const gameDate = new Date(game.gameDate);
-      const isLast7Days = gameDate >= sevenDaysAgo;
-      const isLast14Days = gameDate >= fourteenDaysAgo;
-      const isLast30Days = gameDate >= thirtyDaysAgo;
+      const isLast7Days = gameDate >= subDays(new Date(), 7);
+      const isLast14Days = gameDate >= subDays(new Date(), 14);
+      const isLast30Days = gameDate >= subDays(new Date(), 30);
 
       for (const prediction of game.predictions) {
         // Update totals
@@ -186,7 +168,7 @@ async function analyzeMLBPredictions() {
 
     // Print analysis results
     console.log('\n=== MLB Prediction Analysis ===');
-    console.log(`Date Range: ${format(thirtyDaysAgo, 'MMM d, yyyy')} to ${format(new Date(), 'MMM d, yyyy')}`);
+    console.log(`Date Range: ${format(subDays(new Date(), 30), 'MMM d, yyyy')} to ${format(new Date(), 'MMM d, yyyy')}`);
     console.log(`\nOverall Performance:`);
     console.log(`Total Predictions: ${analysis.total}`);
     console.log(`Correct: ${analysis.correct}`);
@@ -229,4 +211,4 @@ async function analyzeMLBPredictions() {
   }
 }
 
-analyzeMLBPredictions(); 
+analyzeMLBPredictions();

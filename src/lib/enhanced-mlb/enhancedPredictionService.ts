@@ -1,7 +1,10 @@
-import type { Game, Prediction, PredictionType } from '../../models/types.ts';
-import { MLBStatsService } from '../mlbStatsApi.ts';
-import { CacheService } from '../cacheService.ts';
-import { EnsembleModel } from './ensembleModel.ts';
+import { PrismaClient, Game, Prediction, PredictionOutcome, PredictionType } from '@prisma/client';
+import type { PredictionType as PredictionTypeType } from '../../models/types.js';
+import { MLBStatsService } from '../mlbStatsApi.js';
+import { CacheService } from '../cacheService.js';
+import { EnsembleModel } from './ensembleModel.js';
+import { prisma } from '../../lib/prisma.js';
+import { PredictorModel, EnhancedFactors } from '../enhanced-predictions/predictorModel.js';
 
 interface PredictionFactors {
   // Team Factors
@@ -24,6 +27,31 @@ interface PredictionFactors {
   expectedRuns: number;
   winProbability: number;
   valueRating: number;
+
+  // Weather Factors
+  weather?: {
+    windSpeed: number;
+    temperature: number;
+  };
+
+  // New factors
+  headToHead?: number;
+  scoringDifferential?: number;
+  pitchingStrength?: number;
+  keyPlayerImpact?: number;
+}
+
+interface ExtendedGame extends Game {
+  weather?: {
+    windSpeed: number;
+    temperature: number;
+  };
+}
+
+interface ExtendedPrediction extends Omit<Prediction, 'createdAt' | 'updatedAt'> {
+  createdAt: Date;
+  updatedAt: Date;
+  grade: string;
 }
 
 export class EnhancedPredictionService {
@@ -43,7 +71,7 @@ export class EnhancedPredictionService {
   /**
    * Generate comprehensive prediction for a game
    */
-  public async generatePrediction(game: Game): Promise<Prediction> {
+  public async generatePrediction(game: ExtendedGame): Promise<Prediction> {
     try {
       // Get pitcher IDs with fallback
       let homePitcherId = game.probableHomePitcherId;
@@ -69,14 +97,18 @@ export class EnhancedPredictionService {
         throw new Error('Missing starting pitcher IDs for this game');
       }
 
-      // Get odds with fallback
-      const moneyline = game.odds?.moneyline?.homeOdds && game.odds?.moneyline?.awayOdds
-        ? { home: Number(game.odds.moneyline.homeOdds), away: Number(game.odds.moneyline.awayOdds) }
+      // Parse odds from oddsJson
+      let odds: any = {};
+      if (game.oddsJson) {
+        odds = typeof game.oddsJson === 'string' ? JSON.parse(game.oddsJson) : game.oddsJson;
+      }
+      const moneyline = odds.moneyline && odds.moneyline.homeOdds !== undefined && odds.moneyline.awayOdds !== undefined
+        ? { home: Number(odds.moneyline.homeOdds), away: Number(odds.moneyline.awayOdds) }
         : { home: 0, away: 0 };
-      const runline = game.odds?.spread?.homeSpread && game.odds?.spread?.awaySpread
-        ? { home: Number(game.odds.spread.homeSpread), away: Number(game.odds.spread.awaySpread) }
+      const runline = odds.spread && odds.spread.homeSpread !== undefined && odds.spread.awaySpread !== undefined
+        ? { home: Number(odds.spread.homeSpread), away: Number(odds.spread.awaySpread) }
         : { home: 0, away: 0 };
-      const total = game.odds?.total?.overUnder ? Number(game.odds.total.overUnder) : 0;
+      const total = odds.total && odds.total.overUnder !== undefined ? Number(odds.total.overUnder) : 0;
 
       // Get all required data
       const [homeTeamStats, awayTeamStats, homePitcher, awayPitcher] = await Promise.all([
@@ -105,13 +137,36 @@ export class EnhancedPredictionService {
         this.generateTotalPrediction(game, factors, total)
       ]);
 
+      // Ensure all predictions have grade property
+      const predictionsWithGrade: Prediction[] = predictions.map(pred => ({
+        ...pred,
+        grade: pred.grade ?? 'C'
+      }));
+
       // Use ensemble model to combine predictions
-      const ensemblePrediction = await this.ensembleModel.generatePrediction(game, predictions);
+      const ensemblePredictionRaw = await this.ensembleModel.generatePrediction(game as any, predictionsWithGrade);
+      // Ensure ensemble prediction has grade property
+      const ensemblePrediction: Prediction = {
+        ...ensemblePredictionRaw,
+        grade: ensemblePredictionRaw.grade ?? 'C'
+      };
 
       // Add detailed reasoning
-      ensemblePrediction.reasoning = this.generateDetailedReasoning(factors, predictions);
+      ensemblePrediction.reasoning = this.generateDetailedReasoning(factors, predictionsWithGrade);
 
-      return ensemblePrediction;
+      return {
+        id: ensemblePrediction.id,
+        gameId: ensemblePrediction.gameId,
+        predictionType: ensemblePrediction.predictionType,
+        predictionValue: ensemblePrediction.predictionValue,
+        confidence: ensemblePrediction.confidence,
+        reasoning: ensemblePrediction.reasoning,
+        outcome: ensemblePrediction.outcome,
+        grade: ensemblePrediction.grade,
+        createdAt: new Date(ensemblePrediction.createdAt),
+        updatedAt: new Date(ensemblePrediction.updatedAt),
+        projectionJson: ensemblePrediction.projectionJson ?? null
+      };
     } catch (error) {
       console.error('Error generating prediction:', error);
       throw error;
@@ -123,7 +178,7 @@ export class EnhancedPredictionService {
    * Now includes odds and total as arguments
    */
   private async calculatePredictionFactors(
-    game: Game,
+    game: ExtendedGame,
     homeTeamStats: any,
     awayTeamStats: any,
     homePitcher: any,
@@ -205,19 +260,25 @@ export class EnhancedPredictionService {
     factors: PredictionFactors,
     predictions: Prediction[]
   ): string {
-    const reasoning = [
-      'Prediction Analysis:',
-      `Team Strength: ${(factors.teamStrength * 100).toFixed(1)}%`,
-      `Home Advantage: ${(factors.homeAdvantage * 100).toFixed(1)}%`,
-      `Recent Form: ${(factors.recentForm * 100).toFixed(1)}%`,
-      `Starting Pitcher Matchup: ${(factors.startingPitcherMatchup * 100).toFixed(1)}%`,
-      `Bullpen Strength: ${(factors.bullpenStrength * 100).toFixed(1)}%`,
-      `Expected Runs: ${factors.expectedRuns.toFixed(1)}`,
-      `Win Probability: ${(factors.winProbability * 100).toFixed(1)}%`,
-      `Value Rating: ${(factors.valueRating * 100).toFixed(1)}%`
-    ].join('\n');
+    // Convert factors to the EnhancedFactors format
+    const enhancedFactors: EnhancedFactors = {
+      overallRecordFactor: factors.teamStrength,
+      homeAwaySplitFactor: factors.homeAdvantage,
+      recentFormFactor: factors.recentForm,
+      headToHeadFactor: factors.headToHead || 0.5,
+      scoringDiffFactor: factors.scoringDifferential || 0.5,
+      pitcherMatchupFactor: factors.startingPitcherMatchup,
+      teamPitchingFactor: factors.bullpenStrength,
+      batterHandednessFactor: factors.platoonAdvantage,
+      ballparkFactor: factors.parkFactor,
+      battingStrengthFactor: factors.lineupStrength,
+      pitchingStrengthFactor: factors.pitchingStrength || 0.5,
+      keyPlayerImpactFactor: factors.keyPlayerImpact || 0.5,
+      restFactor: factors.restDays || 0.5
+    };
 
-    return reasoning;
+    // Use the PredictorModel's formatReasoning method to generate structured JSON
+    return PredictorModel.formatReasoning(enhancedFactors);
   }
 
   // Helper methods for factor calculations
@@ -251,12 +312,12 @@ export class EnhancedPredictionService {
     return 0.5; // Placeholder
   }
 
-  private calculateRestDaysImpact(game: Game): number {
+  private calculateRestDaysImpact(game: ExtendedGame): number {
     // Implementation using rest days data
     return 0.5; // Placeholder
   }
 
-  private async analyzeLineupStrength(game: Game): Promise<number> {
+  private async analyzeLineupStrength(game: ExtendedGame): Promise<number> {
     // Implementation using lineup data
     return 0.5; // Placeholder
   }
@@ -307,43 +368,79 @@ export class EnhancedPredictionService {
   }
 
   private async generateMoneylinePrediction(
-    game: Game,
+    game: ExtendedGame,
     factors: PredictionFactors
   ): Promise<Prediction> {
-    // Implementation for moneyline prediction
+    // Convert factors to the EnhancedFactors format
+    const enhancedFactors: EnhancedFactors = {
+      overallRecordFactor: factors.teamStrength,
+      homeAwaySplitFactor: factors.homeAdvantage,
+      recentFormFactor: factors.recentForm,
+      headToHeadFactor: factors.headToHead || 0.5,
+      scoringDiffFactor: factors.scoringDifferential || 0.5,
+      pitcherMatchupFactor: factors.startingPitcherMatchup,
+      teamPitchingFactor: factors.bullpenStrength,
+      batterHandednessFactor: factors.platoonAdvantage,
+      ballparkFactor: factors.parkFactor,
+      battingStrengthFactor: factors.lineupStrength,
+      pitchingStrengthFactor: factors.pitchingStrength || 0.5,
+      keyPlayerImpactFactor: factors.keyPlayerImpact || 0.5,
+      restFactor: factors.restDays || 0.5
+    };
+
     return {
       id: `${game.id}-moneyline`,
       gameId: game.id,
-      predictionType: 'MONEYLINE',
+      predictionType: PredictionType.MONEYLINE,
       predictionValue: factors.winProbability > 0.5 ? 'HOME' : 'AWAY',
       confidence: Math.round(factors.winProbability * 100),
-      grade: this.calculateGrade(factors.winProbability),
-      reasoning: 'Moneyline prediction based on win probability',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      reasoning: PredictorModel.formatReasoning(enhancedFactors),
+      outcome: PredictionOutcome.PENDING,
+      grade: 'C',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      projectionJson: null
     };
   }
 
   private async generateRunLinePrediction(
-    game: Game,
+    game: ExtendedGame,
     factors: PredictionFactors
   ): Promise<Prediction> {
-    // Implementation for run line prediction
+    // Convert factors to the EnhancedFactors format
+    const enhancedFactors: EnhancedFactors = {
+      overallRecordFactor: factors.teamStrength,
+      homeAwaySplitFactor: factors.homeAdvantage,
+      recentFormFactor: factors.recentForm,
+      headToHeadFactor: factors.headToHead || 0.5,
+      scoringDiffFactor: factors.scoringDifferential || 0.5,
+      pitcherMatchupFactor: factors.startingPitcherMatchup,
+      teamPitchingFactor: factors.bullpenStrength,
+      batterHandednessFactor: factors.platoonAdvantage,
+      ballparkFactor: factors.parkFactor,
+      battingStrengthFactor: factors.lineupStrength,
+      pitchingStrengthFactor: factors.pitchingStrength || 0.5,
+      keyPlayerImpactFactor: factors.keyPlayerImpact || 0.5,
+      restFactor: factors.restDays || 0.5
+    };
+
     return {
       id: `${game.id}-runline`,
       gameId: game.id,
-      predictionType: 'SPREAD',
+      predictionType: PredictionType.SPREAD,
       predictionValue: factors.winProbability > 0.5 ? 'HOME' : 'AWAY',
       confidence: Math.round(factors.winProbability * 100),
-      grade: this.calculateGrade(factors.winProbability),
-      reasoning: 'Run line prediction based on expected margin',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      reasoning: PredictorModel.formatReasoning(enhancedFactors),
+      outcome: PredictionOutcome.PENDING,
+      grade: 'C',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      projectionJson: null
     };
   }
 
   private async generateTotalPrediction(
-    game: Game,
+    game: ExtendedGame,
     factors: PredictionFactors,
     total: number
   ): Promise<Prediction> {
@@ -371,22 +468,35 @@ export class EnhancedPredictionService {
       factors.parkFactor
     );
 
+    // Convert factors to the EnhancedFactors format
+    const enhancedFactors: EnhancedFactors = {
+      overallRecordFactor: factors.teamStrength,
+      homeAwaySplitFactor: factors.homeAdvantage,
+      recentFormFactor: factors.recentForm,
+      headToHeadFactor: factors.headToHead || 0.5,
+      scoringDiffFactor: factors.scoringDifferential || 0.5,
+      pitcherMatchupFactor: factors.startingPitcherMatchup,
+      teamPitchingFactor: factors.bullpenStrength,
+      batterHandednessFactor: factors.platoonAdvantage,
+      ballparkFactor: factors.parkFactor,
+      battingStrengthFactor: factors.lineupStrength,
+      pitchingStrengthFactor: factors.pitchingStrength || 0.5,
+      keyPlayerImpactFactor: factors.keyPlayerImpact || 0.5,
+      restFactor: factors.restDays || 0.5
+    };
+
     return {
       id: `${game.id}-total`,
       gameId: game.id,
-      predictionType: 'TOTAL',
+      predictionType: PredictionType.TOTAL,
       predictionValue: `${direction.charAt(0).toLowerCase()}${total}`,
       confidence,
-      grade: this.calculateGrade(confidence),
-      reasoning: this.generateTotalReasoning(
-        expectedTotal,
-        total,
-        direction,
-        factors,
-        game
-      ),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      reasoning: PredictorModel.formatReasoning(enhancedFactors),
+      outcome: PredictionOutcome.PENDING,
+      grade: 'C',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      projectionJson: null
     };
   }
 
@@ -461,66 +571,214 @@ export class EnhancedPredictionService {
     return Math.min(0.85, Math.max(0.55, confidence));
   }
 
-  private generateTotalReasoning(
-    expectedTotal: number,
-    line: number,
-    direction: 'OVER' | 'UNDER',
+  private async logFactorContributions(
+    game: ExtendedGame,
     factors: PredictionFactors,
-    game: Game
-  ): string {
-    const reasons = [];
+    prediction: Prediction,
+    outcome: PredictionOutcome
+  ): Promise<void> {
+    try {
+      // Convert factors to a plain object for JSON storage
+      const factorData = {
+        teamStrength: factors.teamStrength,
+        homeAdvantage: factors.homeAdvantage,
+        recentForm: factors.recentForm,
+        startingPitcherMatchup: factors.startingPitcherMatchup,
+        bullpenStrength: factors.bullpenStrength,
+        lineupStrength: factors.lineupStrength,
+        platoonAdvantage: factors.platoonAdvantage,
+        situationalHitting: factors.situationalHitting,
+        expectedRuns: factors.expectedRuns,
+        winProbability: factors.winProbability,
+        valueRating: factors.valueRating,
+        headToHead: factors.headToHead,
+        scoringDifferential: factors.scoringDifferential,
+        pitchingStrength: factors.pitchingStrength,
+        keyPlayerImpact: factors.keyPlayerImpact,
+        restDays: factors.restDays
+      };
 
-    // Add expected total vs line comparison
-    reasons.push(`Expected total of ${expectedTotal.toFixed(1)} runs vs line of ${line}`);
-
-    // Add park factor impact
-    if (factors.parkFactor > 1.1) {
-      reasons.push('Strong hitter-friendly park factor');
-    } else if (factors.parkFactor < 0.9) {
-      reasons.push('Strong pitcher-friendly park factor');
+      await prisma.prediction.update({
+        where: { id: prediction.id },
+        data: {
+          outcome,
+          projectionJson: factorData
+        }
+      });
+    } catch (error) {
+      console.error('Error logging factor contributions:', error);
     }
-
-    // Add pitcher matchup impact
-    if (factors.startingPitcherMatchup > 0.7) {
-      reasons.push('Strong starting pitcher matchup');
-    } else if (factors.startingPitcherMatchup < 0.3) {
-      reasons.push('Weak starting pitcher matchup');
-    }
-
-    // Add bullpen impact
-    if (factors.bullpenStrength > 0.7) {
-      reasons.push('Strong bullpen advantage');
-    } else if (factors.bullpenStrength < 0.3) {
-      reasons.push('Weak bullpen disadvantage');
-    }
-
-    // Add lineup strength
-    if (factors.lineupStrength > 0.7) {
-      reasons.push('Strong offensive lineup');
-    } else if (factors.lineupStrength < 0.3) {
-      reasons.push('Weak offensive lineup');
-    }
-
-    // Add situational hitting
-    if (factors.situationalHitting > 0.7) {
-      reasons.push('Strong situational hitting metrics');
-    } else if (factors.situationalHitting < 0.3) {
-      reasons.push('Weak situational hitting metrics');
-    }
-
-    return reasons.join('\n• ');
   }
 
-  private calculateGrade(probability: number): string {
-    if (probability >= 0.85) return 'A+';
-    if (probability >= 0.80) return 'A';
-    if (probability >= 0.75) return 'A-';
-    if (probability >= 0.70) return 'B+';
-    if (probability >= 0.65) return 'B';
-    if (probability >= 0.60) return 'B-';
-    if (probability >= 0.55) return 'C+';
-    if (probability >= 0.50) return 'C';
-    return 'C-';
+  private async validateSpreadPrediction(
+    game: ExtendedGame,
+    prediction: Prediction,
+    factors: PredictionFactors
+  ): Promise<{ isValid: boolean; confidenceAdjustment: number }> {
+    const value = prediction.predictionValue.trim();
+    let spreadValue: number | null = null;
+    let isHomeTeam = true;
+
+    // Parse spread value
+    if (/^[+-]?\d+(\.\d+)?$/.test(value)) {
+      spreadValue = parseFloat(value);
+      isHomeTeam = spreadValue < 0;
+    } else {
+      const match = value.match(/^[+-](.+?)\s+([+-]?\d+(\.\d+)?)/);
+      if (match) {
+        const team = match[1].trim();
+        spreadValue = parseFloat(match[2]);
+        isHomeTeam = team === game.homeTeamName;
+      }
+    }
+
+    if (spreadValue === null) {
+      return { isValid: false, confidenceAdjustment: 0.7 };
+    }
+
+    const absSpread = Math.abs(spreadValue);
+
+    // More aggressive confidence reduction for large spreads
+    if (absSpread > 2.0) {
+      const confidenceAdj = Math.max(0.6, 1 - ((absSpread - 2.0) * 0.15));
+      return { 
+        isValid: true, 
+        confidenceAdjustment: confidenceAdj
+      };
+    }
+
+    // Additional validation for extreme weather conditions
+    if (game.weather?.windSpeed > 15 || game.weather?.temperature > 90) {
+      return {
+        isValid: true,
+        confidenceAdjustment: 0.8
+      };
+    }
+
+    // Validate against historical performance
+    const historicalAccuracy = await this.getHistoricalAccuracy(game.homeTeamName, game.awayTeamName);
+    if (historicalAccuracy < 0.5) {
+      return {
+        isValid: true,
+        confidenceAdjustment: 0.85
+      };
+    }
+
+    // Log factor contributions after validation
+    if (game.status === 'FINAL') {
+      const outcome = this.determinePredictionOutcome(prediction, game);
+      await this.logFactorContributions(game, factors, prediction, outcome);
+    }
+
+    return { isValid: true, confidenceAdjustment: 1.0 };
+  }
+
+  /**
+   * Update prediction outcomes based on game results
+   */
+  private async updatePredictionOutcomes(game: ExtendedGame): Promise<void> {
+    if (game.status !== 'FINAL' || game.homeScore == null || game.awayScore == null) {
+      return;
+    }
+
+    const predictions = await prisma.prediction.findMany({
+      where: { gameId: game.id }
+    });
+
+    for (const prediction of predictions) {
+      const outcome = this.determinePredictionOutcome(prediction, game);
+      if (outcome) {
+        await prisma.prediction.update({
+          where: { id: prediction.id },
+          data: { 
+            outcome
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Determine the outcome of a prediction based on game results
+   */
+  private determinePredictionOutcome(prediction: Prediction, game: ExtendedGame): PredictionOutcome | null {
+    if (game.homeScore == null || game.awayScore == null) {
+      return null;
+    }
+
+    const homeScore = game.homeScore;
+    const awayScore = game.awayScore;
+    const homeWon = homeScore > awayScore;
+    const awayWon = awayScore > homeScore;
+    const isPush = homeScore === awayScore;
+
+    switch (prediction.predictionType) {
+      case 'MONEYLINE':
+        if (isPush) return 'PUSH';
+        return prediction.predictionValue === 'HOME' ? (homeWon ? 'WIN' : 'LOSS') : (awayWon ? 'WIN' : 'LOSS');
+      
+      case 'SPREAD':
+        const spread = parseFloat(prediction.predictionValue);
+        if (isNaN(spread)) return null;
+        
+        const homeWithSpread = homeScore + spread;
+        if (homeWithSpread === awayScore) return 'PUSH';
+        return homeWithSpread > awayScore ? 'WIN' : 'LOSS';
+      
+      case 'TOTAL':
+        const total = parseFloat(prediction.predictionValue.slice(1));
+        if (isNaN(total)) return null;
+        
+        const actualTotal = homeScore + awayScore;
+        if (actualTotal === total) return 'PUSH';
+        return prediction.predictionValue.startsWith('o') ? 
+          (actualTotal > total ? 'WIN' : 'LOSS') : 
+          (actualTotal < total ? 'WIN' : 'LOSS');
+      
+      default:
+        return null;
+    }
+  }
+
+  private async getHistoricalAccuracy(homeTeam: string, awayTeam: string): Promise<number> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const games = await prisma.game.findMany({
+      where: {
+        OR: [
+          { homeTeamName: homeTeam },
+          { awayTeamName: homeTeam },
+          { homeTeamName: awayTeam },
+          { awayTeamName: awayTeam }
+        ],
+        gameDate: {
+          gte: thirtyDaysAgo
+        },
+        status: 'FINAL'
+      },
+      include: {
+        predictions: {
+          where: {
+            predictionType: 'SPREAD'
+          }
+        }
+      }
+    });
+
+    let correctPredictions = 0;
+    let totalPredictions = 0;
+
+    for (const game of games) {
+      for (const prediction of game.predictions) {
+        if (prediction.outcome === 'WIN') {
+          correctPredictions++;
+        }
+        totalPredictions++;
+      }
+    }
+
+    return totalPredictions > 0 ? correctPredictions / totalPredictions : 0.5;
   }
 
   /**

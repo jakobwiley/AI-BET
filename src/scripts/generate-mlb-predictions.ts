@@ -4,6 +4,7 @@ const { PrismaClient, PredictionType, SportType, GameStatus, PredictionOutcome }
 import { EnhancedPredictionService } from '../lib/enhanced-mlb/enhancedPredictionService.ts';
 import { MLBStatsService } from '../lib/mlbStatsApi.js';
 import { v4 as uuidv4 } from 'uuid';
+import { get2025RegularSeasonMLBGames } from './utils/filterRegularSeasonMLBGames.ts';
 
 const prisma = new PrismaClient();
 const enhancedPredictionService = new EnhancedPredictionService();
@@ -132,33 +133,22 @@ async function analyzePredictions(): Promise<void> {
 
 async function main() {
   try {
-    // Get games from the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Get all 2025 regular season MLB games
+    const allGames = await get2025RegularSeasonMLBGames();
 
-    const games = await prisma.game.findMany({
-      where: {
-        sport: SportType.MLB,
-        gameDate: {
-          gte: thirtyDaysAgo
-        },
-        status: GameStatus.FINAL,
-        predictions: {
-          none: {
-            predictionType: PredictionType.TOTAL
-          }
-        }
-      }
-    });
+    // Only include games that are FINAL and do not already have a TOTAL prediction
+    const games = allGames.filter(game =>
+      game.status === GameStatus.FINAL &&
+      (!game.predictions || !game.predictions.some(p => p.predictionType === PredictionType.TOTAL))
+    );
 
     if (games.length === 0) {
-      console.log('No games found for the last 30 days that need predictions');
+      console.log('No 2025 regular season MLB games found that need predictions');
       return;
     }
 
-    console.log(`Found ${games.length} games from the last 30 days that need predictions`);
+    console.log(`Found ${games.length} 2025 regular season MLB games that need predictions`);
     await generatePredictions(games);
-    
     // Analyze the predictions
     await analyzePredictions();
   } catch (error) {

@@ -1,17 +1,53 @@
 import axios from 'axios';
-import type { Game, PlayerProp, Prediction, SportType, PredictionType, GameStatus } from '../models/types.ts';
-import { PlayerPropType } from '../models/types.ts';
-import { handleSportsApiError } from './errors.js';
-import { OddsApiService } from './oddsApi.js';
+import type { Game, Prediction, SportType, PredictionType, GameStatus, PredictionOutcome } from '@prisma/client';
+import type { PlayerProp, PlayerPropType } from '../models/types.ts';
+import { handleSportsApiError } from './errors.ts';
+import { OddsApiService } from './oddsApi.ts';
+import { MLBStatsService } from './mlbStatsApi.ts';
+import type { TeamStats } from '../types/teamStats.ts';
 
 // API keys from environment variables
 const SPORTS_DATA_API_KEY = process.env.SPORTS_DATA_API_KEY;
 const THE_ODDS_API_KEY = process.env.THE_ODDS_API_KEY;
 
 // Base URLs for the APIs
-const NBA_API_BASE_URL = 'https://api.sportsdata.io/v3/nba';
-const MLB_API_BASE_URL = 'https://api.sportsdata.io/v3/mlb';
+const MLB_API_BASE_URL = 'https://statsapi.mlb.com/api/v1';
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
+
+interface MLBScheduleResponse {
+  dates: Array<{
+    games: Array<{
+      gamePk: number;
+      gameDate: string;
+      status: {
+        statusCode: string;
+        detailedState: string;
+      };
+      teams: {
+        home: {
+          team: {
+            id: number;
+            name: string;
+          };
+          score?: number;
+          probablePitcher?: {
+            id: number;
+          };
+        };
+        away: {
+          team: {
+            id: number;
+            name: string;
+          };
+          score?: number;
+          probablePitcher?: {
+            id: number;
+          };
+        };
+      };
+    }>;
+  }>;
+}
 
 /**
  * Service for fetching sports data from external APIs
@@ -32,12 +68,50 @@ export class SportsApiService {
    * Fetch upcoming games for a specific sport
    */
   static async getUpcomingGames(sport: SportType): Promise<Game[]> {
+    if (sport !== 'MLB') throw new Error('Only MLB is supported.');
+    
     try {
-      // Use the real OddsApiService to fetch games
-      const oddsService = this.getOddsService();
-      return await oddsService.getUpcomingGames(sport);
+      const response = await axios.get<MLBScheduleResponse>(`${MLB_API_BASE_URL}/schedule`, {
+        params: {
+          sportId: 1,
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          gameType: 'R'
+        }
+      });
+
+      const games: Game[] = [];
+      const dates = response.data.dates || [];
+
+      for (const date of dates) {
+        for (const game of date.games) {
+          const homeTeam = game.teams.home.team;
+          const awayTeam = game.teams.away.team;
+          
+          games.push({
+            id: `mlb-game-${game.gamePk}`,
+            sport: 'MLB',
+            homeTeamId: homeTeam.id.toString(),
+            awayTeamId: awayTeam.id.toString(),
+            homeTeamName: homeTeam.name,
+            awayTeamName: awayTeam.name,
+            gameDate: new Date(game.gameDate),
+            startTime: game.gameDate,
+            status: this.mapGameStatus(game.status.statusCode),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            oddsJson: null,
+            probableHomePitcherId: game.teams.home.probablePitcher?.id || null,
+            probableAwayPitcherId: game.teams.away.probablePitcher?.id || null,
+            awayScore: game.teams.away.score || null,
+            homeScore: game.teams.home.score || null
+          });
+        }
+      }
+
+      return games;
     } catch (error) {
-      console.error(`Error fetching ${sport} games:`, error);
+      handleSportsApiError(error, 'fetching upcoming MLB games');
       throw error;
     }
   }
@@ -47,18 +121,68 @@ export class SportsApiService {
    */
   static async getPredictionsForGame(gameId: string): Promise<Prediction[]> {
     try {
-      // Use the real OddsApiService to fetch game details
-      const oddsService = this.getOddsService();
-      const game = await oddsService.findGameByIdInUpcoming(gameId);
+      const gamePk = parseInt(gameId.split('-')[2]);
+      const [homeTeamName, awayTeamName] = gameId.split('-');
       
-      if (!game) {
-        throw new Error(`Game not found: ${gameId}`);
+      const [homeStats, awayStats] = await Promise.all([
+        MLBStatsService.getTeamStats(homeTeamName, { startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }),
+        MLBStatsService.getTeamStats(awayTeamName, { startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
+      ]);
+
+      if (!homeStats || !awayStats) {
+        throw new Error('Could not fetch team stats');
       }
 
-      // Return the predictions from the game
-      return game.predictions || [];
+      const predictions: Prediction[] = [];
+      
+      // Calculate spread prediction
+      const spreadValue = this.calculateSpreadPrediction(homeStats, awayStats);
+      predictions.push({
+        id: `prediction-${gameId}-SPREAD`,
+        gameId,
+        predictionType: 'SPREAD',
+        predictionValue: spreadValue.toString(),
+        confidence: this.calculateConfidence(homeStats, awayStats),
+        reasoning: this.generateSpreadReasoning(homeStats, awayStats),
+        outcome: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        projectionJson: null
+      });
+
+      // Calculate moneyline prediction
+      const moneylineValue = this.calculateMoneylinePrediction(homeStats, awayStats);
+      predictions.push({
+        id: `prediction-${gameId}-MONEYLINE`,
+        gameId,
+        predictionType: 'MONEYLINE',
+        predictionValue: moneylineValue.toString(),
+        confidence: this.calculateConfidence(homeStats, awayStats),
+        reasoning: this.generateMoneylineReasoning(homeStats, awayStats),
+        outcome: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        projectionJson: null
+      });
+
+      // Calculate total prediction
+      const totalValue = this.calculateTotalPrediction(homeStats, awayStats);
+      predictions.push({
+        id: `prediction-${gameId}-TOTAL`,
+        gameId,
+        predictionType: 'TOTAL',
+        predictionValue: totalValue.toString(),
+        confidence: this.calculateConfidence(homeStats, awayStats),
+        reasoning: this.generateTotalReasoning(homeStats, awayStats),
+        outcome: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        projectionJson: null
+      });
+
+      return predictions;
     } catch (error) {
-      console.error(`Error fetching predictions for game ${gameId}:`, error);
+      handleSportsApiError(error, `generating predictions for game ${gameId}`);
       throw error;
     }
   }
@@ -67,193 +191,135 @@ export class SportsApiService {
    * Get player props for a specific game
    */
   static async getPlayerPropsForGame(gameId: string, sport: SportType): Promise<PlayerProp[]> {
+    if (sport !== 'MLB') throw new Error('Only MLB is supported.');
+    
     try {
-      // This would be where you call your player props prediction algorithm
-      // For now, we'll return mock data
-      return this.getMockPlayerProps(gameId, sport);
+      const gamePk = parseInt(gameId.split('-')[2]);
+      const pitchers = await MLBStatsService.getActualStartingPitchers(gamePk);
+      
+      if (!pitchers) {
+        throw new Error('Could not determine starting pitchers');
+      }
+
+      const [homePitcher, awayPitcher] = await Promise.all([
+        MLBStatsService.getPitcherStats(pitchers.homePitcherId),
+        MLBStatsService.getPitcherStats(pitchers.awayPitcherId)
+      ]);
+
+      if (!homePitcher || !awayPitcher) {
+        throw new Error('Could not fetch pitcher stats');
+      }
+
+      const props: PlayerProp[] = [];
+
+      // Add pitcher props
+      props.push(...this.generatePitcherProps(gameId, pitchers.homePitcherId, homePitcher));
+      props.push(...this.generatePitcherProps(gameId, pitchers.awayPitcherId, awayPitcher));
+
+      return props;
     } catch (error) {
-      console.error(`Error generating player props for game ${gameId}:`, error);
+      handleSportsApiError(error, `fetching player props for game ${gameId}`);
       throw error;
     }
   }
 
-  /**
-   * Generate mock games for development
-   */
-  private static getMockGames(sport: SportType, count: number): Game[] {
-    const games: Game[] = [];
-    const now = new Date();
-    
-    for (let i = 0; i < count; i++) {
-      const gameDate = new Date(now);
-      gameDate.setDate(now.getDate() + i);
-      
-      if (sport === 'NBA') {
-        games.push({
-          id: `nba-game-${i}`,
-          sport: 'NBA',
-          gameDate: gameDate.toISOString(),
-          startTime: gameDate.toISOString(),
-          homeTeamId: `home-team-${i}`,
-          awayTeamId: `away-team-${i}`,
-          homeTeamName: ['Lakers', 'Warriors', 'Celtics', 'Bucks', 'Heat'][i % 5],
-          awayTeamName: ['Nets', 'Suns', 'Mavericks', 'Nuggets', '76ers'][i % 5],
-          status: 'SCHEDULED' as GameStatus,
-          predictions: []
-        });
-      } else {
-        games.push({
-          id: `mlb-game-${i}`,
-          sport: 'MLB',
-          gameDate: gameDate.toISOString(),
-          startTime: gameDate.toISOString(),
-          homeTeamId: `home-team-${i}`,
-          awayTeamId: `away-team-${i}`,
-          homeTeamName: ['Yankees', 'Dodgers', 'Red Sox', 'Cubs', 'Astros'][i % 5],
-          awayTeamName: ['Braves', 'Giants', 'Cardinals', 'Mets', 'Blue Jays'][i % 5],
-          status: 'SCHEDULED' as GameStatus,
-          predictions: []
-        });
-      }
-    }
-    
-    return games;
-  }
-
-  /**
-   * Generate mock predictions for development
-   */
-  private static getMockPredictions(gameId: string): Prediction[] {
-    const predictionTypes: PredictionType[] = ['SPREAD', 'MONEYLINE', 'TOTAL'];
-    const predictions: Prediction[] = [];
-    
-    // Use gameId to seed some variation
-    const gameNumber = parseInt(gameId.split('-')[2]);
-    const isHomeTeamFavored = (gameNumber % 2) === 0;
-    
-    for (const type of predictionTypes) {
-      let value = 0;
-      let confidence = Math.round(Math.random() * 15 + 75); // 75-90%
-      let reasoning = '';
-      
-      switch (type) {
-        case 'SPREAD':
-          // Spreads between -12.5 and +12.5
-          value = (isHomeTeamFavored ? -1 : 1) * (Math.floor(Math.random() * 25 + 1) / 2);
-          reasoning = `Based on recent performance and historical matchups, we predict ${value > 0 ? 'AWAY +' + value : 'HOME ' + value} with ${confidence}% confidence. The home team has covered the spread in 7 of their last 10 games.`;
-          break;
-        case 'MONEYLINE':
-          // Moneyline between -300 and +250
-          value = isHomeTeamFavored ? 
-            -(Math.floor(Math.random() * 200) + 100) : // -100 to -300
-            (Math.floor(Math.random() * 150) + 100);   // +100 to +250
-          reasoning = `Our models give the ${value < 0 ? 'HOME' : 'AWAY'} team a ${confidence}% chance of winning based on current form, injuries, and head-to-head statistics.`;
-          break;
-        case 'TOTAL':
-          // Totals between 210 and 240 for NBA
-          value = Math.floor(Math.random() * 30) + 210;
-          const prediction = Math.random() > 0.5 ? 'OVER' : 'UNDER';
-          reasoning = `For the total points, we predict ${prediction} ${value} with ${confidence}% confidence. Recent games between these teams have averaged ${value - 5} points.`;
-          break;
-      }
-      
-      predictions.push({
-        id: `prediction-${gameId}-${type}`,
-        gameId,
-        predictionType: type,
-        predictionValue: String(value),
-        confidence: confidence / 100, // Store as decimal but display as percentage
-        reasoning,
-        createdAt: new Date().toISOString(),
-        grade: 'PENDING'
-      });
-    }
-    
-    return predictions;
-  }
-
-  /**
-   * Generate mock player props for development
-   */
-  private static getMockPlayerProps(gameId: string, sport: SportType): PlayerProp[] {
-    const props: PlayerProp[] = [];
-    const players = [
-      { id: 'player1', name: 'LeBron James', teamId: 'home-team-0' },
-      { id: 'player2', name: 'Stephen Curry', teamId: 'away-team-0' },
-      { id: 'player3', name: 'Giannis Antetokounmpo', teamId: 'home-team-1' },
-      { id: 'player4', name: 'Aaron Judge', teamId: 'home-team-0' },
-      { id: 'player5', name: 'Shohei Ohtani', teamId: 'away-team-0' },
-    ];
-    
-    const propTypes: Record<SportType, PlayerPropType[]> = {
-      'NBA': [PlayerPropType.POINTS, PlayerPropType.REBOUNDS, PlayerPropType.ASSISTS],
-      'MLB': [PlayerPropType.HITS, PlayerPropType.HOME_RUNS, PlayerPropType.STOLEN_BASES]
+  private static mapGameStatus(mlbStatusCode: string): GameStatus {
+    const statusMap: Record<string, GameStatus> = {
+      'S': 'SCHEDULED',
+      'I': 'IN_PROGRESS',
+      'F': 'FINAL',
+      'D': 'POSTPONED',
+      'C': 'CANCELLED'
     };
+    return statusMap[mlbStatusCode] || 'SCHEDULED';
+  }
+
+  private static calculateSpreadPrediction(homeStats: TeamStats, awayStats: TeamStats): number {
+    // Implement spread calculation logic based on team stats
+    const homeAdvantage = 0.5; // Home field advantage in runs
+    const spread = (homeStats.runsScored! - homeStats.runsAllowed!) - 
+                  (awayStats.runsScored! - awayStats.runsAllowed!) + 
+                  homeAdvantage;
+    return Math.round(spread * 2) / 2; // Round to nearest 0.5
+  }
+
+  private static calculateMoneylinePrediction(homeStats: TeamStats, awayStats: TeamStats): number {
+    // Implement moneyline calculation logic based on team stats
+    const homeWinPct = homeStats.winPercentage;
+    const awayWinPct = awayStats.winPercentage;
+    const homeAdvantage = 0.05; // 5% home field advantage
     
-    const relevantPlayers = players.slice(0, sport === 'NBA' ? 3 : 2);
-    const relevantProps = propTypes[sport];
+    const homeWinProb = (homeWinPct + homeAdvantage) / (homeWinPct + awayWinPct + homeAdvantage);
+    const impliedOdds = homeWinProb / (1 - homeWinProb);
     
-    for (const player of relevantPlayers) {
-      for (const propType of relevantProps) {
-        let line = 0;
-        let prediction = 0;
-        let confidence = Math.round((Math.random() * 30 + 60)); // 60-90
-        let reasoning = '';
-        
-        switch (propType) {
-          case PlayerPropType.POINTS:
-            line = 24.5;
-            prediction = 26.3;
-            reasoning = `${player.name} has averaged ${prediction} points in the last 10 games.`;
-            break;
-          case PlayerPropType.REBOUNDS:
-            line = 8.5;
-            prediction = 9.1;
-            reasoning = `${player.name} has averaged ${prediction} rebounds in the last 10 games.`;
-            break;
-          case PlayerPropType.ASSISTS:
-            line = 6.5;
-            prediction = 7.2;
-            reasoning = `${player.name} has averaged ${prediction} assists in the last 10 games.`;
-            break;
-          case PlayerPropType.HITS:
-            line = 1.5;
-            prediction = 1.8;
-            reasoning = `${player.name} has averaged ${prediction} hits per game.`;
-            break;
-          case PlayerPropType.HOME_RUNS:
-            line = 0.5;
-            prediction = 0.4;
-            reasoning = `${player.name} has hit home runs in 4 of the last 10 games.`;
-            break;
-          case PlayerPropType.STOLEN_BASES:
-            line = 0.5;
-            prediction = 0.3;
-            reasoning = `${player.name} has stolen bases in 3 of the last 10 games.`;
-            break;
-          default:
-            line = 0;
-            prediction = 0;
-            reasoning = 'No specific reasoning available for this prop.';
-        }
-        
-        props.push({
-          id: `prop-${gameId}-${player.id}-${propType}`,
-          gameId,
-          playerId: player.id,
-          playerName: player.name,
-          teamId: player.teamId,
-          propType,
-          line,
-          prediction,
-          confidence,
-          reasoning,
-          createdAt: new Date().toISOString(),
-          outcome: 'PENDING'
-        });
-      }
-    }
+    return Math.round(impliedOdds * 100);
+  }
+
+  private static calculateTotalPrediction(homeStats: TeamStats, awayStats: TeamStats): number {
+    // Implement total runs prediction logic based on team stats
+    const homeRunsPerGame = homeStats.runsScored! / (homeStats.wins + homeStats.losses);
+    const awayRunsPerGame = awayStats.runsScored! / (awayStats.wins + awayStats.losses);
+    const total = (homeRunsPerGame + awayRunsPerGame) * 0.95; // Slight under adjustment
+    return Math.round(total * 2) / 2; // Round to nearest 0.5
+  }
+
+  private static calculateConfidence(homeStats: TeamStats, awayStats: TeamStats): number {
+    // Implement confidence calculation based on sample size and consistency
+    const gamesPlayed = Math.min(homeStats.wins + homeStats.losses, awayStats.wins + awayStats.losses);
+    const baseConfidence = 0.75;
+    const sampleSizeFactor = Math.min(gamesPlayed / 20, 1); // Max confidence at 20 games
+    return Math.round((baseConfidence + (0.15 * sampleSizeFactor)) * 100) / 100;
+  }
+
+  private static generateSpreadReasoning(homeStats: TeamStats, awayStats: TeamStats): string {
+    return `Based on ${homeStats.wins + homeStats.losses} games played, home team has scored ${homeStats.runsScored} runs and allowed ${homeStats.runsAllowed}. Away team has scored ${awayStats.runsScored} runs and allowed ${awayStats.runsAllowed} in ${awayStats.wins + awayStats.losses} games.`;
+  }
+
+  private static generateMoneylineReasoning(homeStats: TeamStats, awayStats: TeamStats): string {
+    return `Home team has a ${(homeStats.winPercentage * 100).toFixed(1)}% win rate, while away team has a ${(awayStats.winPercentage * 100).toFixed(1)}% win rate.`;
+  }
+
+  private static generateTotalReasoning(homeStats: TeamStats, awayStats: TeamStats): string {
+    const homeRunsPerGame = (homeStats.runsScored! / (homeStats.wins + homeStats.losses)).toFixed(1);
+    const awayRunsPerGame = (awayStats.runsScored! / (awayStats.wins + awayStats.losses)).toFixed(1);
+    return `Home team averages ${homeRunsPerGame} runs per game, while away team averages ${awayRunsPerGame} runs per game.`;
+  }
+
+  private static generatePitcherProps(gameId: string, pitcherId: number, stats: any): PlayerProp[] {
+    const props: PlayerProp[] = [];
     
+    // Strikeouts prop
+    props.push({
+      id: `prop-${gameId}-${pitcherId}-STRIKEOUTS`,
+      gameId,
+      playerId: pitcherId.toString(),
+      playerName: stats.name,
+      teamId: stats.teamId.toString(),
+      propType: 'STRIKEOUTS',
+      line: Math.round(stats.kPer9 * 5) / 5, // Round to nearest 0.2
+      prediction: Math.round(stats.kPer9 * 5) / 5,
+      confidence: Math.round((0.7 + (stats.gamesPlayed / 100)) * 100),
+      reasoning: `Pitcher averages ${stats.kPer9} strikeouts per 9 innings over ${stats.gamesPlayed} games.`,
+      createdAt: new Date().toISOString(),
+      outcome: 'PENDING'
+    });
+
+    // Walks prop
+    props.push({
+      id: `prop-${gameId}-${pitcherId}-WALKS`,
+      gameId,
+      playerId: pitcherId.toString(),
+      playerName: stats.name,
+      teamId: stats.teamId.toString(),
+      propType: 'WALKS',
+      line: Math.round(stats.bbPer9 * 5) / 5,
+      prediction: Math.round(stats.bbPer9 * 5) / 5,
+      confidence: Math.round((0.7 + (stats.gamesPlayed / 100)) * 100),
+      reasoning: `Pitcher averages ${stats.bbPer9} walks per 9 innings over ${stats.gamesPlayed} games.`,
+      createdAt: new Date().toISOString(),
+      outcome: 'PENDING'
+    });
+
     return props;
   }
 }

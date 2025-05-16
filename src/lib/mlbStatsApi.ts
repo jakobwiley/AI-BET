@@ -1475,6 +1475,8 @@ export class MLBStatsService {
   ): Promise<MLBGame[]> {
     try {
       const dateStr = gameDate.toISOString().split('T')[0];
+      console.log(`[MLBStatsService] Searching for games on ${dateStr}`);
+      
       const response = await fetch(
         `https://statsapi.mlb.com/api/v1/schedule?date=${dateStr}&sportId=1`
       );
@@ -1486,14 +1488,32 @@ export class MLBStatsService {
       const data = await response.json();
       const games = data.dates[0]?.games || [];
       
+      console.log(`[MLBStatsService] Found ${games.length} games on ${dateStr}`);
+      
       // Filter games by team names
-      return games.filter((game: MLBGame) => {
+      const matchingGames = games.filter((game: MLBGame) => {
         const homeTeamMatch = game.teams.home.team.name.toLowerCase() === homeTeam.toLowerCase();
         const awayTeamMatch = game.teams.away.team.name.toLowerCase() === awayTeam.toLowerCase();
-        return homeTeamMatch && awayTeamMatch;
+        
+        if (homeTeamMatch && awayTeamMatch) {
+          console.log(`[MLBStatsService] Found matching game: ${game.teams.home.team.name} vs ${game.teams.away.team.name}`);
+          return true;
+        }
+        
+        // Log non-matching games for debugging
+        if (game.teams.home.team.name.toLowerCase() === homeTeam.toLowerCase() || 
+            game.teams.away.team.name.toLowerCase() === awayTeam.toLowerCase()) {
+          console.log(`[MLBStatsService] Partial match found: ${game.teams.home.team.name} vs ${game.teams.away.team.name}`);
+          console.log(`[MLBStatsService] Looking for: ${homeTeam} vs ${awayTeam}`);
+        }
+        
+        return false;
       });
+      
+      console.log(`[MLBStatsService] Found ${matchingGames.length} matching games`);
+      return matchingGames;
     } catch (error) {
-      console.error('Error searching MLB games:', error);
+      console.error('[MLBStatsService] Error searching MLB games:', error);
       return [];
     }
   }

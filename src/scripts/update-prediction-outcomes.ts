@@ -1,87 +1,104 @@
-import { PrismaClient, PredictionType, PredictionOutcome, GameStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.ts';
+import { SportsApiService } from '../lib/sportsApi.ts';
+import type { Game, Prediction, PredictionType, PredictionOutcome } from '@prisma/client';
 
 async function updatePredictionOutcomes() {
-  // Get all completed games with pending predictions
-  const gamesWithPendingPredictions = await prisma.game.findMany({
+  console.log('Starting prediction outcomes update...');
+
+  // Get all pending predictions for completed games
+  const pendingPredictions = await prisma.prediction.findMany({
     where: {
-      status: 'FINAL',
-      predictions: {
-        some: {
-          outcome: 'PENDING'
-        }
+      outcome: 'PENDING',
+      game: {
+        status: 'FINAL'
       }
     },
     include: {
-      predictions: {
-        where: {
-          outcome: 'PENDING'
-        }
-      }
+      game: true
     }
   });
 
-  console.log(`Found ${gamesWithPendingPredictions.length} completed games with pending predictions`);
+  console.log(`Found ${pendingPredictions.length} pending predictions to evaluate`);
 
-  for (const game of gamesWithPendingPredictions) {
-    if (game.homeScore === null || game.awayScore === null) {
-      console.log(`Game ${game.id} is missing scores, skipping...`);
-      continue;
-    }
-
-    for (const prediction of game.predictions) {
-      let outcome: PredictionOutcome = 'PENDING';
-
-      switch (prediction.predictionType) {
-        case 'MONEYLINE':
-          // For moneyline, prediction value is the team ID that was picked to win
-          const predictedTeamIsHome = prediction.predictionValue === game.homeTeamId.toString();
-          const homeTeamWon = game.homeScore > game.awayScore;
-          outcome = (predictedTeamIsHome && homeTeamWon) || (!predictedTeamIsHome && !homeTeamWon) ? 'WIN' : 'LOSS';
-          break;
-
-        case 'SPREAD':
-          // For spread, positive number means underdog gets points, negative means favorite gives points
-          const spread = parseFloat(prediction.predictionValue);
-          const actualDiff = game.homeScore - game.awayScore;
-          outcome = actualDiff + spread > 0 ? 'WIN' : 'LOSS';
-          break;
-
-        case 'TOTAL':
-          // For total, prediction value is the over/under line
-          const totalLine = parseFloat(prediction.predictionValue);
-          const actualTotal = game.homeScore + game.awayScore;
-          // If confidence > 0.5, it's an OVER bet, otherwise UNDER
-          const isOverBet = prediction.confidence > 0.5;
-          if (isOverBet) {
-            outcome = actualTotal > totalLine ? 'WIN' : 'LOSS';
-          } else {
-            outcome = actualTotal < totalLine ? 'WIN' : 'LOSS';
-          }
-          break;
-      }
-
-      // Update the prediction outcome
+  for (const prediction of pendingPredictions) {
+    try {
+      const outcome = await evaluatePrediction(prediction);
+      
+      // Update the prediction with the outcome
       await prisma.prediction.update({
         where: { id: prediction.id },
-        data: { outcome }
+        data: {
+          outcome,
+          updatedAt: new Date()
+        }
       });
 
-      console.log(`Updated prediction ${prediction.id} for game ${game.id} to ${outcome}`);
+      console.log(`Updated prediction ${prediction.id} with outcome: ${outcome}`);
+    } catch (error) {
+      console.error(`Error evaluating prediction ${prediction.id}:`, error);
     }
   }
+
+  console.log('Finished updating prediction outcomes');
 }
 
-async function main() {
-  try {
-    await updatePredictionOutcomes();
-    console.log('Successfully updated prediction outcomes');
-  } catch (error) {
-    console.error('Error updating prediction outcomes:', error);
-  } finally {
-    await prisma.$disconnect();
+async function evaluatePrediction(prediction: Prediction & { game: Game }): Promise<PredictionOutcome> {
+  const { predictionType, predictionValue, game } = prediction;
+  const homeScore = game.homeScore;
+  const awayScore = game.awayScore;
+
+  if (homeScore === null || awayScore === null) {
+    throw new Error('Game scores not available');
+  }
+
+  switch (predictionType) {
+    case 'SPREAD': {
+      const predictedSpread = parseFloat(predictionValue);
+      const actualSpread = homeScore - awayScore;
+      const spreadWithPrediction = actualSpread - predictedSpread;
+      
+      if (spreadWithPrediction > 0) return 'WIN';
+      if (spreadWithPrediction < 0) return 'LOSS';
+      return 'PUSH';
+    }
+
+    case 'MONEYLINE': {
+      const predictedOdds = parseInt(predictionValue);
+      const isHomeWin = homeScore > awayScore;
+      
+      // Convert American odds to probability
+      const predictedProb = predictedOdds > 0 
+        ? 100 / (predictedOdds + 100)
+        : Math.abs(predictedOdds) / (Math.abs(predictedOdds) + 100);
+      
+      // If predicted probability > 0.5, we predicted home win
+      const predictedHomeWin = predictedProb > 0.5;
+      
+      if (isHomeWin === predictedHomeWin) return 'WIN';
+      return 'LOSS';
+    }
+
+    case 'TOTAL': {
+      const predictedTotal = parseFloat(predictionValue);
+      const actualTotal = homeScore + awayScore;
+      
+      if (actualTotal > predictedTotal) return 'WIN';
+      if (actualTotal < predictedTotal) return 'LOSS';
+      return 'PUSH';
+    }
+
+    default:
+      throw new Error(`Unsupported prediction type: ${predictionType}`);
   }
 }
 
-main(); 
+// Run the update
+updatePredictionOutcomes()
+  .then(() => {
+    console.log('Successfully updated prediction outcomes');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Error updating prediction outcomes:', error);
+    process.exit(1);
+  }); 

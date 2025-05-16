@@ -4,8 +4,15 @@ const prisma = new PrismaClient();
 
 async function checkGameIds() {
     try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const games = await prisma.game.findMany({
             where: {
+                sport: 'MLB',
+                gameDate: {
+                    gte: thirtyDaysAgo,
+                    lte: new Date()
+                },
                 OR: [
                     { homeScore: null },
                     { awayScore: null }
@@ -19,8 +26,9 @@ async function checkGameIds() {
         console.log(`Found ${games.length} games with missing scores\n`);
 
         games.forEach(game => {
+            const gameDate = game.gameDate.toISOString().split('T')[0];
             console.log(`Game: ${game.awayTeamName} @ ${game.homeTeamName}`);
-            console.log(`Date: ${game.gameDate}`);
+            console.log(`Date: ${gameDate}`);
             console.log(`ID: ${game.id}`);
             console.log('-------------------');
         });

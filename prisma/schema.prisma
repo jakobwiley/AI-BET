@@ -38,6 +38,7 @@ model Prediction {
   confidence      Float
   reasoning       String
   outcome         PredictionOutcome @default(PENDING)
+  grade           String            @default("C")
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   projectionJson  Json?

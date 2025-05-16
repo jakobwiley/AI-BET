@@ -1,29 +1,30 @@
-import pkg, { type PredictionOutcome as PredictionOutcomeType } from '@prisma/client';
-const { PrismaClient, PredictionOutcome } = pkg;
-import { OddsApiService } from '../src/lib/oddsApi.js';
+import { prisma } from '../lib/prisma.ts';
+import { PredictionOutcome, type PredictionType } from '@prisma/client';
+import { OddsApiService } from '../lib/oddsApi.ts';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-const prisma = new PrismaClient();
 const oddsApi = new OddsApiService();
 
 interface PerformanceMetrics {
-  total: number;
+  totalPredictions: number;
   wins: number;
   losses: number;
+  pushes: number;
   winRate: number;
+  roi: number;
+  averageConfidence: number;
+  confidenceWinRate: {
+    high: number;    // confidence >= 0.8
+    medium: number;  // 0.6 <= confidence < 0.8
+    low: number;     // confidence < 0.6
+  };
 }
 
-interface GradePerformance {
-  moneyline: PerformanceMetrics;
-  spread: PerformanceMetrics;
-  total: PerformanceMetrics;
-}
-
-interface OverallPerformance {
-  [grade: string]: GradePerformance;
+interface PerformanceByType {
+  [key: string]: PerformanceMetrics;
 }
 
 // Helper function to calculate grade based on confidence
@@ -39,7 +40,7 @@ function calculateGrade(confidence: number): string {
   return 'C-';
 }
 
-async function determinePredictionOutcome(prediction: any, scores: { home: number; away: number } | null): Promise<PredictionOutcomeType> {
+async function determinePredictionOutcome(prediction: any, scores: { home: number; away: number } | null): Promise<PredictionOutcome> {
   if (!scores) {
     return PredictionOutcome.PENDING;
   }
@@ -76,103 +77,139 @@ async function determinePredictionOutcome(prediction: any, scores: { home: numbe
 }
 
 async function analyzePredictionPerformance() {
-  try {
-    console.log('📊 Starting prediction performance analysis...');
-    
-    // Get all completed predictions
-    const predictions = await prisma.prediction.findMany({
-      where: {
-        outcome: {
-          in: [PredictionOutcome.WIN, PredictionOutcome.LOSS]
-        }
-      },
-      include: {
-        game: true
+  console.log('Starting prediction performance analysis...');
+
+  // Get all evaluated predictions
+  const predictions = await prisma.prediction.findMany({
+    where: {
+      outcome: {
+        not: 'PENDING'
       }
-    });
-    
-    console.log(`Found ${predictions.length} completed predictions to analyze`);
-    
-    // Initialize performance tracking
-    const performance: OverallPerformance = {};
-    
-    // Analyze each prediction
-    for (const prediction of predictions) {
-      const grade = calculateGrade(prediction.confidence);
-      const type = prediction.predictionType;
-      
-      // Initialize grade if not exists
-      if (!performance[grade]) {
-        performance[grade] = {
-          moneyline: { total: 0, wins: 0, losses: 0, winRate: 0 },
-          spread: { total: 0, wins: 0, losses: 0, winRate: 0 },
-          total: { total: 0, wins: 0, losses: 0, winRate: 0 }
-        };
-      }
-      
-      // Update metrics
-      const metrics = performance[grade][type.toLowerCase() as keyof GradePerformance];
-      metrics.total++;
-      
-      if (prediction.outcome === PredictionOutcome.WIN) {
-        metrics.wins++;
-      } else {
-        metrics.losses++;
-      }
-      
-      metrics.winRate = (metrics.wins / metrics.total) * 100;
+    },
+    orderBy: {
+      createdAt: 'asc'
     }
-    
-    // Print results
-    console.log('\n📈 Prediction Performance Analysis:');
-    console.log('===================================');
-    
-    for (const [grade, metrics] of Object.entries(performance)) {
-      console.log(`\nGrade: ${grade}`);
-      console.log('-----------------------------------');
-      
-      for (const [type, typeMetrics] of Object.entries(metrics)) {
-        console.log(`${type.toUpperCase()}:`);
-        console.log(`  Total Bets: ${typeMetrics.total}`);
-        console.log(`  Wins: ${typeMetrics.wins}`);
-        console.log(`  Losses: ${typeMetrics.losses}`);
-        console.log(`  Win Rate: ${typeMetrics.winRate.toFixed(2)}%`);
-      }
-    }
-    
-    // Calculate overall performance
-    const overallMetrics = {
-      moneyline: { total: 0, wins: 0, losses: 0, winRate: 0 },
-      spread: { total: 0, wins: 0, losses: 0, winRate: 0 },
-      total: { total: 0, wins: 0, losses: 0, winRate: 0 }
-    };
-    
-    for (const gradeMetrics of Object.values(performance)) {
-      for (const [type, metrics] of Object.entries(gradeMetrics)) {
-        const overall = overallMetrics[type as keyof typeof overallMetrics];
-        overall.total += metrics.total;
-        overall.wins += metrics.wins;
-        overall.losses += metrics.losses;
-        overall.winRate = (overall.wins / overall.total) * 100;
-      }
-    }
-    
-    console.log('\n📊 Overall Performance:');
-    console.log('-----------------------------------');
-    for (const [type, metrics] of Object.entries(overallMetrics)) {
-      console.log(`${type.toUpperCase()}:`);
-      console.log(`  Total Bets: ${metrics.total}`);
-      console.log(`  Wins: ${metrics.wins}`);
-      console.log(`  Losses: ${metrics.losses}`);
-      console.log(`  Win Rate: ${metrics.winRate.toFixed(2)}%`);
-    }
-    
-  } catch (error) {
-    console.error('Error analyzing prediction performance:', error);
-  } finally {
-    await prisma.$disconnect();
+  });
+
+  console.log(`Analyzing ${predictions.length} evaluated predictions`);
+
+  // Overall performance
+  const overallMetrics = calculatePerformanceMetrics(predictions);
+  console.log('\nOverall Performance:');
+  logPerformanceMetrics(overallMetrics);
+
+  // Performance by prediction type
+  const performanceByType: PerformanceByType = {};
+  for (const type of ['SPREAD', 'MONEYLINE', 'TOTAL'] as PredictionType[]) {
+    const typePredictions = predictions.filter(p => p.predictionType === type);
+    performanceByType[type] = calculatePerformanceMetrics(typePredictions);
+  }
+
+  console.log('\nPerformance by Type:');
+  for (const [type, metrics] of Object.entries(performanceByType)) {
+    console.log(`\n${type}:`);
+    logPerformanceMetrics(metrics);
+  }
+
+  // Performance over time
+  const monthlyPerformance = analyzePerformanceOverTime(predictions);
+  console.log('\nMonthly Performance:');
+  for (const [month, metrics] of Object.entries(monthlyPerformance)) {
+    console.log(`\n${month}:`);
+    logPerformanceMetrics(metrics);
   }
 }
 
+function calculatePerformanceMetrics(predictions: any[]): PerformanceMetrics {
+  const total = predictions.length;
+  const wins = predictions.filter(p => p.outcome === 'WIN').length;
+  const losses = predictions.filter(p => p.outcome === 'LOSS').length;
+  const pushes = predictions.filter(p => p.outcome === 'PUSH').length;
+  
+  const winRate = total > 0 ? wins / (total - pushes) : 0;
+  const averageConfidence = predictions.reduce((sum, p) => sum + p.confidence, 0) / total;
+
+  // Calculate ROI (assuming -110 odds for all bets)
+  const roi = total > 0 ? ((wins * 0.91) - losses) / total : 0;
+
+  // Calculate win rates by confidence level
+  const highConfidence = predictions.filter(p => p.confidence >= 0.8);
+  const mediumConfidence = predictions.filter(p => p.confidence >= 0.6 && p.confidence < 0.8);
+  const lowConfidence = predictions.filter(p => p.confidence < 0.6);
+
+  return {
+    totalPredictions: total,
+    wins,
+    losses,
+    pushes,
+    winRate,
+    roi,
+    averageConfidence,
+    confidenceWinRate: {
+      high: calculateWinRate(highConfidence),
+      medium: calculateWinRate(mediumConfidence),
+      low: calculateWinRate(lowConfidence)
+    }
+  };
+}
+
+function calculateWinRate(predictions: any[]): number {
+  const total = predictions.length;
+  if (total === 0) return 0;
+  const wins = predictions.filter(p => p.outcome === 'WIN').length;
+  const pushes = predictions.filter(p => p.outcome === 'PUSH').length;
+  return wins / (total - pushes);
+}
+
+function analyzePerformanceOverTime(predictions: any[]): { [key: string]: PerformanceMetrics } {
+  const monthlyPerformance: { [key: string]: PerformanceMetrics } = {};
+
+  predictions.forEach(prediction => {
+    const date = new Date(prediction.createdAt);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!monthlyPerformance[monthKey]) {
+      monthlyPerformance[monthKey] = calculatePerformanceMetrics([]);
+    }
+  });
+
+  // Calculate metrics for each month
+  for (const monthKey of Object.keys(monthlyPerformance)) {
+    const monthStart = new Date(monthKey + '-01');
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+    
+    const monthPredictions = predictions.filter(p => {
+      const date = new Date(p.createdAt);
+      return date >= monthStart && date <= monthEnd;
+    });
+
+    monthlyPerformance[monthKey] = calculatePerformanceMetrics(monthPredictions);
+  }
+
+  return monthlyPerformance;
+}
+
+function logPerformanceMetrics(metrics: PerformanceMetrics) {
+  console.log(`Total Predictions: ${metrics.totalPredictions}`);
+  console.log(`Wins: ${metrics.wins}`);
+  console.log(`Losses: ${metrics.losses}`);
+  console.log(`Pushes: ${metrics.pushes}`);
+  console.log(`Win Rate: ${(metrics.winRate * 100).toFixed(1)}%`);
+  console.log(`ROI: ${(metrics.roi * 100).toFixed(1)}%`);
+  console.log(`Average Confidence: ${(metrics.averageConfidence * 100).toFixed(1)}%`);
+  console.log('Win Rates by Confidence:');
+  console.log(`  High (>=80%): ${(metrics.confidenceWinRate.high * 100).toFixed(1)}%`);
+  console.log(`  Medium (60-80%): ${(metrics.confidenceWinRate.medium * 100).toFixed(1)}%`);
+  console.log(`  Low (<60%): ${(metrics.confidenceWinRate.low * 100).toFixed(1)}%`);
+}
+
 // Run the analysis
-analyzePredictionPerformance(); 
+analyzePredictionPerformance()
+  .then(() => {
+    console.log('\nSuccessfully completed performance analysis');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Error analyzing prediction performance:', error);
+    process.exit(1);
+  }); 

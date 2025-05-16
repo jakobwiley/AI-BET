@@ -1,3 +1,5 @@
+import type { AxiosError } from 'axios';
+
 // Custom error class for sports API errors
 export class SportsApiError extends Error {
   public readonly code: string;
@@ -26,25 +28,7 @@ export const isAxiosError = (err: unknown): err is {
 };
 
 // Error handler for sports API
-export const handleSportsApiError = (error: unknown, context: string): never => {
-  if (isAxiosError(error)) {
-    throw new SportsApiError(
-      `API request failed: ${error.message}`,
-      'API_ERROR',
-      error.response?.status,
-      {
-        url: error.config?.url,
-        method: error.config?.method,
-        response: error.response?.data
-      }
-    );
-  }
-  
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  throw new SportsApiError(
-    `Unexpected error in ${context}: ${errorMessage}`,
-    'UNEXPECTED_ERROR',
-    undefined,
-    error
-  );
-};
+export function handleSportsApiError(error: unknown, context: string): never {
+  console.error(`Error ${context}:`, error);
+  throw error;
+}
