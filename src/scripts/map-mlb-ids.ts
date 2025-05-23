@@ -1,105 +1,106 @@
 import { PrismaClient, SportType } from '@prisma/client';
 import axios from 'axios';
+import { format, subDays } from 'date-fns';
 
 const prisma = new PrismaClient();
 const MLB_API_BASE_URL = 'https://statsapi.mlb.com/api/v1';
 
-interface Team {
-  team: {
-    id: number;
-    name: string;
-  };
-}
-
-interface Game {
+interface MLBGame {
   gamePk: number;
-  gameDate: string;
   teams: {
-    away: Team;
-    home: Team;
+    home: { team: { name: string } };
+    away: { team: { name: string } };
   };
+  gameDate: string;
 }
 
 interface MLBScheduleResponse {
   dates: Array<{
     date: string;
-    games: Game[];
+    games: MLBGame[];
   }>;
 }
 
-async function mapMlbIds() {
+async function mapMLBGameIds() {
   try {
     console.log('🔄 Starting MLB game ID mapping process...');
 
-    // Get all MLB games from our database
+    // Get all MLB games from the last 30 days
+    const thirtyDaysAgo = subDays(new Date(), 30);
     const games = await prisma.game.findMany({
       where: {
         sport: SportType.MLB,
-        status: 'FINAL',
-        OR: [
-          { homeScore: null },
-          { awayScore: null }
-        ]
+        gameDate: {
+          gte: thirtyDaysAgo
+        }
+      },
+      orderBy: {
+        gameDate: 'desc'
       }
     });
 
-    console.log(`Found ${games.length} MLB games to map`);
+    console.log(`Found ${games.length} MLB games to process`);
 
-    // For each game, try to find its MLB Stats API ID
-    for (const game of games) {
-      try {
-        const gameDate = new Date(game.gameDate);
-        const formattedDate = gameDate.toISOString().split('T')[0];
-        
-        console.log(`\nProcessing game: ${game.awayTeamName} @ ${game.homeTeamName} on ${formattedDate}`);
+    // Process in batches
+    const batchSize = 5;
+    let updatedCount = 0;
+    let errorCount = 0;
 
-        // Search for the game in MLB Stats API by date and teams
-        const response = await axios.get<MLBScheduleResponse>(
-          `${MLB_API_BASE_URL}/schedule?sportId=1&date=${formattedDate}&hydrate=team`
-        );
+    for (let i = 0; i < games.length; i += batchSize) {
+      const batch = games.slice(i, i + batchSize);
+      console.log(`\nProcessing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(games.length / batchSize)}`);
 
-        console.log('API Response:', JSON.stringify(response.data, null, 2));
+      for (const game of batch) {
+        try {
+          console.log(`\nProcessing: ${game.awayTeamName} @ ${game.homeTeamName}`);
+          console.log(`Date: ${format(game.gameDate, 'MMM d, yyyy')}`);
 
-        if (!response.data.dates || response.data.dates.length === 0) {
-          console.log(`No games found for date ${formattedDate}`);
-          continue;
-        }
-
-        const gamesForDate = response.data.dates[0].games;
-        console.log(`Found ${gamesForDate.length} MLB games for ${formattedDate}`);
-
-        const matchingGame = gamesForDate.find(g => {
-          const homeTeamMatches = g.teams.home.team.name.includes(game.homeTeamName) || 
-                                game.homeTeamName.includes(g.teams.home.team.name);
-          const awayTeamMatches = g.teams.away.team.name.includes(game.awayTeamName) || 
-                                game.awayTeamName.includes(g.teams.away.team.name);
-          
-          if (homeTeamMatches && awayTeamMatches) {
-            console.log(`Found match: ${g.teams.away.team.name} @ ${g.teams.home.team.name} (ID: ${g.gamePk})`);
-            return true;
-          }
-          return false;
-        });
-
-        if (matchingGame) {
-          // Update our game ID to include the MLB Stats API ID
-          await prisma.game.update({
-            where: { id: game.id },
-            data: {
-              id: `mlb-game-${matchingGame.gamePk}`
+          // Fetch games from MLB API for this date
+          const dateStr = format(game.gameDate, 'MM/dd/yyyy');
+          const response = await axios.get<MLBScheduleResponse>(`${MLB_API_BASE_URL}/schedule`, {
+            params: {
+              sportId: 1,
+              date: dateStr,
+              fields: 'dates,games,gamePk,teams,home,away,team,name,gameDate'
             }
           });
-          console.log(`✅ Mapped ${game.homeTeamName} vs ${game.awayTeamName} to MLB game ID: ${matchingGame.gamePk}`);
-        } else {
-          console.log(`❌ Could not find MLB game ID for ${game.homeTeamName} vs ${game.awayTeamName} on ${formattedDate}`);
-        }
 
-        // Add delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error(`Error mapping game ${game.id}:`, error instanceof Error ? error.message : String(error));
+          const mlbGames = response.data.dates[0]?.games || [];
+          
+          // Find matching game
+          const matchingGame = mlbGames.find((g: MLBGame) => 
+            g.teams.home.team.name === game.homeTeamName &&
+            g.teams.away.team.name === game.awayTeamName
+          );
+
+          if (matchingGame) {
+            // Update game with MLB gamePk
+            await prisma.game.update({
+              where: { id: game.id },
+              data: {
+                mlbGameId: matchingGame.gamePk.toString()
+              }
+            });
+            console.log(`✅ Mapped to MLB gamePk: ${matchingGame.gamePk}`);
+            updatedCount++;
+          } else {
+            console.log('❌ No matching MLB game found');
+            errorCount++;
+          }
+
+          // Add delay between API calls
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error(`Error processing game ${game.id}:`, error);
+          errorCount++;
+        }
       }
     }
+
+    console.log('\n=== Mapping Summary ===');
+    console.log(`Total games processed: ${games.length}`);
+    console.log(`Successfully mapped: ${updatedCount}`);
+    console.log(`Errors encountered: ${errorCount}`);
 
   } catch (error) {
     console.error('Error in mapMlbIds:', error instanceof Error ? error.message : String(error));
@@ -109,4 +110,3 @@ async function mapMlbIds() {
 }
 
 // Run the mapping process
-mapMlbIds(); 

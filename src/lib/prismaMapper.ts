@@ -1,4 +1,4 @@
-import { Game, Prediction } from '../models/types.js';
+import type { Game, Prediction } from '../models/types.ts';
 import { Prisma } from '@prisma/client';
 
 // Define the expected Prisma Game type with relations

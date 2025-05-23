@@ -1,6 +1,6 @@
 import { PrismaClient, GameStatus, SportType } from '@prisma/client';
 import type { Game } from '@prisma/client';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 const prisma = new PrismaClient();
 
@@ -39,20 +39,8 @@ interface MLBScheduleResponse {
 
 interface MLBApiResponse {
   teams: {
-    home: {
-      teamStats: {
-        batting: {
-          runs: number;
-        };
-      };
-    };
-    away: {
-      teamStats: {
-        batting: {
-          runs: number;
-        };
-      };
-    };
+    home: MLBTeam;
+    away: MLBTeam;
   };
 }
 
@@ -85,11 +73,7 @@ async function fetchMLBGames(date: string): Promise<MLBGame[]> {
     
     return response.data.dates[0].games;
   } catch (error) {
-    if (error instanceof AxiosError) {
-      console.error('Error fetching MLB games:', error.message);
-    } else {
-      console.error('Unknown error:', error);
-    }
+    console.error('Error fetching MLB games:', error instanceof Error ? error.message : String(error));
     return [];
   }
 }
@@ -110,14 +94,15 @@ async function fetchMLBScore(gameId: string): Promise<{ home: number; away: numb
     });
 
     const data = response.data;
-    if (!data?.teams?.home?.teamStats?.batting?.runs || !data?.teams?.away?.teamStats?.batting?.runs) {
+    // The scores are in the teams.home.score and teams.away.score fields
+    if (!data?.teams?.home?.score || !data?.teams?.away?.score) {
       console.log(`No scores found in MLB API response for game ${gameId}`);
       return null;
     }
 
     return {
-      home: data.teams.home.teamStats.batting.runs,
-      away: data.teams.away.teamStats.batting.runs
+      home: data.teams.home.score,
+      away: data.teams.away.score
     };
   } catch (error) {
     console.error('MLB API request failed:', error instanceof Error ? error.message : String(error));

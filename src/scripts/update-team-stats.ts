@@ -139,7 +139,17 @@ async function updateTeamStats() {
           pointsAllowed: stats.pointsAgainst,
           statsJson: {
             ...stats,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            // Advanced TeamStats fields (placeholders for now)
+            battingAverage: null,
+            onBasePercentage: null,
+            sluggingPercentage: null,
+            earnedRunAverage: null,
+            fieldingPercentage: null,
+            homeRecord: `${stats.homeWins}-${stats.homeLosses}`,
+            awayRecord: `${stats.awayWins}-${stats.awayLosses}`,
+            streak: stats.streak || '',
+            headToHeadRecords: {}
           }
         },
         create: {
@@ -152,7 +162,17 @@ async function updateTeamStats() {
           pointsAllowed: stats.pointsAgainst,
           statsJson: {
             ...stats,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            // Advanced TeamStats fields (placeholders for now)
+            battingAverage: null,
+            onBasePercentage: null,
+            sluggingPercentage: null,
+            earnedRunAverage: null,
+            fieldingPercentage: null,
+            homeRecord: `${stats.homeWins}-${stats.homeLosses}`,
+            awayRecord: `${stats.awayWins}-${stats.awayLosses}`,
+            streak: stats.streak || '',
+            headToHeadRecords: {}
           }
         }
       });
@@ -171,4 +191,4 @@ async function updateTeamStats() {
 }
 
 // Run the update
-updateTeamStats(); 
+updateTeamStats();

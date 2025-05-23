@@ -24,6 +24,7 @@ model Game {
   probableAwayPitcherId Int?         @map("probable_away_pitcher_id")
   awayScore             Int?         @map("away_score")
   homeScore             Int?         @map("home_score")
+  mlbGameId             String?      // Add this field for MLB game IDs
   predictions           Prediction[]
 
   @@map("games")
@@ -37,6 +38,7 @@ model Prediction {
   confidence      Float
   reasoning       String
   outcome         PredictionOutcome @default(PENDING)
+  grade           String            @default("C")
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   projectionJson  Json?

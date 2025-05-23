@@ -1,95 +1,161 @@
-import { PrismaClient, PredictionType } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import pkg from '@prisma/client';
+import type { Game as PrismaGame, Prediction as PrismaPrediction } from '@prisma/client';
+const { PrismaClient, PredictionType, SportType, GameStatus, PredictionOutcome } = pkg;
+import { EnhancedPredictionService } from '../lib/enhanced-mlb/enhancedPredictionService.ts';
+import { MLBStatsService } from '../lib/mlbStatsApi.js';
+import { v4 as uuidv4 } from 'uuid';
+import { get2025RegularSeasonMLBGames } from './utils/filterRegularSeasonMLBGames.ts';
 
 const prisma = new PrismaClient();
+const enhancedPredictionService = new EnhancedPredictionService();
 
-async function generatePredictions() {
-  try {
-    console.log('🔄 Starting MLB predictions generation...');
+async function generatePredictions(games: PrismaGame[]): Promise<void> {
+  for (const game of games) {
+    try {
+      // Parse odds from JSON
+      const odds = game.oddsJson as any;
+      if (!odds?.total?.overUnder) {
+        console.log(`Skipping game ${game.id} - no total odds available`);
+        continue;
+      }
 
-    // Get games without predictions
-    const games = await prisma.game.findMany({
-      where: {
-        sport: 'MLB',
-        predictions: {
-          none: {}
+      // Prepare pitcher IDs
+      let probableHomePitcherId = game.probableHomePitcherId;
+      let probableAwayPitcherId = game.probableAwayPitcherId;
+      // If game is FINAL and ID is numeric, fetch actual starting pitchers
+      if (game.status === 'FINAL' && !isNaN(Number(game.id))) {
+        const boxscore = await MLBStatsService.getActualStartingPitchers(Number(game.id));
+        if (boxscore) {
+          probableHomePitcherId = boxscore.homePitcherId;
+          probableAwayPitcherId = boxscore.awayPitcherId;
+          console.log(`Fetched actual pitchers for game ${game.id}: home=${probableHomePitcherId}, away=${probableAwayPitcherId}`);
         }
+      }
+
+      // Convert Prisma Game to our Game type
+      const gameForPrediction = {
+        ...game,
+        gameDate: game.gameDate.toISOString(),
+        odds: {
+          total: {
+            overUnder: odds.total.overUnder.toString(),
+            overOdds: odds.total.overOdds.toString(),
+            underOdds: odds.total.underOdds.toString()
+          }
+        },
+        probableHomePitcherId,
+        probableAwayPitcherId
+      };
+
+      // Generate prediction using enhanced service
+      const prediction = await enhancedPredictionService.generatePrediction(gameForPrediction);
+
+      // Save prediction to database
+      await prisma.prediction.create({
+        data: prediction
+      });
+
+      console.log(`Generated prediction for game ${game.id}: ${prediction.predictionValue} ${odds.total.overUnder}`);
+      console.log('Reasoning:', prediction.reasoning);
+    } catch (error) {
+      console.error(`Error generating prediction for game ${game.id}:`, error);
+    }
+  }
+}
+
+async function analyzePredictions(): Promise<void> {
+  try {
+    // Get predictions from the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const predictions = await prisma.prediction.findMany({
+      where: {
+        game: {
+          sport: SportType.MLB,
+          gameDate: {
+            gte: thirtyDaysAgo
+          },
+          probableHomePitcherId: { not: null },
+          probableAwayPitcherId: { not: null }
+        },
+        predictionType: PredictionType.TOTAL,
+        outcome: {
+          not: PredictionOutcome.PENDING
+        }
+      },
+      include: {
+        game: true
       }
     });
 
-    console.log(`Found ${games.length} games without predictions`);
+    // Only include predictions for games with numeric IDs
+    const filteredPredictions = predictions.filter(p => /^\d+$/.test(p.game.id));
 
-    let generatedCount = 0;
-    let errorCount = 0;
+    // Analyze results
+    const totalPredictions = filteredPredictions.length;
+    const wins = filteredPredictions.filter(p => p.outcome === PredictionOutcome.WIN).length;
+    const losses = filteredPredictions.filter(p => p.outcome === PredictionOutcome.LOSS).length;
+    const pushes = filteredPredictions.filter(p => p.outcome === PredictionOutcome.PUSH).length;
+    const winRate = totalPredictions > 0 ? (wins / totalPredictions) * 100 : 0;
 
-    for (const game of games) {
-      try {
-        console.log(`\nGenerating predictions for: ${game.awayTeamName} @ ${game.homeTeamName}`);
-
-        // Generate predictions for each type
-        const predictionTypes: PredictionType[] = ['SPREAD', 'MONEYLINE', 'TOTAL'];
-        
-        for (const type of predictionTypes) {
-          const predictionId = `${game.id}_${type}_${randomUUID()}`;
-          
-          // Default values based on game type
-          let predictionValue = 0;
-          let confidence = 0.75 + (Math.random() * 0.15); // 75-90% confidence
-          let reasoning = '';
-          
-          switch (type) {
-            case 'SPREAD':
-              // For MLB, spread is usually -1.5 for favorite
-              predictionValue = -1.5;
-              reasoning = `Based on historical performance and pitching matchup, predicting ${game.homeTeamName} to cover the run line`;
-              break;
-            case 'MONEYLINE':
-              // Positive value means predicting home team win
-              predictionValue = 1;
-              reasoning = `Moneyline prediction favoring ${game.homeTeamName} based on home field advantage and recent form`;
-              break;
-            case 'TOTAL':
-              // For MLB, typical total is around 8-9 runs
-              predictionValue = 8.5;
-              reasoning = `Total prediction of ${predictionValue} runs based on offensive capabilities and pitching matchups`;
-              break;
-          }
-
-          // Create the prediction
-          await prisma.prediction.create({
-            data: {
-              id: predictionId,
-              gameId: game.id,
-              predictionType: type,
-              predictionValue: predictionValue.toString(),
-              confidence,
-              reasoning,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            }
-          });
-
-          console.log(`Created ${type} prediction with value ${predictionValue}`);
-          generatedCount++;
-        }
-      } catch (error) {
-        console.error(`Error generating predictions for game ${game.id}:`, error);
-        errorCount++;
+    // Group by confidence levels
+    const confidenceGroups = filteredPredictions.reduce((acc, pred) => {
+      const group = Math.floor(pred.confidence * 10) / 10; // Round to nearest 0.1
+      if (!acc[group]) {
+        acc[group] = { total: 0, wins: 0 };
       }
-    }
+      acc[group].total++;
+      if (pred.outcome === PredictionOutcome.WIN) {
+        acc[group].wins++;
+      }
+      return acc;
+    }, {} as Record<number, { total: number; wins: number }>);
 
-    // Print summary
-    console.log('\n=== Generation Summary ===');
-    console.log(`Total games processed: ${games.length}`);
-    console.log(`Predictions generated: ${generatedCount}`);
-    console.log(`Errors encountered: ${errorCount}`);
+    console.log('\n=== Prediction Analysis (Last 30 Days) ===');
+    console.log(`Total Predictions: ${totalPredictions}`);
+    console.log(`Wins: ${wins}`);
+    console.log(`Losses: ${losses}`);
+    console.log(`Pushes: ${pushes}`);
+    console.log(`Win Rate: ${winRate.toFixed(1)}%`);
+    console.log('\nPerformance by Confidence Level:');
+    Object.entries(confidenceGroups)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .forEach(([confidence, stats]) => {
+        const winRate = stats.total > 0 ? (stats.wins / stats.total) * 100 : 0;
+        console.log(`${confidence} confidence: ${stats.wins}/${stats.total} (${winRate.toFixed(1)}%)`);
+      });
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error analyzing predictions:', error);
+  }
+}
+
+async function main() {
+  try {
+    // Get all 2025 regular season MLB games
+    const allGames = await get2025RegularSeasonMLBGames();
+
+    // Only include games that are FINAL and do not already have a TOTAL prediction
+    const games = allGames.filter(game =>
+      game.status === GameStatus.FINAL &&
+      (!game.predictions || !game.predictions.some(p => p.predictionType === PredictionType.TOTAL))
+    );
+
+    if (games.length === 0) {
+      console.log('No 2025 regular season MLB games found that need predictions');
+      return;
+    }
+
+    console.log(`Found ${games.length} 2025 regular season MLB games that need predictions`);
+    await generatePredictions(games);
+    // Analyze the predictions
+    await analyzePredictions();
+  } catch (error) {
+    console.error('Error in main:', error);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-// Run the generation
-generatePredictions(); 
+main(); 

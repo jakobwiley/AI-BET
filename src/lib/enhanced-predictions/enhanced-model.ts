@@ -28,16 +28,16 @@ export interface PredictionInput {
 
 interface CalibrationConfig {
   // Optimal confidence ranges based on analysis
-  maxConfidence: number;  // Cap at 0.85 based on performance data
+  maxConfidence: number;  // Lower from 0.85 to 0.75 based on performance data
   optimalRange: {
-    min: number;  // 0.75
-    max: number;  // 0.80
+    min: number;  // Lower from 0.75 to 0.65
+    max: number;  // Lower from 0.80 to 0.70
   };
   // Type-specific performance factors
   typeWeights: {
     [PredictionType.SPREAD]: number;    // 1.1 (best performing)
     [PredictionType.MONEYLINE]: number; // 1.0 (baseline)
-    [PredictionType.TOTAL]: number;     // 0.9 (most volatile)
+    [PredictionType.TOTAL]: number;     // 0.85 (reduced from 0.9 due to volatility)
   };
 }
 
@@ -71,17 +71,17 @@ export class EnhancedPredictionModel {
     // Apply type-specific weight
     let adjustedConfidence = rawConfidence * this.config.typeWeights[type];
 
-    // Scale down high confidence predictions
+    // Scale down high confidence predictions more aggressively
     if (adjustedConfidence > this.config.maxConfidence) {
       const excess = adjustedConfidence - this.config.maxConfidence;
-      adjustedConfidence = this.config.maxConfidence - (excess * 0.5);
+      adjustedConfidence = this.config.maxConfidence - (excess * 0.7); // Increased from 0.5 to 0.7
     }
 
     // Ensure confidence stays within optimal range if it was high to begin with
     if (rawConfidence > this.config.optimalRange.max) {
       adjustedConfidence = Math.min(
         adjustedConfidence,
-        this.config.optimalRange.max + ((adjustedConfidence - this.config.optimalRange.max) * 0.3)
+        this.config.optimalRange.max + ((adjustedConfidence - this.config.optimalRange.max) * 0.2) // Reduced from 0.3 to 0.2
       );
     }
 

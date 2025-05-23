@@ -3,18 +3,22 @@
   "compilerOptions": {
     "module": "node16",
     "moduleResolution": "node16",
-    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "outDir": "dist/scripts",
+    "rootDir": ".",
     "noEmit": false,
-    "jsx": "react",
-    "plugins": [],
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true
   },
   "include": [
-    "src/scripts/**/*",
-    "src/lib/**/*"
+    "scripts/**/*",
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist"
   ]
-} 

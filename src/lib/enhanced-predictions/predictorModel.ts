@@ -1,5 +1,44 @@
-import { Game, PredictionType, SportType, Prediction } from '../../models/types';
-import { TeamStats, H2HStats } from '../predictionService';
+import { Game, PredictionType, SportType, Prediction } from '../../models/types.js';
+import { prisma } from '../../lib/prisma.js';
+
+// Define the missing types locally since they're not exported from predictionService
+interface TeamStats {
+  wins: number;
+  losses: number;
+  homeWinPercentage?: number;
+  awayWinPercentage?: number;
+  lastTenGames?: string;
+  pointsFor?: number;
+  pointsAgainst?: number;
+  runsScored?: number;
+  runsAllowed?: number;
+  teamERA?: number;
+  teamWHIP?: number;
+  avgVsLHP?: number;
+  avgVsRHP?: number;
+  // NBA specific stats
+  pace?: number;
+  offensiveRating?: number;
+  defensiveRating?: number;
+  keyPlayers?: {
+    batting?: Array<{
+      ops: string;
+      wRCPlus: number;
+      war: string;
+    }>;
+    pitching?: Array<{
+      era: string;
+      whip: string;
+      fip: string;
+      war: string;
+    }>;
+  };
+}
+
+interface H2HStats {
+  totalGames: number;
+  homeTeamWins: number;
+}
 
 export interface EnhancedFactors {
   // Base factors
@@ -9,18 +48,15 @@ export interface EnhancedFactors {
   headToHeadFactor: number;
   scoringDiffFactor: number;
   
-  // Sport-specific factors
-  // NBA
-  paceFactor?: number;
-  offensiveEfficiencyFactor?: number;
-  defensiveEfficiencyFactor?: number;
-  netRatingFactor?: number;
-  
-  // MLB
+  // MLB specific factors
   pitcherMatchupFactor?: number;
   teamPitchingFactor?: number;
   batterHandednessFactor?: number;
   ballparkFactor?: number;
+  battingStrengthFactor?: number;
+  pitchingStrengthFactor?: number;
+  keyPlayerImpactFactor?: number;
+  restFactor?: number;
 }
 
 interface ModelWeights {
@@ -30,34 +66,21 @@ interface ModelWeights {
 // Enhanced prediction model with advanced analytics
 export class PredictorModel {
   // Weights trained on historical data
-  private static readonly NBA_WEIGHTS: ModelWeights = {
-    'overallRecordFactor': { 'SPREAD': 0.12, 'MONEYLINE': 0.18, 'TOTAL': 0.05 },
-    'homeAwaySplitFactor': { 'SPREAD': 0.18, 'MONEYLINE': 0.22, 'TOTAL': 0.08 },
-    'recentFormFactor': { 'SPREAD': 0.20, 'MONEYLINE': 0.25, 'TOTAL': 0.10 },
-    'headToHeadFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.10, 'TOTAL': 0.02 },
-    'scoringDiffFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.05, 'TOTAL': 0.20 },
-    'paceFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.03, 'TOTAL': 0.25 },
-    'offensiveEfficiencyFactor': { 'SPREAD': 0.15, 'MONEYLINE': 0.10, 'TOTAL': 0.15 },
-    'defensiveEfficiencyFactor': { 'SPREAD': 0.15, 'MONEYLINE': 0.07, 'TOTAL': 0.15 }
-  };
-  
   private static readonly MLB_WEIGHTS: ModelWeights = {
-    'overallRecordFactor': { 'SPREAD': 0.08, 'MONEYLINE': 0.12, 'TOTAL': 0.05 },
-    'homeAwaySplitFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.15, 'TOTAL': 0.05 },
-    'recentFormFactor': { 'SPREAD': 0.12, 'MONEYLINE': 0.15, 'TOTAL': 0.05 },
-    'headToHeadFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.08, 'TOTAL': 0.02 },
-    'scoringDiffFactor': { 'SPREAD': 0.05, 'MONEYLINE': 0.05, 'TOTAL': 0.18 },
-    'pitcherMatchupFactor': { 'SPREAD': 0.25, 'MONEYLINE': 0.20, 'TOTAL': 0.25 },
-    'teamPitchingFactor': { 'SPREAD': 0.15, 'MONEYLINE': 0.10, 'TOTAL': 0.20 },
-    'batterHandednessFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.08, 'TOTAL': 0.05 },
-    'ballparkFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.07, 'TOTAL': 0.15 }
+    'overallRecordFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.12, 'TOTAL': 0.05 },
+    'homeAwaySplitFactor': { 'SPREAD': 0.12, 'MONEYLINE': 0.15, 'TOTAL': 0.05 },
+    'recentFormFactor': { 'SPREAD': 0.15, 'MONEYLINE': 0.15, 'TOTAL': 0.05 },
+    'pitcherMatchupFactor': { 'SPREAD': 0.20, 'MONEYLINE': 0.12, 'TOTAL': 0.15 },
+    'teamPitchingFactor': { 'SPREAD': 0.15, 'MONEYLINE': 0.08, 'TOTAL': 0.12 },
+    'ballparkFactor': { 'SPREAD': 0.08, 'MONEYLINE': 0.05, 'TOTAL': 0.10 },
+    'weatherFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.08, 'TOTAL': 0.08 },
+    'restFactor': { 'SPREAD': 0.10, 'MONEYLINE': 0.15, 'TOTAL': 0.05 }
   };
   
   /**
    * Calculate enhanced prediction factors
    */
   public static calculateEnhancedFactors(
-    sport: SportType,
     homeStats: TeamStats,
     awayStats: TeamStats,
     h2hStats: H2HStats | null,
@@ -86,20 +109,12 @@ export class PredictorModel {
     }
     
     // Scoring differential factor
-    let scoringDiffFactor = 0.5; // Default to neutral
-    if (sport === 'NBA') {
-      const homeNetRating = (homeStats.pointsFor ?? 0) - (homeStats.pointsAgainst ?? 0);
-      const awayNetRating = (awayStats.pointsFor ?? 0) - (awayStats.pointsAgainst ?? 0);
-      // Normalize to 0-1 range (assuming reasonable NBA scoring differences)
-      scoringDiffFactor = ((homeNetRating - awayNetRating) / 20) + 0.5;
-    } else if (sport === 'MLB') {
-      const homeRunDiff = (homeStats.runsScored ?? 0) - (homeStats.runsAllowed ?? 0);
-      const awayRunDiff = (awayStats.runsScored ?? 0) - (awayStats.runsAllowed ?? 0);
-      // Normalize to 0-1 range (assuming reasonable MLB run differences)
-      scoringDiffFactor = ((homeRunDiff - awayRunDiff) / 3) + 0.5;
-    }
+    const homeRunDiff = (homeStats.runsScored ?? 0) - (homeStats.runsAllowed ?? 0);
+    const awayRunDiff = (awayStats.runsScored ?? 0) - (awayStats.runsAllowed ?? 0);
+    // Normalize to 0-1 range (assuming reasonable MLB run differences)
+    const scoringDiffFactor = ((homeRunDiff - awayRunDiff) / 3) + 0.5;
     
-    // Base factors common to both sports
+    // Base factors
     const factors: EnhancedFactors = {
       overallRecordFactor,
       homeAwaySplitFactor,
@@ -108,49 +123,35 @@ export class PredictorModel {
       scoringDiffFactor
     };
     
-    // Add sport-specific factors
-    if (sport === 'NBA') {
-      // NBA specific factors
-      const paceFactor = this.calculateNbaPaceFactor(homeStats, awayStats);
-      const offensiveEfficiencyFactor = this.calculateNbaOffensiveEfficiencyFactor(homeStats, awayStats);
-      const defensiveEfficiencyFactor = this.calculateNbaDefensiveEfficiencyFactor(homeStats, awayStats);
-      const netRatingFactor = this.calculateNbaNetRatingFactor(homeStats, awayStats);
-      
-      return {
-        ...factors,
-        paceFactor,
-        offensiveEfficiencyFactor,
-        defensiveEfficiencyFactor,
-        netRatingFactor
-      };
-    } else if (sport === 'MLB') {
-      // MLB specific factors
-      const pitcherMatchupFactor = 0.5; // Placeholder
-      const teamPitchingFactor = this.calculateMlbTeamPitchingFactor(homeStats, awayStats);
-      const batterHandednessFactor = 0.5; // Placeholder
-      const ballparkFactor = this.calculateMlbBallparkFactor(game.homeTeamName);
-      
-      return {
-        ...factors,
-        pitcherMatchupFactor,
-        teamPitchingFactor,
-        batterHandednessFactor,
-        ballparkFactor
-      };
-    }
+    // MLB specific factors
+    const pitcherMatchupFactor = this.calculateMlbPitcherMatchupFactor(homeStats, awayStats);
+    const teamPitchingFactor = this.calculateMlbTeamPitchingFactor(homeStats, awayStats);
+    const batterHandednessFactor = this.calculateMlbBatterHandednessFactor(homeStats, awayStats);
+    const ballparkFactor = this.calculateMlbBallparkFactor(game.homeTeamName);
+    const battingStrengthFactor = this.calculateMlbBattingStrengthFactor(homeStats, awayStats);
+    const pitchingStrengthFactor = this.calculateMlbPitchingStrengthFactor(homeStats, awayStats);
+    const keyPlayerImpactFactor = this.calculateMlbKeyPlayerImpactFactor(homeStats, awayStats);
     
-    return factors;
+    return {
+      ...factors,
+      pitcherMatchupFactor,
+      teamPitchingFactor,
+      batterHandednessFactor,
+      ballparkFactor,
+      battingStrengthFactor,
+      pitchingStrengthFactor,
+      keyPlayerImpactFactor
+    };
   }
   
   /**
    * Calculate confidence score based on enhanced factors
    */
   public static calculateConfidence(
-    sport: SportType, 
     predictionType: PredictionType,
     factors: EnhancedFactors
   ): number {
-    const weights = sport === 'NBA' ? this.NBA_WEIGHTS : this.MLB_WEIGHTS;
+    const weights = this.MLB_WEIGHTS;
     let confidence = 0.5; // Start at neutral
     let totalWeight = 0;
     
@@ -177,60 +178,41 @@ export class PredictorModel {
   }
   
   /**
-   * NBA specific calculation functions
-   */
-  private static calculateNbaPaceFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.pace || !awayStats.pace) return 0.5;
-    
-    // Average of both teams' pace - higher means more likely to go over
-    const avgPace = (homeStats.pace + awayStats.pace) / 2;
-    // League average pace is around 100, normalize to 0-1
-    return Math.max(0, Math.min(1, (avgPace - 90) / 20));
-  }
-  
-  private static calculateNbaOffensiveEfficiencyFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.offensiveRating || !awayStats.offensiveRating) return 0.5;
-    
-    // Difference between home and away offensive ratings
-    const diff = homeStats.offensiveRating - awayStats.offensiveRating;
-    // Normalize: ~10 point difference is significant
-    return Math.max(0, Math.min(1, (diff / 20) + 0.5));
-  }
-  
-  private static calculateNbaDefensiveEfficiencyFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.defensiveRating || !awayStats.defensiveRating) return 0.5;
-    
-    // For defensive rating, lower is better
-    const diff = awayStats.defensiveRating - homeStats.defensiveRating;
-    // Normalize: ~10 point difference is significant
-    return Math.max(0, Math.min(1, (diff / 20) + 0.5));
-  }
-  
-  private static calculateNbaNetRatingFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.offensiveRating || !homeStats.defensiveRating || 
-        !awayStats.offensiveRating || !awayStats.defensiveRating) return 0.5;
-    
-    const homeNetRating = homeStats.offensiveRating - homeStats.defensiveRating;
-    const awayNetRating = awayStats.offensiveRating - awayStats.defensiveRating;
-    const diff = homeNetRating - awayNetRating;
-    
-    // Normalize: ~10 point net rating difference is significant
-    return Math.max(0, Math.min(1, (diff / 20) + 0.5));
-  }
-  
-  /**
    * MLB specific calculation functions
    */
-  private static calculateMlbTeamPitchingFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.era || !awayStats.era) return 0.5;
+  private static calculateMlbPitcherMatchupFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.teamERA || !awayStats.teamERA) return 0.5;
     
-    // For ERA, lower is better
-    const eraDiff = (awayStats.era ?? 0) - (homeStats.era ?? 0);
-    
-    // Normalize ERA difference (2 ERA difference is significant)
+    // Compare team ERAs
+    const eraDiff = awayStats.teamERA - homeStats.teamERA;
+    // Normalize: ~1.0 ERA difference is significant
     return Math.max(0, Math.min(1, (eraDiff / 2) + 0.5));
   }
-  
+
+  private static calculateMlbTeamPitchingFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.teamWHIP || !awayStats.teamWHIP) return 0.5;
+    
+    // Compare team WHIPs
+    const whipDiff = awayStats.teamWHIP - homeStats.teamWHIP;
+    // Normalize: ~0.2 WHIP difference is significant
+    return Math.max(0, Math.min(1, (whipDiff / 0.4) + 0.5));
+  }
+
+  private static calculateMlbBatterHandednessFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    // Compare team performance against left/right-handed pitchers
+    const homeVsLHP = homeStats.avgVsLHP || 0;
+    const homeVsRHP = homeStats.avgVsRHP || 0;
+    const awayVsLHP = awayStats.avgVsLHP || 0;
+    const awayVsRHP = awayStats.avgVsRHP || 0;
+    
+    // Calculate advantage based on handedness matchups
+    const homeAdvantage = Math.max(homeVsLHP, homeVsRHP);
+    const awayAdvantage = Math.max(awayVsLHP, awayVsRHP);
+    
+    // Normalize to 0-1 range
+    return Math.max(0, Math.min(1, (homeAdvantage - awayAdvantage + 0.3) / 0.6));
+  }
+
   private static calculateMlbBallparkFactor(homeTeam: string): number {
     // Ballpark factors (1.0 is neutral, >1.0 favors hitters, <1.0 favors pitchers)
     const ballparkFactors: Record<string, number> = {
@@ -251,5 +233,217 @@ export class PredictorModel {
     
     // Convert to 0-1 scale (0.8-1.2 range → 0-1)
     return Math.max(0, Math.min(1, (factor - 0.8) / 0.4));
+  }
+
+  private static calculateMlbBattingStrengthFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.keyPlayers?.batting || !awayStats.keyPlayers?.batting) return 0.5;
+    
+    const calculateTeamBattingStrength = (players: typeof homeStats.keyPlayers.batting) => {
+      return players.reduce((acc, player) => {
+        const ops = parseFloat(player.ops);
+        const wRCPlus = player.wRCPlus;
+        return acc + (ops * 0.6 + (wRCPlus / 150) * 0.4);
+      }, 0) / Math.max(players.length, 1);
+    };
+
+    const homeStrength = calculateTeamBattingStrength(homeStats.keyPlayers.batting);
+    const awayStrength = calculateTeamBattingStrength(awayStats.keyPlayers.batting);
+    
+    // Normalize to 0-1 range (assuming OPS typically ranges from 0.600 to 1.000)
+    return Math.max(0, Math.min(1, (homeStrength - awayStrength + 0.2) / 0.4));
+  }
+
+  private static calculateMlbPitchingStrengthFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.keyPlayers?.pitching || !awayStats.keyPlayers?.pitching) return 0.5;
+    
+    const calculateTeamPitchingStrength = (players: typeof homeStats.keyPlayers.pitching) => {
+      return players.reduce((acc, player) => {
+        const era = parseFloat(player.era);
+        const whip = parseFloat(player.whip);
+        const fip = parseFloat(player.fip);
+        return acc + ((4.5 - era) * 0.4 + (1.3 - whip) * 0.3 + (4.5 - fip) * 0.3);
+      }, 0) / Math.max(players.length, 1);
+    };
+
+    const homeStrength = calculateTeamPitchingStrength(homeStats.keyPlayers.pitching);
+    const awayStrength = calculateTeamPitchingStrength(awayStats.keyPlayers.pitching);
+    
+    // Normalize to 0-1 range (assuming ERA typically ranges from 2.00 to 6.00)
+    return Math.max(0, Math.min(1, (homeStrength - awayStrength + 2) / 4));
+  }
+
+  private static calculateMlbKeyPlayerImpactFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    if (!homeStats.keyPlayers || !awayStats.keyPlayers) return 0.5;
+    
+    // Calculate impact based on top performers
+    const getTopPlayerImpact = (players: typeof homeStats.keyPlayers.batting | typeof homeStats.keyPlayers.pitching) => {
+      if (!players || players.length === 0) return 0;
+      
+      // Sort by WAR (assuming higher WAR means more impact)
+      const sortedPlayers = [...players].sort((a, b) => 
+        parseFloat(b.war) - parseFloat(a.war)
+      );
+      
+      // Take top 3 players and calculate their combined impact
+      return sortedPlayers.slice(0, 3).reduce((acc, player) => 
+        acc + parseFloat(player.war), 0
+      );
+    };
+
+    const homeBattingImpact = getTopPlayerImpact(homeStats.keyPlayers.batting);
+    const homePitchingImpact = getTopPlayerImpact(homeStats.keyPlayers.pitching);
+    const awayBattingImpact = getTopPlayerImpact(awayStats.keyPlayers.batting);
+    const awayPitchingImpact = getTopPlayerImpact(awayStats.keyPlayers.pitching);
+
+    const homeTotalImpact = homeBattingImpact + homePitchingImpact;
+    const awayTotalImpact = awayBattingImpact + awayPitchingImpact;
+    
+    // Normalize to 0-1 range (assuming WAR typically ranges from 0 to 10 per player)
+    return Math.max(0, Math.min(1, (homeTotalImpact - awayTotalImpact + 15) / 30));
+  }
+
+  private static async calculateSpreadConfidence(factors: EnhancedFactors, game: Game): Promise<number> {
+    let confidence = 0.5;
+    
+    // Team strength impact (reduced weight for large spreads)
+    const teamStrengthImpact = factors.overallRecordFactor * 0.15 +
+      factors.homeAwaySplitFactor * 0.12 +
+      factors.recentFormFactor * 0.15;
+    
+    // Pitching impact (increased weight for large spreads)
+    const pitchingImpact = factors.pitcherMatchupFactor * 0.20 +
+      factors.teamPitchingFactor * 0.15;
+    
+    // Situational impact
+    const situationalImpact = factors.restFactor * 0.05;
+    
+    // Park and weather impact
+    const parkFactor = this.calculateMlbBallparkFactor(game.homeTeamName);
+    const parkImpact = (parkFactor - 1.0) * 0.10;
+    
+    // Calculate base confidence
+    confidence = teamStrengthImpact + pitchingImpact + situationalImpact + parkImpact;
+    
+    // Adjust confidence based on margin of error in recent predictions
+    const marginAdjustment = await this.calculateMarginAdjustment(game);
+    confidence *= marginAdjustment;
+    
+    // Cap between 0.55 and 0.85
+    return Math.min(0.85, Math.max(0.55, confidence));
+  }
+
+  private static async calculateMarginAdjustment(game: Game): Promise<number> {
+    const recentErrors = await this.getRecentPredictionErrors(game);
+    
+    if (recentErrors.length === 0) {
+      return 1.0; // No historical data
+    }
+
+    // Calculate error statistics
+    const avgError = recentErrors.reduce((sum, error) => sum + error, 0) / recentErrors.length;
+    const maxError = Math.max(...recentErrors);
+    const errorStdDev = Math.sqrt(
+      recentErrors.reduce((sum, error) => sum + Math.pow(error - avgError, 2), 0) / recentErrors.length
+    );
+
+    // Calculate spread-specific adjustment
+    const spreadStr = game.odds?.spread?.homeSpread?.toString() || '0';
+    const spread = parseFloat(spreadStr);
+    let spreadAdjustment = 1.0;
+    
+    if (Math.abs(spread) > 2.0) {
+      spreadAdjustment = 0.85; // More conservative for large spreads
+    } else if (Math.abs(spread) > 1.5) {
+      spreadAdjustment = 0.9;
+    }
+
+    // Calculate error-based adjustment
+    let errorAdjustment = 1.0;
+    if (avgError > 3.0 || maxError > 5.0) {
+      errorAdjustment = 0.7; // Large errors
+    } else if (avgError > 2.0 || maxError > 4.0) {
+      errorAdjustment = 0.8; // Moderate errors
+    } else if (avgError > 1.0 || maxError > 3.0) {
+      errorAdjustment = 0.9; // Small errors
+    }
+
+    // Calculate volatility adjustment
+    let volatilityAdjustment = 1.0;
+    if (errorStdDev > 2.0) {
+      volatilityAdjustment = 0.85; // High volatility
+    } else if (errorStdDev > 1.5) {
+      volatilityAdjustment = 0.9; // Moderate volatility
+    }
+
+    // Combine adjustments
+    return spreadAdjustment * errorAdjustment * volatilityAdjustment;
+  }
+
+  private static async getRecentPredictionErrors(game: Game): Promise<number[]> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Get recent predictions with similar spread values
+    const recentPredictions = await prisma.prediction.findMany({
+      where: {
+        predictionType: 'SPREAD',
+        createdAt: {
+          gte: thirtyDaysAgo
+        },
+        game: {
+          status: 'FINAL'
+        }
+      },
+      include: {
+        game: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 50
+    });
+
+    // Calculate prediction errors
+    const errors: number[] = [];
+    for (const prediction of recentPredictions) {
+      if (!prediction.game.homeScore || !prediction.game.awayScore) continue;
+
+      const predictedSpread = parseFloat(prediction.predictionValue);
+      const actualSpread = prediction.game.homeScore - prediction.game.awayScore;
+      const error = Math.abs(predictedSpread - actualSpread);
+
+      // Only include errors for similar spread ranges
+      const currentSpread = parseFloat(String(game.odds?.spread?.homeSpread || '0'));
+      if (Math.abs(predictedSpread - currentSpread) <= 0.5) {
+        errors.push(error);
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Format enhanced factors into a structured JSON object for the reasoning field
+   */
+  public static formatReasoning(factors: EnhancedFactors): string {
+    // Create a structured object with all factors
+    const reasoning = {
+      teamStrength: factors.overallRecordFactor,
+      homeAdvantage: factors.homeAwaySplitFactor,
+      recentForm: factors.recentFormFactor,
+      headToHead: factors.headToHeadFactor,
+      scoringDifferential: factors.scoringDiffFactor,
+      pitcherMatchup: factors.pitcherMatchupFactor,
+      teamPitching: factors.teamPitchingFactor,
+      batterHandedness: factors.batterHandednessFactor,
+      ballpark: factors.ballparkFactor,
+      battingStrength: factors.battingStrengthFactor,
+      pitchingStrength: factors.pitchingStrengthFactor,
+      keyPlayerImpact: factors.keyPlayerImpactFactor,
+      rest: factors.restFactor
+    };
+
+    // Convert to JSON string with 2-space indentation for readability
+    return JSON.stringify(reasoning, null, 2);
   }
 }
