@@ -209,38 +209,38 @@ async function analyzeYesterdaysResults() {
 function formatOdds(odds, predictionType, predictionValue, homeTeamName, awayTeamName) {
   try {
     if (odds) {
-      const oddsData = typeof odds === 'string' ? JSON.parse(odds) : odds;
+    const oddsData = typeof odds === 'string' ? JSON.parse(odds) : odds;
       if (oddsData && Object.keys(oddsData).length > 0) {
-        const firstBookmaker = Object.values(oddsData)[0] || {};
+    const firstBookmaker = Object.values(oddsData)[0] || {};
+    
+    switch (predictionType) {
+      case 'SPREAD':
+        if (firstBookmaker.spread) {
+          const { point_spread_away, point_spread_home, point_spread_away_money, point_spread_home_money } = firstBookmaker.spread;
+          const isHome = predictionValue > 0;
+          const spread = isHome ? point_spread_home : point_spread_away;
+          const odds = isHome ? point_spread_home_money : point_spread_away_money;
+          return `${isHome ? homeTeamName : awayTeamName} ${spread > 0 ? '+' : ''}${spread} (${odds > 0 ? '+' : ''}${odds})`;
+        }
+        break;
         
-        switch (predictionType) {
-          case 'SPREAD':
-            if (firstBookmaker.spread) {
-              const { point_spread_away, point_spread_home, point_spread_away_money, point_spread_home_money } = firstBookmaker.spread;
-              const isHome = predictionValue > 0;
-              const spread = isHome ? point_spread_home : point_spread_away;
-              const odds = isHome ? point_spread_home_money : point_spread_away_money;
-              return `${isHome ? homeTeamName : awayTeamName} ${spread > 0 ? '+' : ''}${spread} (${odds > 0 ? '+' : ''}${odds})`;
-            }
-            break;
-            
-          case 'TOTAL':
-            if (firstBookmaker.total) {
-              const { total_over, total_over_money, total_under_money } = firstBookmaker.total;
+      case 'TOTAL':
+        if (firstBookmaker.total) {
+          const { total_over, total_over_money, total_under_money } = firstBookmaker.total;
               const isOver = predictionValue.startsWith('o');
-              const odds = isOver ? total_over_money : total_under_money;
-              return `${isOver ? 'Over' : 'Under'} ${total_over} (${odds > 0 ? '+' : ''}${odds})`;
-            }
-            break;
-            
-          case 'MONEYLINE':
-            if (firstBookmaker.moneyline) {
-              const { moneyline_away, moneyline_home } = firstBookmaker.moneyline;
-              const isHome = predictionValue > 0;
-              const odds = isHome ? moneyline_home : moneyline_away;
-              return `${isHome ? homeTeamName : awayTeamName} ML (${odds > 0 ? '+' : ''}${odds})`;
-            }
-            break;
+          const odds = isOver ? total_over_money : total_under_money;
+          return `${isOver ? 'Over' : 'Under'} ${total_over} (${odds > 0 ? '+' : ''}${odds})`;
+        }
+        break;
+        
+      case 'MONEYLINE':
+        if (firstBookmaker.moneyline) {
+          const { moneyline_away, moneyline_home } = firstBookmaker.moneyline;
+          const isHome = predictionValue > 0;
+          const odds = isHome ? moneyline_home : moneyline_away;
+          return `${isHome ? homeTeamName : awayTeamName} ML (${odds > 0 ? '+' : ''}${odds})`;
+        }
+        break;
         }
       }
     }
@@ -452,7 +452,7 @@ async function getTodaysPicks() {
     
     // Send email with predictions
     await sendEmail(output);
-    
+
     console.log(`Predictions saved to ${outputPath} and sent via email\n`);
   } catch (error) {
     console.error('Error generating predictions:', error);

@@ -305,9 +305,9 @@ export class SportsApiService {
     });
 
     // Walks prop
-    props.push({
+        props.push({
       id: `prop-${gameId}-${pitcherId}-WALKS`,
-      gameId,
+          gameId,
       playerId: pitcherId.toString(),
       playerName: stats.name,
       teamId: stats.teamId.toString(),
@@ -316,10 +316,10 @@ export class SportsApiService {
       prediction: Math.round(stats.bbPer9 * 5) / 5,
       confidence: Math.round((0.7 + (stats.gamesPlayed / 100)) * 100),
       reasoning: `Pitcher averages ${stats.bbPer9} walks per 9 innings over ${stats.gamesPlayed} games.`,
-      createdAt: new Date().toISOString(),
-      outcome: 'PENDING'
-    });
-
+          createdAt: new Date().toISOString(),
+          outcome: 'PENDING'
+        });
+    
     return props;
   }
-}
+} 
