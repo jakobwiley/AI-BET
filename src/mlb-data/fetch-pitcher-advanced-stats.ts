@@ -21,13 +21,6 @@ export async function fetchAdvancedPitcherStats(date?: string) {
   const allAdvancedStats = JSON.parse(fs.readFileSync(advancedStatsPath, 'utf8'));
   return allAdvancedStats.filter((p: any) => pitcherNames.includes(p['Name']));
 }
-    }
-  }
-  const outPath = path.resolve(__dirname, '../../data/pitcher_advanced_stats_' + today + '.json');
-  fs.writeFileSync(outPath, JSON.stringify(stats, null, 2));
-  console.log(`Advanced pitcher stats for ${today} saved to ${outPath}`);
-  return stats;
-}
 
 if (process.argv[1] === decodeURI(new URL(import.meta.url).pathname)) {
   fetchAdvancedPitcherStats().catch(console.error);

@@ -23,6 +23,13 @@
 
 ### Feature-Specific Testing for Data Pipelines
 
+**Automation Backfill (May 2025):**
+- Added robust automated test scripts for pitcher stats loaders:
+  - `scripts/test-fetch-pitcher-stats.ts` (basic stats)
+  - `scripts/test-fetch-pitcher-advanced-stats.ts` (advanced stats)
+- All tests are run via `ts-node` for ESM/TypeScript compatibility.
+- Hitter stats tests (see `scripts/test-hitter-stats-loader.ts`) are also required and should be validated in the same manner for all new and historical integrations.
+
 All new data pipelines (including pitching and hitting advanced stats) must be validated with feature-specific tests before integration or merging. Due to ESM and TypeScript compatibility issues with Jest, we use direct TypeScript test scripts run via `ts-node` for validation.
 
 **Example:** See `scripts/test-hitter-stats-loader.ts` for a complete test of the hitter splits loader.
