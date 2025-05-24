@@ -107,11 +107,89 @@ def main():
     today = datetime.date.today()
     season = today.year
     hitters = get_probable_hitters()
-    all_data = {}
-    for hitter in hitters:
+    # --- Resume mode: load existing data if available ---
+    out_path = f"data/hitter_splits_streaks_{today.strftime('%Y-%m-%d')}.json"
+    try:
+        with open(out_path, "r") as f:
+            all_data = json.load(f)
+        print(f"[Resume Mode] Loaded {len(all_data)} hitters from existing file.")
+    except Exception:
+        all_data = {}
+    total_hitters = len(hitters)
+    print(f"Processing {total_hitters} hitters...")
+    for idx, hitter in enumerate(hitters, 1):
         mlbam_id = hitter['mlbam_id']
         name = hitter['name']
-        games = fetch_game_log(mlbam_id, season)
+        if str(mlbam_id) in all_data:
+            if idx == 1 or idx % 10 == 0 or idx == total_hitters:
+                print(f"[{idx}/{total_hitters}] Skipping: {name} (MLBAM ID: {mlbam_id}) [already complete]")
+            continue
+        if idx == 1 or idx % 10 == 0 or idx == total_hitters:
+            print(f"[{idx}/{total_hitters}] Processing: {name} (MLBAM ID: {mlbam_id})")
+        try:
+            games = fetch_game_log(mlbam_id, season)
+        except Exception as e:
+            print(f"[WARN] Failed to fetch game log for {name} (ID {mlbam_id}): {e}. Filling with empty games.")
+            games = []
+
+        # --- Tag each game with pitcher hand ---
+        for g in games:
+            # Get game date and opponent team
+            game_date = g.get('date')
+            opponent_team_id = g.get('opponent', {}).get('id')
+            # Get MLB gamePk from the game entry if available
+            game_pk = g.get('game', {}).get('gamePk')
+            pitcher_hand = None
+            try:
+                # If gamePk available, fetch boxscore for pitcher hand
+                if game_pk:
+                    box_url = f"https://statsapi.mlb.com/api/v1/game/{game_pk}/boxscore"
+                    try:
+                        box = requests.get(box_url, timeout=8).json()
+                    except Exception as e:
+                        print(f"[WARN] Timeout/error fetching boxscore for gamePk {game_pk}: {e}")
+                        box = None
+                    if box:
+                        # Find the starting pitcher for the opponent
+                        away_pitchers = box['teams']['away']['pitchers']
+                        home_pitchers = box['teams']['home']['pitchers']
+                        # Determine if hitter's team is home or away
+                        is_home = g.get('isHome')
+                        if is_home:
+                            # Opponent is away team
+                            starter_id = away_pitchers[0] if away_pitchers else None
+                            pitchers = box['teams']['away']['players']
+                        else:
+                            starter_id = home_pitchers[0] if home_pitchers else None
+                            pitchers = box['teams']['home']['players']
+                        if starter_id:
+                            player_key = f"ID{starter_id}"
+                            pitcher = pitchers.get(player_key, {})
+                            pitcher_hand = pitcher.get('person', {}).get('pitchHand', {}).get('code')
+            except Exception as e:
+                print(f"[WARN] Error tagging game for {name} (gamePk {game_pk}): {e}")
+                pitcher_hand = None
+            g['pitcher_hand'] = pitcher_hand
+
+        # --- Aggregate vs. LHP/RHP for season and recent windows ---
+        def filter_by_hand(games, hand):
+            return [g for g in games if g.get('pitcher_hand') == hand]
+
+        vs_hand = {}
+        for hand, hand_code in [('L', 'L'), ('R', 'R')]:
+            hand_games = filter_by_hand(games, hand_code)
+            vs_hand[hand] = aggregate_stats(hand_games)
+        # Recent form splits
+        vs_hand['recent'] = {}
+        for window in [7, 14, 30]:
+            start = today - datetime.timedelta(days=window)
+            window_games = filter_games(games, start_date=start, end_date=today)
+            vs_hand['recent'][str(window)] = {
+                'L': aggregate_stats(filter_by_hand(window_games, 'L')),
+                'R': aggregate_stats(filter_by_hand(window_games, 'R'))
+            }
+
+        # --- Existing recent and home/away splits ---
         recent = {}
         for window in [7, 14, 30]:
             start = today - datetime.timedelta(days=window)
@@ -124,7 +202,6 @@ def main():
             'away': aggregate_stats(away_games)
         }
         # --- Streaks ---
-        # Go through games in reverse (most recent first)
         hit_streak = 0
         on_base_streak = 0
         multi_hit_streak = 0
@@ -133,7 +210,6 @@ def main():
             hits = int(g['stat'].get('hits', 0))
             ob = hits + int(g['stat'].get('baseOnBalls', 0)) + int(g['stat'].get('hitByPitch', 0))
             hr = int(g['stat'].get('homeRuns', 0))
-            # Hitting streak
             if hits > 0:
                 hit_streak += 1
             else:
@@ -167,6 +243,7 @@ def main():
             'name': name,
             'recent': recent,
             'splits': splits,
+            'vs_hand': vs_hand,
             'streaks': streaks
         }
     out_path = f"data/hitter_splits_streaks_{today.strftime('%Y-%m-%d')}.json"

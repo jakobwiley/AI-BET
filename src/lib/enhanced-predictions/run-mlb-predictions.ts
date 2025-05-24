@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import { PredictorModel } from './predictorModel.ts';
+import { HitterStatsLoader } from '../../mlb-data/hitter-stats-loader';
 
 // --- Config ---
 const MLB_API_BASE = 'https://statsapi.mlb.com/api/v1';
@@ -36,10 +37,13 @@ function findFangraphsByName(name: string) {
 // --- Main ---
 async function main() {
   // 1. Get today's games
-  const scheduleUrl = `${MLB_API_BASE}/schedule?sportId=1&date=${today}&hydrate=probablePitcher,team,linescore`;
+  const scheduleUrl = `${MLB_API_BASE}/schedule?sportId=1&date=${today}&hydrate=probablePitcher,team,linescore,lineups`;
   const resp = await axios.get(scheduleUrl);
   const games = resp.data.dates[0]?.games || [];
   const predictions: any[] = [];
+
+  // Load advanced hitter splits for today
+  const hitterStatsLoader = new HitterStatsLoader();
 
   for (const game of games) {
     const homeTeam = game.teams.home.team.name;
@@ -53,7 +57,24 @@ async function main() {
     const homeFangraphs = homePitcherName ? findFangraphsByName(homePitcherName) : null;
     const awayFangraphs = awayPitcherName ? findFangraphsByName(awayPitcherName) : null;
 
-    // Construct TeamStats (minimal for demo; expand as needed)
+    // --- Integrate advanced hitter splits into team stats ---
+    // Assume lineups are available in game.lineups.home and game.lineups.away as arrays of hitter names
+    const homeLineup = game.lineups?.home || [];
+    const awayLineup = game.lineups?.away || [];
+    // For each hitter, load advanced splits from HitterStatsLoader
+    const homeBattingStats = homeLineup.map((hitterName: string) => hitterStatsLoader.getByName(hitterName)).filter(Boolean);
+    const awayBattingStats = awayLineup.map((hitterName: string) => hitterStatsLoader.getByName(hitterName)).filter(Boolean);
+
+    // Aggregate features (example: average vs_hand OPS vs LHP/RHP, streaks, etc.)
+    function avgVsHand(battingStats: any[], hand: 'L'|'R') {
+      const opsList = battingStats.map(h => h?.vs_hand?.[hand]?.OPS ?? 0).filter(Number.isFinite);
+      return opsList.length ? opsList.reduce((a, b) => a + b, 0) / opsList.length : 0;
+    }
+    function avgStreak(battingStats: any[], streak: keyof typeof homeBattingStats[0]['streaks']) {
+      const streakList = battingStats.map(h => h?.streaks?.[streak] ?? 0).filter(Number.isFinite);
+      return streakList.length ? streakList.reduce((a, b) => a + b, 0) / streakList.length : 0;
+    }
+
     const homeStats = {
       wins: game.teams.home.leagueRecord.wins,
       losses: game.teams.home.leagueRecord.losses,
@@ -64,8 +85,16 @@ async function main() {
           whip: homePitcher.whip?.toString() ?? '',
           fip: homePitcher.fip?.toString() ?? '',
           war: homeFangraphs?.WAR?.toString() ?? ''
-        }] : []
-      }
+        }] : [],
+        batting: homeBattingStats // <-- NEW: full advanced splits for each hitter
+      },
+      // Example: add aggregated advanced splits as top-level features
+      avgOPSvsLHP: avgVsHand(homeBattingStats, 'L'),
+      avgOPSvsRHP: avgVsHand(homeBattingStats, 'R'),
+      avgHitStreak: avgStreak(homeBattingStats, 'hit'),
+      avgOnBaseStreak: avgStreak(homeBattingStats, 'on_base'),
+      avgMultiHitStreak: avgStreak(homeBattingStats, 'multi_hit'),
+      avgHRStreak: avgStreak(homeBattingStats, 'hr')
     } as any;
     const awayStats = {
       wins: game.teams.away.leagueRecord.wins,
@@ -77,9 +106,17 @@ async function main() {
           whip: awayPitcher.whip?.toString() ?? '',
           fip: awayPitcher.fip?.toString() ?? '',
           war: awayFangraphs?.WAR?.toString() ?? ''
-        }] : []
-      }
+        }] : [],
+        batting: awayBattingStats
+      },
+      avgOPSvsLHP: avgVsHand(awayBattingStats, 'L'),
+      avgOPSvsRHP: avgVsHand(awayBattingStats, 'R'),
+      avgHitStreak: avgStreak(awayBattingStats, 'hit'),
+      avgOnBaseStreak: avgStreak(awayBattingStats, 'on_base'),
+      avgMultiHitStreak: avgStreak(awayBattingStats, 'multi_hit'),
+      avgHRStreak: avgStreak(awayBattingStats, 'hr')
     } as any;
+    // --- End advanced hitter splits integration ---
 
     // Dummy H2H
     const h2hStats = null;

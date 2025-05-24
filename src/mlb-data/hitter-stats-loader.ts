@@ -26,6 +26,16 @@ export interface HitterStats {
     home: any;
     away: any;
   };
+  vs_hand?: {
+    L: any;
+    R: any;
+    recent: {
+      [days: string]: {
+        L: any;
+        R: any;
+      };
+    };
+  };
   streaks: {
     hit: number;
     on_base: number;
@@ -44,6 +54,9 @@ export class HitterStatsLoader {
   constructor(jsonPath?: string) {
     // Default to today's file if not provided
     const today = new Date();
+    // ESM-compatible __dirname
+    const __filename = new URL(import.meta.url).pathname;
+    const __dirname = path.dirname(__filename);
     const defaultPath = path.join(
       __dirname,
       '../../data',
@@ -84,19 +97,24 @@ export class HitterStatsLoader {
   }
 }
 
-// Example usage/test (can be removed or moved to a test file)
-if (require.main === module) {
-  try {
-    const loader = new HitterStatsLoader();
-    const judge = loader.getByName('Aaron Judge');
-    if (judge) {
-      console.log('Aaron Judge stats:', JSON.stringify(judge, null, 2));
-    } else {
-      console.log('Aaron Judge not found');
+// Example usage/test (ESM-compatible entrypoint)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  (async () => {
+    try {
+      const loader = new HitterStatsLoader();
+      const judge = loader.getByName('Aaron Judge');
+      if (judge) {
+        console.log('Aaron Judge vs_hand splits:', JSON.stringify(judge.vs_hand, null, 2));
+        if (judge.vs_hand && judge.vs_hand.recent) {
+          console.log('Aaron Judge recent vs_hand splits (7 days):', JSON.stringify(judge.vs_hand.recent['7'], null, 2));
+        }
+      } else {
+        console.log('Aaron Judge not found');
+      }
+      // List first 3 hitters
+      console.log('Sample hitters:', loader.listAll().slice(0, 3));
+    } catch (err) {
+      console.error(err);
     }
-    // List first 3 hitters
-    console.log('Sample hitters:', loader.listAll().slice(0, 3));
-  } catch (err) {
-    console.error(err);
-  }
+  })();
 }

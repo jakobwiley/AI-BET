@@ -19,6 +19,21 @@
    - Mark legacy scripts as deprecated or remove them if not in use.
    - Document new modules and usage clearly.
 
+### Technical/Process Appendix
+
+### Feature-Specific Testing for Data Pipelines
+
+All new data pipelines (including pitching and hitting advanced stats) must be validated with feature-specific tests before integration or merging. Due to ESM and TypeScript compatibility issues with Jest, we use direct TypeScript test scripts run via `ts-node` for validation.
+
+**Example:** See `scripts/test-hitter-stats-loader.ts` for a complete test of the hitter splits loader.
+
+**How to run:**
+```sh
+npx ts-node --experimental-specifier-resolution=node scripts/test-hitter-stats-loader.ts
+```
+
+This approach is now required for all new MLB/NBA data integrations to ensure reliability and compliance with internal testing policy.
+
 ### Progress Tracking
 - [ ] Scaffold new directory and files
 - [ ] Implement core logic and tests
@@ -44,10 +59,26 @@
 
 ### 1B. Integrate Advanced Hitter Stats, Splits & Streaks  
 - wOBA, wRC+, OBP, SLG, BB%, K%, WAR, etc. for all MLB hitters.
-- Integrate hitter splits (vs. LHP/RHP, home/away) and recent streaks (last 7/14/30 days) via `scripts/fetch-hitter-splits-and-streaks.py`.
-- Load splits/streaks into the pipeline using `src/mlb-data/hitterSplitsLoader.ts`.
-- Attach splits/streaks to each lineup in the prediction model for improved accuracy.
-- Modular, extensible pipeline for future insights (e.g., weather, travel, more granular splits).
+
+### Advanced Hitter Splits vs. LHP/RHP
+
+#### Features
+- Fetch and aggregate season and recent (7/14/30 day) splits for every hitter vs. LHP and RHP using the MLB API.
+- Output JSON includes: `recent`, `splits`, `vs_hand`, and `streaks` for each hitter.
+- Resume mode: Script skips already-complete hitters, so jobs can be resumed after interruption.
+- Robust error handling: API timeouts and failures are logged, never halt the script.
+- Progress reporting: Status every 10 hitters, and on skips.
+
+#### Loader & Validation
+- The TypeScript loader exposes all splits, including `vs_hand` (LHP/RHP).
+- Loader must be run after script to validate output and structure before integration.
+
+#### Testing Policy
+- All data pipelines and scripts must be run and validated before integration or use in production. This is mandatory for all enhancements.
+
+#### Example Validation
+- Run the loader (see README) and verify output for a known hitter (e.g., Aaron Judge) and a sample of others.
+- Confirm the structure matches the documented JSON schema.
 
 ### 1C. Integrate Bullpen and Defense Stats  
 - Bullpen ERA, usage, DRS, errors, catcher framing.
