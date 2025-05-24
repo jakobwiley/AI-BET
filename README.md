@@ -147,7 +147,7 @@ npx tsx src/scripts/generate-mlb-predictions.ts
 - Advanced pitcher analytics integrated into prediction model (ERA, FIP, xFIP, SIERA, K/BB, WAR)
 - Advanced hitter analytics (wOBA, wRC+, OBP, SLG, BB%, K%, WAR, etc.) integrated into prediction model for all MLB games
 - Modular pipeline for fetching, validating, and loading both pitcher and hitter stats.
-- **NEW:** Hitter splits and streaks (vs. LHP/RHP, home/away, last 7/14/30 days) are now integrated via `scripts/fetch-hitter-splits-and-streaks.py` and loaded with `src/mlb-data/hitterSplitsLoader.ts`.
+- **NEW:** Hitter splits and streaks (vs. LHP/RHP, home/away, last 7/14/30 days) are now integrated via `scripts/fetch-hitter-splits-and-streaks.py` and loaded with `src/mlb-data/hitter-stats-loader.ts`.
 - These insights are attached to each lineup in the prediction pipeline and used in the model for improved prediction accuracy.
 - All data scripts and loaders are designed for automation and easy extension by future agents or contributors.
 
@@ -155,6 +155,53 @@ npx tsx src/scripts/generate-mlb-predictions.ts
 - Always use real, tested data sources.
 - Validate and test all data before marking a pipeline as complete.
 - Document all changes and update this README and the PRD as the source of truth.
+
+---
+
+## Hitter Stats Loader (Automated MLB API Integration)
+
+The system now automatically fetches and aggregates MLB hitter stats—including recent form, home/away splits, and current streaks—using only the public MLB API.
+
+### Features
+- **Up-to-date stats for all active hitters**
+- **Recent form**: AVG, OBP, SLG, OPS, HR, RBI, etc. for last 7, 14, 30 days
+- **Splits**: Home vs. Away (same metrics)
+- **Streaks**:
+  - `hit`: Consecutive games with at least one hit
+  - `on_base`: Consecutive games reaching base (hit, walk, or HBP)
+  - `multi_hit`: Consecutive games with 2+ hits
+  - `hr`: Consecutive games with a home run
+
+### Usage
+
+Import and use the loader in your pipeline:
+
+```typescript
+import { HitterStatsLoader } from './src/mlb-data/hitter-stats-loader';
+
+const loader = new HitterStatsLoader();
+const judge = loader.getByName('Aaron Judge');
+if (judge) {
+  // Use judge.recent, judge.splits, judge.streaks
+  console.log(judge.streaks.hit); // e.g., current hitting streak
+}
+```
+
+### Data Location
+- JSON file: `data/hitter_splits_streaks_{YYYY-MM-DD}.json`
+- Loader will default to today's file, or you can specify a path.
+
+### Testing
+Run the loader directly with ts-node to see a sample:
+```sh
+ts-node src/mlb-data/hitter-stats-loader.ts
+```
+
+### Integration
+- Use these stats and streaks directly as features in your prediction models.
+- Boost probabilities for hitters on long streaks, or use splits/recent form as model inputs.
+
+---
 
 ## License
 

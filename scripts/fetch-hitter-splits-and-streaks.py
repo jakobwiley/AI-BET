@@ -123,10 +123,51 @@ def main():
             'home': aggregate_stats(home_games),
             'away': aggregate_stats(away_games)
         }
+        # --- Streaks ---
+        # Go through games in reverse (most recent first)
+        hit_streak = 0
+        on_base_streak = 0
+        multi_hit_streak = 0
+        hr_streak = 0
+        for g in reversed(games):
+            hits = int(g['stat'].get('hits', 0))
+            ob = hits + int(g['stat'].get('baseOnBalls', 0)) + int(g['stat'].get('hitByPitch', 0))
+            hr = int(g['stat'].get('homeRuns', 0))
+            # Hitting streak
+            if hits > 0:
+                hit_streak += 1
+            else:
+                break
+        for g in reversed(games):
+            hits = int(g['stat'].get('hits', 0))
+            ob = hits + int(g['stat'].get('baseOnBalls', 0)) + int(g['stat'].get('hitByPitch', 0))
+            if ob > 0:
+                on_base_streak += 1
+            else:
+                break
+        for g in reversed(games):
+            hits = int(g['stat'].get('hits', 0))
+            if hits >= 2:
+                multi_hit_streak += 1
+            else:
+                break
+        for g in reversed(games):
+            hr = int(g['stat'].get('homeRuns', 0))
+            if hr > 0:
+                hr_streak += 1
+            else:
+                break
+        streaks = {
+            'hit': hit_streak,
+            'on_base': on_base_streak,
+            'multi_hit': multi_hit_streak,
+            'hr': hr_streak
+        }
         all_data[str(mlbam_id)] = {
             'name': name,
             'recent': recent,
-            'splits': splits
+            'splits': splits,
+            'streaks': streaks
         }
     out_path = f"data/hitter_splits_streaks_{today.strftime('%Y-%m-%d')}.json"
     with open(out_path, "w") as f:
