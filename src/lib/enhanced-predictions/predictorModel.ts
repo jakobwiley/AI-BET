@@ -175,7 +175,11 @@ export class PredictorModel {
     if ((game as any).sport === 'MLB') {
       const batterHandednessFactor = this.calculateMlbBatterHandednessFactor(homeStats, awayStats);
       const ballparkFactor = this.calculateMlbBallparkFactor(game.homeTeamName);
-      const battingStrengthFactor = this.calculateMlbBattingStrengthFactor(homeStats, awayStats);
+      // Use advanced hitter stats for battingStrengthFactor if available
+      const battingStrengthFactor = this.calculateMlbBattingStrengthFactor(
+        homeStats, awayStats,
+        (game as any).homeLineupStats, (game as any).awayLineupStats
+      );
       const pitchingStrengthFactor = this.calculateMlbPitchingStrengthFactor(homeStats, awayStats);
       const keyPlayerImpactFactor = this.calculateMlbKeyPlayerImpactFactor(homeStats, awayStats);
       return {
@@ -197,13 +201,36 @@ export class PredictorModel {
     return 1.0;
   }
 
-  // Placeholder: Batting strength factor
-  private static calculateMlbBattingStrengthFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    // Simple normalized difference in runs scored
-    const home = homeStats.runsScored ?? 0;
-    const away = awayStats.runsScored ?? 0;
-    return Math.max(0, Math.min(1, (home - away + 20) / 40));
+  /**
+ * Batting strength factor using advanced hitter stats if available.
+ * If homeLineupStats/awayLineupStats are provided, use average wOBA/wRC+ (weighted 70/30).
+ * Otherwise, fallback to runsScored-based normalized difference.
+ */
+private static calculateMlbBattingStrengthFactor(
+  homeStats: TeamStats,
+  awayStats: TeamStats,
+  homeLineupStats?: any[],
+  awayLineupStats?: any[]
+): number {
+  function avg(arr: any[], key: string) {
+    const vals = arr.map(p => typeof p?.[key] === 'number' ? p[key] : Number(p?.[key])).filter(v => !isNaN(v));
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0.32;
   }
+  if (homeLineupStats && awayLineupStats && homeLineupStats.length && awayLineupStats.length) {
+    const homeWoba = avg(homeLineupStats, 'wOBA');
+    const awayWoba = avg(awayLineupStats, 'wOBA');
+    const homeWrc = avg(homeLineupStats, 'wRC+');
+    const awayWrc = avg(awayLineupStats, 'wRC+');
+    const homeScore = homeWoba * 0.7 + (homeWrc / 100) * 0.3;
+    const awayScore = awayWoba * 0.7 + (awayWrc / 100) * 0.3;
+    const norm = (homeScore - awayScore + 0.3) / 0.6;
+    return Math.max(0, Math.min(1, norm));
+  }
+  // Fallback: runs scored
+  const home = homeStats.runsScored ?? 0;
+  const away = awayStats.runsScored ?? 0;
+  return Math.max(0, Math.min(1, (home - away + 20) / 40));
+}
 
   /**
    * Calculate confidence score based on enhanced factors
