@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Ace Home",
+    "era": 2.75,
+    "whip": 1.01,
+    "fip": 2.95,
+    "xfip": 3.12,
+    "siera": 3.05,
+    "kbb": 5.2,
+    "war": 3.4,
+    "bullpenEra": 3.50,
+    "recentFormEra": 2.60
+  },
+  {
+    "name": "Ace Away",
+    "era": 3.65,
+    "whip": 1.18,
+    "fip": 3.85,
+    "xfip": 4.01,
+    "siera": 3.95,
+    "kbb": 3.1,
+    "war": 2.1,
+    "bullpenEra": 4.10,
+    "recentFormEra": 4.00
+  }
+]

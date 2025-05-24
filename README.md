@@ -1,12 +1,12 @@
 # BetAI - Sports Betting Prediction App
 
-BetAI is a modern, AI-powered sports betting prediction platform that provides high-confidence predictions for NBA and MLB games, including both game outcomes and player props.
+BetAI is a modern, AI-powered sports betting prediction platform that provides high-confidence predictions for MLB games, including both game outcomes and player props.
 
 ![BetAI Screenshot](https://via.placeholder.com/800x400?text=BetAI+Screenshot)
 
 ## Features
 
-- **NBA & MLB Predictions**: Get AI-powered predictions for all NBA and MLB games
+- **MLB Predictions**: Get AI-powered predictions for all MLB games
 - **Player Props**: Detailed player prop predictions with confidence ratings
 - **Confidence Ratings**: Each prediction includes a confidence percentage to help you make smarter bets
 - **Detailed Insights**: Reasoning behind each prediction to understand the AI's decision-making
@@ -63,7 +63,7 @@ BetAI is a modern, AI-powered sports betting prediction platform that provides h
 
 BetAI uses the following APIs for sports data:
 
-- [SportsData.io](https://sportsdata.io/) - For NBA and MLB game data
+- [SportsData.io](https://sportsdata.io/) - For MLB game data
 - [The Odds API](https://the-odds-api.com/) - For betting odds
 
 You'll need to sign up for these services and add your API keys to the `.env.local` file.
@@ -85,6 +85,18 @@ betai/
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Advanced Pitcher Stats Workflow
+
+- Advanced pitcher stats are fetched using `scripts/fetch-pitcher-advanced-stats.py`, which uses the `pybaseball` library to pull real, up-to-date MLB data.
+- Output is saved as `data/pitcher_advanced_stats_<YEAR>.json`.
+- The TypeScript pipeline loads this canonical JSON file in `src/mlb-data/fetch-pitcher-advanced-stats.ts` and filters for today's probable pitchers.
+- All legacy FanGraphs scraping logic has been removed for reliability and maintainability.
+
+**Process:**
+- Always use real, tested data sources.
+- Validate and test all data before marking a pipeline as complete.
+- Document all changes and update this README and the PRD as the source of truth.
 
 ## License
 

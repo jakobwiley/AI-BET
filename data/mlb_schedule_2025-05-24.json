@@ -1,0 +1,146 @@
+[
+  {
+    "gamePk": 777809,
+    "homeTeam": "Boston Red Sox",
+    "awayTeam": "Baltimore Orioles",
+    "homeProbablePitcher": "Hunter Dobbins",
+    "awayProbablePitcher": "Zach Eflin",
+    "gameDate": "2025-05-24T17:05:00Z",
+    "venue": "Fenway Park"
+  },
+  {
+    "gamePk": 777790,
+    "homeTeam": "Boston Red Sox",
+    "awayTeam": "Baltimore Orioles",
+    "homeProbablePitcher": "Lucas Giolito",
+    "awayProbablePitcher": null,
+    "gameDate": "2025-05-24T22:35:00Z",
+    "venue": "Fenway Park"
+  },
+  {
+    "gamePk": 777788,
+    "homeTeam": "Minnesota Twins",
+    "awayTeam": "Kansas City Royals",
+    "homeProbablePitcher": "Zebby Matthews",
+    "awayProbablePitcher": "Michael Wacha",
+    "gameDate": "2025-05-24T18:10:00Z",
+    "venue": "Target Field"
+  },
+  {
+    "gamePk": 777786,
+    "homeTeam": "St. Louis Cardinals",
+    "awayTeam": "Arizona Diamondbacks",
+    "homeProbablePitcher": "Matthew Liberatore",
+    "awayProbablePitcher": "Merrill Kelly",
+    "gameDate": "2025-05-24T18:15:00Z",
+    "venue": "Busch Stadium"
+  },
+  {
+    "gamePk": 777793,
+    "homeTeam": "Washington Nationals",
+    "awayTeam": "San Francisco Giants",
+    "homeProbablePitcher": "Jake Irvin",
+    "awayProbablePitcher": "Kyle Harrison",
+    "gameDate": "2025-05-24T20:05:00Z",
+    "venue": "Nationals Park"
+  },
+  {
+    "gamePk": 777794,
+    "homeTeam": "Pittsburgh Pirates",
+    "awayTeam": "Milwaukee Brewers",
+    "homeProbablePitcher": "Mitch Keller",
+    "awayProbablePitcher": "Quinn Priester",
+    "gameDate": "2025-05-24T20:05:00Z",
+    "venue": "PNC Park"
+  },
+  {
+    "gamePk": 777791,
+    "homeTeam": "Cincinnati Reds",
+    "awayTeam": "Chicago Cubs",
+    "homeProbablePitcher": "Andrew Abbott",
+    "awayProbablePitcher": "Colin Rea",
+    "gameDate": "2025-05-24T20:10:00Z",
+    "venue": "Great American Ball Park"
+  },
+  {
+    "gamePk": 777787,
+    "homeTeam": "Houston Astros",
+    "awayTeam": "Seattle Mariners",
+    "homeProbablePitcher": "Framber Valdez",
+    "awayProbablePitcher": "Bryan Woo",
+    "gameDate": "2025-05-24T20:10:00Z",
+    "venue": "Daikin Park"
+  },
+  {
+    "gamePk": 777803,
+    "homeTeam": "Atlanta Braves",
+    "awayTeam": "San Diego Padres",
+    "homeProbablePitcher": "Grant Holmes",
+    "awayProbablePitcher": "Michael King",
+    "gameDate": "2025-05-24T20:10:00Z",
+    "venue": "Truist Park"
+  },
+  {
+    "gamePk": 777792,
+    "homeTeam": "Chicago White Sox",
+    "awayTeam": "Texas Rangers",
+    "homeProbablePitcher": "Jonathan Cannon",
+    "awayProbablePitcher": "Jack Leiter",
+    "gameDate": "2025-05-24T20:10:00Z",
+    "venue": "Rate Field"
+  },
+  {
+    "gamePk": 777782,
+    "homeTeam": "Colorado Rockies",
+    "awayTeam": "New York Yankees",
+    "homeProbablePitcher": "Kyle Freeland",
+    "awayProbablePitcher": "Max Fried",
+    "gameDate": "2025-05-24T20:10:00Z",
+    "venue": "Coors Field"
+  },
+  {
+    "gamePk": 777795,
+    "homeTeam": "Tampa Bay Rays",
+    "awayTeam": "Toronto Blue Jays",
+    "homeProbablePitcher": "Shane Baz",
+    "awayProbablePitcher": "José Berríos",
+    "gameDate": "2025-05-24T23:05:00Z",
+    "venue": "George M. Steinbrenner Field"
+  },
+  {
+    "gamePk": 777796,
+    "homeTeam": "Detroit Tigers",
+    "awayTeam": "Cleveland Guardians",
+    "homeProbablePitcher": null,
+    "awayProbablePitcher": "Luis L. Ortiz",
+    "gameDate": "2025-05-24T23:15:00Z",
+    "venue": "Comerica Park"
+  },
+  {
+    "gamePk": 777789,
+    "homeTeam": "New York Mets",
+    "awayTeam": "Los Angeles Dodgers",
+    "homeProbablePitcher": "David Peterson",
+    "awayProbablePitcher": "Tony Gonsolin",
+    "gameDate": "2025-05-24T23:15:00Z",
+    "venue": "Citi Field"
+  },
+  {
+    "gamePk": 777784,
+    "homeTeam": "Athletics",
+    "awayTeam": "Philadelphia Phillies",
+    "homeProbablePitcher": "Jeffrey Springs",
+    "awayProbablePitcher": "Cristopher Sánchez",
+    "gameDate": "2025-05-25T02:05:00Z",
+    "venue": "Sutter Health Park"
+  },
+  {
+    "gamePk": 777781,
+    "homeTeam": "Los Angeles Angels",
+    "awayTeam": "Miami Marlins",
+    "homeProbablePitcher": "José Soriano",
+    "awayProbablePitcher": "Cal Quantrill",
+    "gameDate": "2025-05-25T02:07:00Z",
+    "venue": "Angel Stadium"
+  }
+]
