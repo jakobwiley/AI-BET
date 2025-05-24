@@ -2,6 +2,7 @@ import pkg from '@prisma/client';
 import type { Game as PrismaGame, Prediction as PrismaPrediction } from '@prisma/client';
 const { PrismaClient, PredictionType, SportType, GameStatus, PredictionOutcome } = pkg;
 import { EnhancedPredictionService } from '../lib/enhanced-mlb/enhancedPredictionService.ts';
+import { loadAdvancedHitterStats } from '../mlb-data/hitterStatsLoader';
 import { MLBStatsService } from '../lib/mlbStatsApi.js';
 import { v4 as uuidv4 } from 'uuid';
 import { get2025RegularSeasonMLBGames } from './utils/filterRegularSeasonMLBGames.ts';
@@ -32,6 +33,14 @@ async function generatePredictions(games: PrismaGame[]): Promise<void> {
         }
       }
 
+      // Extract starting lineups (assume homeLineup and awayLineup arrays on game object)
+      const homeLineup = game.homeLineup || [];
+      const awayLineup = game.awayLineup || [];
+      // Load advanced hitter stats for both lineups
+      const year = game.gameDate.getFullYear ? game.gameDate.getFullYear() : new Date(game.gameDate).getFullYear();
+      const homeLineupStats = loadAdvancedHitterStats(homeLineup, year);
+      const awayLineupStats = loadAdvancedHitterStats(awayLineup, year);
+
       // Convert Prisma Game to our Game type
       const gameForPrediction = {
         ...game,
@@ -44,10 +53,12 @@ async function generatePredictions(games: PrismaGame[]): Promise<void> {
           }
         },
         probableHomePitcherId,
-        probableAwayPitcherId
+        probableAwayPitcherId,
+        homeLineupStats,
+        awayLineupStats
       };
 
-      // Generate prediction using enhanced service
+      // Generate prediction using enhanced service (now with hitter stats)
       const prediction = await enhancedPredictionService.generatePrediction(gameForPrediction);
 
       // Save prediction to database

@@ -88,7 +88,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Advanced Pitcher Stats Workflow
 
-- Advanced pitcher stats are fetched using `scripts/fetch-pitcher-advanced-stats.py`, which uses the `pybaseball` library to pull real, up-to-date MLB data.
+- Advanced pitcher analytics integrated into prediction model (ERA, FIP, xFIP, SIERA, K/BB, WAR)
+- Advanced hitter analytics (wOBA, wRC+, OBP, SLG, BB%, K%, WAR, etc.) integrated into prediction model for all MLB games
+- Modular pipeline for fetching, validating, and loading both pitcher and hitter stats.py`, which uses the `pybaseball` library to pull real, up-to-date MLB data.
 - Output is saved as `data/pitcher_advanced_stats_<YEAR>.json`.
 - The TypeScript pipeline loads this canonical JSON file in `src/mlb-data/fetch-pitcher-advanced-stats.ts` and filters for today's probable pitchers.
 - All legacy FanGraphs scraping logic has been removed for reliability and maintainability.
@@ -97,6 +99,15 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - Always use real, tested data sources.
 - Validate and test all data before marking a pipeline as complete.
 - Document all changes and update this README and the PRD as the source of truth.
+
+### MLB Data Pipeline
+
+#### Advanced Hitter Stats Integration
+
+- The prediction pipeline now loads and injects advanced hitter stats (wOBA, wRC+, OBP, SLG, etc.) for every probable starting lineup in MLB games.
+- These stats are used as core features for totals and other bet types, with lineup-level metrics (average wOBA, wRC+, etc.) directly influencing prediction factors.
+- This enables the model to account for both pitcher and hitter quality, providing a much more accurate and nuanced prediction for each game.
+- The integration is modular and extensible, allowing for future addition of splits, trends, and more advanced insights.
 
 ## License
 

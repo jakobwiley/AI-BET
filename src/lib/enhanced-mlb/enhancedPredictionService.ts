@@ -191,31 +191,27 @@ export class EnhancedPredictionService {
     const teamStrength = this.calculateTeamStrength(homeTeamStats, awayTeamStats);
     // Home advantage with park factor (use homeTeamName as proxy for venue)
     const homeAdvantage = this.calculateHomeAdvantage(homeTeamStats, game.homeTeamName);
-    // Recent form analysis
+    // Recent form
     const recentForm = this.calculateRecentForm(homeTeamStats, awayTeamStats);
-    // Starting pitcher matchup analysis
+    // Rest days
+    const restDays = this.calculateRestDaysImpact(game);
+    // Pitching factors
     const startingPitcherMatchup = await this.analyzePitcherMatchup(
       homePitcher,
       awayPitcher,
       homeTeamStats,
       awayTeamStats
     );
-    // Bullpen analysis
     const bullpenStrength = this.analyzeBullpenStrength(homeTeamStats, awayTeamStats);
-    // Rest days impact
-    const restDays = this.calculateRestDaysImpact(game);
-    // Lineup strength
+    // Lineup/batting factors (now uses advanced hitter stats)
     const lineupStrength = await this.analyzeLineupStrength(game);
-    // Platoon advantage
     const platoonAdvantage = this.calculatePlatoonAdvantage(
       homePitcher,
       awayPitcher,
       homeTeamStats,
       awayTeamStats
     );
-    // Situational hitting
     const situationalHitting = this.analyzeSituationalHitting(homeTeamStats, awayTeamStats);
-    // Expected runs calculation
     const expectedRuns = this.calculateExpectedRuns(
       homeTeamStats,
       awayTeamStats,
@@ -244,7 +240,7 @@ export class EnhancedPredictionService {
       startingPitcherMatchup,
       bullpenStrength,
       restDays,
-      lineupStrength,
+      lineupStrength, // Now based on advanced hitter stats
       platoonAdvantage,
       situationalHitting,
       expectedRuns,
@@ -318,8 +314,24 @@ export class EnhancedPredictionService {
   }
 
   private async analyzeLineupStrength(game: ExtendedGame): Promise<number> {
-    // Implementation using lineup data
-    return 0.5; // Placeholder
+    // Use advanced hitter stats for both lineups if available
+    const homeStatsArr = (game as any).homeLineupStats || [];
+    const awayStatsArr = (game as any).awayLineupStats || [];
+    // Compute average wOBA and wRC+ for each lineup
+    function avg(arr: any[], key: string) {
+      const vals = arr.map(p => typeof p?.[key] === 'number' ? p[key] : Number(p?.[key])).filter(v => !isNaN(v));
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0.32; // MLB avg wOBA fallback
+    }
+    const homeWoba = avg(homeStatsArr, 'wOBA');
+    const awayWoba = avg(awayStatsArr, 'wOBA');
+    const homeWrc = avg(homeStatsArr, 'wRC+');
+    const awayWrc = avg(awayStatsArr, 'wRC+');
+    // Combine (weighted: 70% wOBA, 30% wRC+)
+    const homeScore = homeWoba * 0.7 + (homeWrc / 100) * 0.3;
+    const awayScore = awayWoba * 0.7 + (awayWrc / 100) * 0.3;
+    // Normalize to 0..1, 0.5 = neutral
+    const norm = (homeScore - awayScore + 0.3) / 0.6;
+    return Math.max(0, Math.min(1, norm));
   }
 
   private calculatePlatoonAdvantage(
