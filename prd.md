@@ -1,4 +1,33 @@
-# Product Requirements Document (PRD): MLB Prediction Model Enhancement
+# Product Requirements Document (PRD)
+
+## 2025-05-22 — Advanced Pitcher Stat Integration: New Direction
+
+### Summary of Change
+- We are moving away from patching legacy scripts and instead building a new, robust, and modular advanced pitcher stat integration and testing suite under `src/experimental/advanced-pitching/`.
+- All new logic, tests, and data flows will be isolated from legacy code, with a path to clean up and deprecate or remove unused/broken scripts.
+- This ensures maintainability, testability, and alignment with our world-class analytics goals for MLB.
+
+### Implementation Plan
+1. **Scaffold `src/experimental/advanced-pitching/`:**
+   - All new advanced pitcher stat logic and tests will live here.
+   - No legacy import or module issues.
+2. **Implement:**
+   - `factorCalculator.ts`: Core logic for advanced pitcher stat factors.
+   - `testFactorCalculator.ts`: Self-contained test script with mock and real data support.
+   - Modern logging and error handling.
+3. **Clean Up:**
+   - Mark legacy scripts as deprecated or remove them if not in use.
+   - Document new modules and usage clearly.
+
+### Progress Tracking
+- [ ] Scaffold new directory and files
+- [ ] Implement core logic and tests
+- [ ] Validate with real and mock data
+- [ ] Remove or archive legacy scripts
+- [ ] Document everything for future contributors
+
+---
+: MLB Prediction Model Enhancement
 
 **Project Owner:** jakemullins  
 **Code Owner:** Cascade AI  

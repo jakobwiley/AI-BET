@@ -1,7 +1,9 @@
 import { PrismaClient, PredictionType, GameStatus } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
 import { format } from 'date-fns';
 import { writeFile } from 'fs/promises';
-import { EnhancedPredictionModel, PredictionInput } from '../src/lib/prediction/enhanced-model.js';
+import { EnhancedPredictionModel, PredictionInput } from '../lib/enhanced-predictions/enhanced-model';
 
 const prisma = new PrismaClient();
 const model = new EnhancedPredictionModel();
@@ -26,6 +28,22 @@ interface OddsJson {
 
 async function generatePredictions() {
   try {
+    // Load advanced pitcher stats
+    const pitcherStatsPath = path.join(__dirname, '../../data/pitcherStats.json');
+    let pitcherStats: any[] = [];
+    if (fs.existsSync(pitcherStatsPath)) {
+      pitcherStats = JSON.parse(fs.readFileSync(pitcherStatsPath, 'utf8'));
+    } else {
+      console.warn('pitcherStats.json not found. Advanced pitcher metrics will not be available.');
+    }
+    // Map by playerId for fast lookup, fallback by name/team
+    const pitcherStatsById = new Map<string, any>();
+    const pitcherStatsByNameTeam = new Map<string, any>();
+    for (const p of pitcherStats) {
+      if (p.playerId) pitcherStatsById.set(p.playerId.toString(), p);
+      if (p.name && p.team) pitcherStatsByNameTeam.set(`${p.name.toLowerCase()}|${p.team.toUpperCase()}`, p);
+    }
+
     // Get today's games
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -44,9 +62,10 @@ async function generatePredictions() {
           not: null
         }
       },
-      select: { id: true }
+      select: { id: true, probableHomePitcherId: true, probableHomePitcherName: true, homeTeamName: true, probableAwayPitcherId: true, probableAwayPitcherName: true, awayTeamName: true }
     });
     const todaysGameIds = todaysGames.map(g => g.id);
+
     // Delete all predictions for today's games
     if (todaysGameIds.length > 0) {
       await prisma.prediction.deleteMany({ where: { gameId: { in: todaysGameIds } } });

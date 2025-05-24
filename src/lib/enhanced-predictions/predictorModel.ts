@@ -1,5 +1,18 @@
-import { Game, PredictionType, SportType, Prediction } from '../../models/types.js';
+// import { Game, PredictionType, SportType, Prediction } from '../../models/types';
 import { prisma } from '../../lib/prisma.js';
+// Fallback types if not imported
+export type PredictionType = 'SPREAD' | 'MONEYLINE' | 'TOTAL';
+export interface Game {
+  sport: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  probableHomePitcherId?: number;
+  probableAwayPitcherId?: number;
+  [key: string]: any;
+}
+
+// Advanced MLB pitching factors
+import { calculatePitcherMatchupFactor, calculateBullpenFactor, calculateRecentFormFactor } from '../../experimental/advanced-pitching/factorCalculator';
 
 // Define the missing types locally since they're not exported from predictionService
 interface TeamStats {
@@ -120,30 +133,78 @@ export class PredictorModel {
       homeAwaySplitFactor,
       recentFormFactor,
       headToHeadFactor,
-      scoringDiffFactor
+      scoringDiffFactor,
+      // MLB specific factors will be filled below
     };
-    
+
     // MLB specific factors
-    const pitcherMatchupFactor = this.calculateMlbPitcherMatchupFactor(homeStats, awayStats);
-    const teamPitchingFactor = this.calculateMlbTeamPitchingFactor(homeStats, awayStats);
-    const batterHandednessFactor = this.calculateMlbBatterHandednessFactor(homeStats, awayStats);
-    const ballparkFactor = this.calculateMlbBallparkFactor(game.homeTeamName);
-    const battingStrengthFactor = this.calculateMlbBattingStrengthFactor(homeStats, awayStats);
-    const pitchingStrengthFactor = this.calculateMlbPitchingStrengthFactor(homeStats, awayStats);
-    const keyPlayerImpactFactor = this.calculateMlbKeyPlayerImpactFactor(homeStats, awayStats);
-    
-    return {
-      ...factors,
-      pitcherMatchupFactor,
-      teamPitchingFactor,
-      batterHandednessFactor,
-      ballparkFactor,
-      battingStrengthFactor,
-      pitchingStrengthFactor,
-      keyPlayerImpactFactor
-    };
+    if ((game as any).sport === 'MLB') {
+      // Extract advanced stats if present (from keyPlayers.pitching[0] or similar)
+      const extractAdvanced = (stats: TeamStats) => {
+        const p = stats.keyPlayers?.pitching?.[0];
+        return {
+          bullpenEra: (p && typeof (p as any).bullpenEra === 'number') ? (p as any).bullpenEra : undefined,
+          recentFormEra: (p && typeof (p as any).recentFormEra === 'number') ? (p as any).recentFormEra : undefined
+        };
+      };
+      const homeAdv = extractAdvanced(homeStats);
+      const awayAdv = extractAdvanced(awayStats);
+      try {
+        // Only use advanced logic if at least one of the advanced fields is present
+        if (homeAdv.bullpenEra !== undefined || awayAdv.bullpenEra !== undefined || homeAdv.recentFormEra !== undefined || awayAdv.recentFormEra !== undefined) {
+          factors.pitcherMatchupFactor = calculatePitcherMatchupFactor(homeStats as any, awayStats as any);
+          const homeBullpen = calculateBullpenFactor(homeAdv.bullpenEra);
+          const awayBullpen = calculateBullpenFactor(awayAdv.bullpenEra);
+          const homeRecent = calculateRecentFormFactor(homeAdv.recentFormEra);
+          const awayRecent = calculateRecentFormFactor(awayAdv.recentFormEra);
+          factors.teamPitchingFactor = ((homeBullpen + homeRecent) - (awayBullpen + awayRecent)) * 0.25 + 0.5;
+        } else {
+          // Fallback to legacy calculations if advanced data not present
+          factors.pitcherMatchupFactor = PredictorModel.calculateMlbPitcherMatchupFactor(homeStats, awayStats);
+          factors.teamPitchingFactor = PredictorModel.calculateMlbTeamPitchingFactor(homeStats, awayStats);
+        }
+      } catch (e) {
+        console.warn('Advanced pitching factor calculation failed, falling back to legacy logic:', e);
+        // Fallback to legacy calculations if needed
+        factors.pitcherMatchupFactor = PredictorModel.calculateMlbPitcherMatchupFactor(homeStats, awayStats);
+        factors.teamPitchingFactor = PredictorModel.calculateMlbTeamPitchingFactor(homeStats, awayStats);
+      }
+    }
+
+    // Rest of the MLB specific factors
+    if ((game as any).sport === 'MLB') {
+      const batterHandednessFactor = this.calculateMlbBatterHandednessFactor(homeStats, awayStats);
+      const ballparkFactor = this.calculateMlbBallparkFactor(game.homeTeamName);
+      const battingStrengthFactor = this.calculateMlbBattingStrengthFactor(homeStats, awayStats);
+      const pitchingStrengthFactor = this.calculateMlbPitchingStrengthFactor(homeStats, awayStats);
+      const keyPlayerImpactFactor = this.calculateMlbKeyPlayerImpactFactor(homeStats, awayStats);
+      return {
+        ...factors,
+        batterHandednessFactor,
+        ballparkFactor,
+        battingStrengthFactor,
+        pitchingStrengthFactor,
+        keyPlayerImpactFactor
+      };
+    }
+
+    return factors;
   }
-  
+
+  // Placeholder: Ballpark factor (should use real park data)
+  private static calculateMlbBallparkFactor(homeTeamName: string): number {
+    // Simple default: 1.0 (neutral)
+    return 1.0;
+  }
+
+  // Placeholder: Batting strength factor
+  private static calculateMlbBattingStrengthFactor(homeStats: TeamStats, awayStats: TeamStats): number {
+    // Simple normalized difference in runs scored
+    const home = homeStats.runsScored ?? 0;
+    const away = awayStats.runsScored ?? 0;
+    return Math.max(0, Math.min(1, (home - away + 20) / 40));
+  }
+
   /**
    * Calculate confidence score based on enhanced factors
    */
@@ -181,21 +242,86 @@ export class PredictorModel {
    * MLB specific calculation functions
    */
   private static calculateMlbPitcherMatchupFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.teamERA || !awayStats.teamERA) return 0.5;
-    
-    // Compare team ERAs
-    const eraDiff = awayStats.teamERA - homeStats.teamERA;
-    // Normalize: ~1.0 ERA difference is significant
-    return Math.max(0, Math.min(1, (eraDiff / 2) + 0.5));
+    // Advanced stats: ERA, FIP, xFIP, SIERA, K/BB, WAR
+    const getPitcherStats = (stats: TeamStats) => {
+      const p = stats.keyPlayers?.pitching?.[0];
+      if (!p) return null;
+      return {
+        era: parseFloat(p.era),
+        fip: parseFloat((p as any).fip ?? '0'),
+        xfip: parseFloat((p as any).xfip ?? '0'),
+        siera: parseFloat((p as any).siera ?? '0'),
+        kbb: parseFloat((p as any).kbb ?? '0'),
+        war: parseFloat((p as any).war ?? '0'),
+      };
+    };
+    const home = getPitcherStats(homeStats);
+    const away = getPitcherStats(awayStats);
+    if (!home || !away) {
+      console.warn('Missing pitcher stats for matchup factor', { home: !!home, away: !!away });
+      return 0.5;
+    }
+    // Composite difference (lower is better for home)
+    const weights = { era: 0.25, fip: 0.2, xfip: 0.15, siera: 0.15, kbb: 0.15, war: 0.1 };
+    const diff = (
+      (away.era - home.era) * weights.era +
+      (away.fip - home.fip) * weights.fip +
+      (away.xfip - home.xfip) * weights.xfip +
+      (away.siera - home.siera) * weights.siera +
+      (home.kbb - away.kbb) * weights.kbb + // Higher K/BB is better
+      (home.war - away.war) * weights.war // Higher WAR is better
+    );
+    const normalized = Math.max(0, Math.min(1, (diff / 2) + 0.5));
+    console.info('PitcherMatchupFactor', { home, away, diff, normalized });
+    return normalized;
   }
 
   private static calculateMlbTeamPitchingFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.teamWHIP || !awayStats.teamWHIP) return 0.5;
-    
-    // Compare team WHIPs
-    const whipDiff = awayStats.teamWHIP - homeStats.teamWHIP;
-    // Normalize: ~0.2 WHIP difference is significant
-    return Math.max(0, Math.min(1, (whipDiff / 0.4) + 0.5));
+    // Use advanced stats for all pitchers
+    const getTeamPitchingStats = (stats: TeamStats) => {
+      const ps = stats.keyPlayers?.pitching ?? [];
+      let sum = { era: 0, fip: 0, xfip: 0, siera: 0, kbb: 0, war: 0 };
+      let count = 0;
+      for (const p of ps) {
+        if (p.era && (p as any).fip) {
+          sum.era += parseFloat(p.era);
+          sum.fip += parseFloat((p as any).fip ?? '0');
+          sum.xfip += parseFloat((p as any).xfip ?? '0');
+          sum.siera += parseFloat((p as any).siera ?? '0');
+          sum.kbb += parseFloat((p as any).kbb ?? '0');
+          sum.war += parseFloat((p as any).war ?? '0');
+          count++;
+        }
+      }
+      if (count === 0) return null;
+      return {
+        era: sum.era / count,
+        fip: sum.fip / count,
+        xfip: sum.xfip / count,
+        siera: sum.siera / count,
+        kbb: sum.kbb / count,
+        war: sum.war / count,
+      };
+    };
+    const home = getTeamPitchingStats(homeStats);
+    const away = getTeamPitchingStats(awayStats);
+    if (!home || !away) {
+      console.warn('Missing team pitching stats for team pitching factor', { home: !!home, away: !!away });
+      return 0.5;
+    }
+    // Composite difference (lower is better for home)
+    const weights = { era: 0.25, fip: 0.2, xfip: 0.15, siera: 0.15, kbb: 0.15, war: 0.1 };
+    const diff = (
+      (away.era - home.era) * weights.era +
+      (away.fip - home.fip) * weights.fip +
+      (away.xfip - home.xfip) * weights.xfip +
+      (away.siera - home.siera) * weights.siera +
+      (home.kbb - away.kbb) * weights.kbb +
+      (home.war - away.war) * weights.war
+    );
+    const normalized = Math.max(0, Math.min(1, (diff / 2) + 0.5));
+    console.info('TeamPitchingFactor', { home, away, diff, normalized });
+    return normalized;
   }
 
   private static calculateMlbBatterHandednessFactor(homeStats: TeamStats, awayStats: TeamStats): number {
@@ -213,93 +339,69 @@ export class PredictorModel {
     return Math.max(0, Math.min(1, (homeAdvantage - awayAdvantage + 0.3) / 0.6));
   }
 
-  private static calculateMlbBallparkFactor(homeTeam: string): number {
-    // Ballpark factors (1.0 is neutral, >1.0 favors hitters, <1.0 favors pitchers)
-    const ballparkFactors: Record<string, number> = {
-      'Colorado Rockies': 1.15, // Coors Field is extremely hitter-friendly
-      'Boston Red Sox': 1.08, // Fenway Park is hitter-friendly
-      'Cincinnati Reds': 1.07, // Great American Ball Park is hitter-friendly
-      'Philadelphia Phillies': 1.06, // Citizens Bank Park is hitter-friendly
-      'Los Angeles Angels': 1.05, // Angel Stadium is hitter-friendly
-      
-      'San Francisco Giants': 0.92, // Oracle Park is pitcher-friendly
-      'Oakland Athletics': 0.93, // Oakland Coliseum is pitcher-friendly
-      'Seattle Mariners': 0.94, // T-Mobile Park is pitcher-friendly
-      'Los Angeles Dodgers': 0.95, // Dodger Stadium is pitcher-friendly
-      'Tampa Bay Rays': 0.95, // Tropicana Field is pitcher-friendly
-    };
-    
-    const factor = ballparkFactors[homeTeam] || 1.0; // Default to neutral
-    
-    // Convert to 0-1 scale (0.8-1.2 range → 0-1)
-    return Math.max(0, Math.min(1, (factor - 0.8) / 0.4));
-  }
-
-  private static calculateMlbBattingStrengthFactor(homeStats: TeamStats, awayStats: TeamStats): number {
-    if (!homeStats.keyPlayers?.batting || !awayStats.keyPlayers?.batting) return 0.5;
-    
-    const calculateTeamBattingStrength = (players: typeof homeStats.keyPlayers.batting) => {
-      return players.reduce((acc, player) => {
-        const ops = parseFloat(player.ops);
-        const wRCPlus = player.wRCPlus;
-        return acc + (ops * 0.6 + (wRCPlus / 150) * 0.4);
-      }, 0) / Math.max(players.length, 1);
-    };
-
-    const homeStrength = calculateTeamBattingStrength(homeStats.keyPlayers.batting);
-    const awayStrength = calculateTeamBattingStrength(awayStats.keyPlayers.batting);
-    
-    // Normalize to 0-1 range (assuming OPS typically ranges from 0.600 to 1.000)
-    return Math.max(0, Math.min(1, (homeStrength - awayStrength + 0.2) / 0.4));
-  }
-
   private static calculateMlbPitchingStrengthFactor(homeStats: TeamStats, awayStats: TeamStats): number {
     if (!homeStats.keyPlayers?.pitching || !awayStats.keyPlayers?.pitching) return 0.5;
-    
     const calculateTeamPitchingStrength = (players: typeof homeStats.keyPlayers.pitching) => {
-      return players.reduce((acc, player) => {
-        const era = parseFloat(player.era);
-        const whip = parseFloat(player.whip);
-        const fip = parseFloat(player.fip);
-        return acc + ((4.5 - era) * 0.4 + (1.3 - whip) * 0.3 + (4.5 - fip) * 0.3);
-      }, 0) / Math.max(players.length, 1);
+      let total = 0;
+      let count = 0;
+      for (const p of players) {
+        const era = parseFloat(p.era ?? '0');
+        const whip = parseFloat(p.whip ?? '0');
+        const fip = parseFloat((p as any).fip ?? '0');
+        const xfip = parseFloat((p as any).xfip ?? '0');
+        const siera = parseFloat((p as any).siera ?? '0');
+        const kbb = parseFloat((p as any).kbb ?? '0');
+        const war = parseFloat((p as any).war ?? '0');
+        if (isNaN(era) && isNaN(whip) && isNaN(fip) && isNaN(xfip) && isNaN(siera) && isNaN(kbb) && isNaN(war)) continue;
+        // Weighted: ERA, FIP, xFIP, SIERA (lower is better), K/BB and WAR (higher is better)
+        total += ((4.5 - era) * 0.18 + (1.3 - whip) * 0.15 + (4.5 - fip) * 0.18 + (4.5 - xfip) * 0.15 + (4.5 - siera) * 0.15 + kbb * 0.1 + war * 0.09);
+        count++;
+        if (!p.era || !(p as any).fip || !(p as any).xfip || !(p as any).siera || !(p as any).kbb || !(p as any).war) {
+          console.warn('Missing advanced pitching stats for player', p);
+        }
+      }
+      return count === 0 ? 0 : total / count;
     };
-
     const homeStrength = calculateTeamPitchingStrength(homeStats.keyPlayers.pitching);
     const awayStrength = calculateTeamPitchingStrength(awayStats.keyPlayers.pitching);
-    
-    // Normalize to 0-1 range (assuming ERA typically ranges from 2.00 to 6.00)
-    return Math.max(0, Math.min(1, (homeStrength - awayStrength + 2) / 4));
+    const normalized = Math.max(0, Math.min(1, (homeStrength - awayStrength + 2) / 4));
+    console.info('PitchingStrengthFactor', { homeStrength, awayStrength, normalized });
+    return normalized;
   }
 
   private static calculateMlbKeyPlayerImpactFactor(homeStats: TeamStats, awayStats: TeamStats): number {
     if (!homeStats.keyPlayers || !awayStats.keyPlayers) return 0.5;
-    
-    // Calculate impact based on top performers
+    // Calculate impact based on top performers using WAR and advanced stats
     const getTopPlayerImpact = (players: typeof homeStats.keyPlayers.batting | typeof homeStats.keyPlayers.pitching) => {
       if (!players || players.length === 0) return 0;
-      
-      // Sort by WAR (assuming higher WAR means more impact)
-      const sortedPlayers = [...players].sort((a, b) => 
-        parseFloat(b.war) - parseFloat(a.war)
-      );
-      
-      // Take top 3 players and calculate their combined impact
-      return sortedPlayers.slice(0, 3).reduce((acc, player) => 
-        acc + parseFloat(player.war), 0
-      );
+      // Sort by WAR (higher WAR = more impact)
+      const sortedPlayers = [...players].sort((a, b) => parseFloat(b.war) - parseFloat(a.war));
+      // Take top 3 players and factor in SIERA/FIP/KBB if available
+      return sortedPlayers.slice(0, 3).reduce((acc, player) => {
+        let war = parseFloat(player.war ?? '0');
+        let siera = parseFloat((player as any).siera ?? '0');
+        let fip = parseFloat((player as any).fip ?? '0');
+        let kbb = parseFloat((player as any).kbb ?? '0');
+        // If WAR is close, boost by lower SIERA/FIP and higher K/BB
+        let bonus = 0;
+        if (!isNaN(siera) && siera > 0) bonus += (4.5 - siera) * 0.08;
+        if (!isNaN(fip) && fip > 0) bonus += (4.5 - fip) * 0.08;
+        if (!isNaN(kbb) && kbb > 0) bonus += kbb * 0.06;
+        if (!player.war || !(player as any).siera || !(player as any).fip || !(player as any).kbb) {
+          console.warn('Missing advanced stats for key player impact', player);
+        }
+        return acc + war + bonus;
+      }, 0);
     };
-
     const homeBattingImpact = getTopPlayerImpact(homeStats.keyPlayers.batting);
     const homePitchingImpact = getTopPlayerImpact(homeStats.keyPlayers.pitching);
     const awayBattingImpact = getTopPlayerImpact(awayStats.keyPlayers.batting);
     const awayPitchingImpact = getTopPlayerImpact(awayStats.keyPlayers.pitching);
-
     const homeTotalImpact = homeBattingImpact + homePitchingImpact;
     const awayTotalImpact = awayBattingImpact + awayPitchingImpact;
-    
-    // Normalize to 0-1 range (assuming WAR typically ranges from 0 to 10 per player)
-    return Math.max(0, Math.min(1, (homeTotalImpact - awayTotalImpact + 15) / 30));
+    const normalized = Math.max(0, Math.min(1, (homeTotalImpact - awayTotalImpact + 15) / 30));
+    console.info('KeyPlayerImpactFactor', { homeTotalImpact, awayTotalImpact, normalized });
+    return normalized;
   }
 
   private static async calculateSpreadConfidence(factors: EnhancedFactors, game: Game): Promise<number> {
