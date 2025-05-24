@@ -270,7 +270,9 @@ export class EnhancedPredictionService {
       battingStrengthFactor: factors.lineupStrength,
       pitchingStrengthFactor: factors.pitchingStrength || 0.5,
       keyPlayerImpactFactor: factors.keyPlayerImpact || 0.5,
-      restFactor: factors.restDays || 0.5
+      restFactor: factors.restDays || 0.5,
+      lineupSplitStrengthFactor: factors.lineupSplitStrength || 0.5,
+      recentFormStrengthFactor: factors.recentFormStrength || 0.5
     };
 
     // Use the PredictorModel's formatReasoning method to generate structured JSON
@@ -317,19 +319,44 @@ export class EnhancedPredictionService {
     // Use advanced hitter stats for both lineups if available
     const homeStatsArr = (game as any).homeLineupStats || [];
     const awayStatsArr = (game as any).awayLineupStats || [];
-    // Compute average wOBA and wRC+ for each lineup
+    const homeSplitsArr = (game as any).homeLineupSplits || [];
+    const awaySplitsArr = (game as any).awayLineupSplits || [];
+
+    // Helper for average
     function avg(arr: any[], key: string) {
       const vals = arr.map(p => typeof p?.[key] === 'number' ? p[key] : Number(p?.[key])).filter(v => !isNaN(v));
-      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0.32; // MLB avg wOBA fallback
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0.32;
     }
+
+    // --- Aggregate advanced stats ---
     const homeWoba = avg(homeStatsArr, 'wOBA');
     const awayWoba = avg(awayStatsArr, 'wOBA');
     const homeWrc = avg(homeStatsArr, 'wRC+');
     const awayWrc = avg(awayStatsArr, 'wRC+');
-    // Combine (weighted: 70% wOBA, 30% wRC+)
-    const homeScore = homeWoba * 0.7 + (homeWrc / 100) * 0.3;
-    const awayScore = awayWoba * 0.7 + (awayWrc / 100) * 0.3;
-    // Normalize to 0..1, 0.5 = neutral
+
+    // --- Aggregate splits: vsLHP, vsRHP ---
+    function splitAvg(arr: any[], split: string, stat: string) {
+      const vals = arr.map(p => p && p.splits && p.splits[split] && typeof p.splits[split][stat] === 'number'
+        ? p.splits[split][stat] : Number(p?.splits?.[split]?.[stat])).filter(v => !isNaN(v));
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    }
+    // Use vsRHP for away (facing home RHP) and vsLHP for home (facing away LHP) as example; can be expanded
+    const homeVsRhpAvg = splitAvg(homeSplitsArr, 'vsRHP', 'AVG');
+    const awayVsLhpAvg = splitAvg(awaySplitsArr, 'vsLHP', 'AVG');
+    // --- Aggregate recent streaks (last14) ---
+    function streakAvg(arr: any[], window: string, stat: string) {
+      const vals = arr.map(p => p && p.streaks && p.streaks[window] && typeof p.streaks[window][stat] === 'number'
+        ? p.streaks[window][stat] : Number(p?.streaks?.[window]?.[stat])).filter(v => !isNaN(v));
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    }
+    const homeRecentAvg = streakAvg(homeSplitsArr, 'last14', 'AVG');
+    const awayRecentAvg = streakAvg(awaySplitsArr, 'last14', 'AVG');
+
+    // --- Blend all factors (wOBA, wRC+, splits, streaks) ---
+    // Weights: 40% advanced stats, 30% splits, 30% recent
+    const homeScore = (homeWoba * 0.5 + (homeWrc / 100) * 0.2) * 0.4 + homeVsRhpAvg * 0.3 + homeRecentAvg * 0.3;
+    const awayScore = (awayWoba * 0.5 + (awayWrc / 100) * 0.2) * 0.4 + awayVsLhpAvg * 0.3 + awayRecentAvg * 0.3;
+    // Normalize
     const norm = (homeScore - awayScore + 0.3) / 0.6;
     return Math.max(0, Math.min(1, norm));
   }

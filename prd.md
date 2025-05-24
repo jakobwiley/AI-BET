@@ -42,8 +42,12 @@
 ### 1A. Integrate Advanced Pitcher Stats  
 - FIP, xFIP, SIERA, K/BB, WHIP, recent pitch counts, handedness splits.
 
-### 1B. Integrate Team Offense Metrics  
-- wRC+, OPS, ISO, recent runs, splits vs. LHP/RHP.
+### 1B. Integrate Advanced Hitter Stats, Splits & Streaks  
+- wOBA, wRC+, OBP, SLG, BB%, K%, WAR, etc. for all MLB hitters.
+- Integrate hitter splits (vs. LHP/RHP, home/away) and recent streaks (last 7/14/30 days) via `scripts/fetch-hitter-splits-and-streaks.py`.
+- Load splits/streaks into the pipeline using `src/mlb-data/hitterSplitsLoader.ts`.
+- Attach splits/streaks to each lineup in the prediction model for improved accuracy.
+- Modular, extensible pipeline for future insights (e.g., weather, travel, more granular splits).
 
 ### 1C. Integrate Bullpen and Defense Stats  
 - Bullpen ERA, usage, DRS, errors, catcher framing.
@@ -111,8 +115,11 @@
 ### 5A. Centralized Config  
 - All model and pipeline settings in a single config file.
 
-### 5B. Expanded README  
+### 5B. Expanded README & PRD  
 - Document new features, data sources, and usage.
+- All new data pipelines, scripts, and integrations (including advanced hitter splits/streaks) must be tested and validated before integration. Testing is mandatory for both Python and TypeScript workflows. This policy must be followed by all agents and contributors.
+- Add explicit instructions for running, validating, and troubleshooting new scripts (see README for details).
+- Document all changes and update this PRD and the README as the source of truth for future AI/automation.
 
 ---
 
