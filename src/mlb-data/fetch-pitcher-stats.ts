@@ -1,6 +1,10 @@
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Fetches basic pitcher stats for all probable pitchers today
 export async function fetchPitcherStats(date?: string) {
@@ -46,6 +50,6 @@ export async function fetchPitcherStats(date?: string) {
   return stats;
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   fetchPitcherStats().catch(console.error);
 }
