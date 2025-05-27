@@ -84,9 +84,35 @@ export class HitterStatsLoader {
    */
   getByName(name: string): HitterStats | undefined {
     const lower = name.trim().toLowerCase();
-    return Object.values(this.statsMap).find((h) =>
+    // 1. Exact match (case-insensitive)
+    let found = Object.values(this.statsMap).find((h) =>
       h.name.trim().toLowerCase() === lower
     );
+    if (found) return found;
+    // 2. Last name only match
+    const last = lower.split(' ').pop();
+    found = Object.values(this.statsMap).find((h) =>
+      h.name.trim().toLowerCase().split(' ').pop() === last
+    );
+    if (found) return found;
+    // 3. Partial match (name is substring)
+    found = Object.values(this.statsMap).find((h) =>
+      h.name.trim().toLowerCase().includes(lower) || lower.includes(h.name.trim().toLowerCase())
+    );
+    if (found) return found;
+    // 4. Remove punctuation and try again
+    const simple = lower.replace(/[^a-z]/g, '');
+    found = Object.values(this.statsMap).find((h) =>
+      h.name.trim().toLowerCase().replace(/[^a-z]/g, '') === simple
+    );
+    return found;
+  }
+  // For debugging: log all possible matches
+  getByNameFuzzy(name: string): string[] {
+    const lower = name.trim().toLowerCase();
+    return Object.values(this.statsMap)
+      .filter((h) => h.name.toLowerCase().includes(lower) || lower.includes(h.name.toLowerCase()))
+      .map(h => h.name);
   }
 
   /**

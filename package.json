@@ -26,6 +26,7 @@
     "@sendgrid/mail": "^8.1.5",
     "@types/nodemailer": "^6.4.17",
     "@types/uuid": "^9.0.8",
+    "adm-zip": "^0.5.16",
     "axios": "^1.8.4",
     "chart.js": "^4.4.1",
     "cheerio": "^1.0.0",

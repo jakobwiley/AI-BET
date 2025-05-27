@@ -1,5 +1,5 @@
 // import { Game, PredictionType, SportType, Prediction } from '../../models/types';
-import { prisma } from '../../lib/prisma.js';
+// import { prisma } from '../../lib/prisma.js';
 // Fallback types if not imported
 export type PredictionType = 'SPREAD' | 'MONEYLINE' | 'TOTAL';
 export interface Game {
@@ -12,7 +12,7 @@ export interface Game {
 }
 
 // Advanced MLB pitching factors
-import { calculatePitcherMatchupFactor, calculateBullpenFactor, calculateRecentFormFactor } from '../../experimental/advanced-pitching/factorCalculator';
+import { calculatePitcherMatchupFactor, calculateBullpenFactor, calculateRecentFormFactor } from '../../experimental/advanced-pitching/factorCalculator.ts';
 
 // Define the missing types locally since they're not exported from predictionService
 interface TeamStats {
@@ -509,46 +509,9 @@ private static calculateMlbBattingStrengthFactor(
   }
 
   private static async getRecentPredictionErrors(game: Game): Promise<number[]> {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    // Get recent predictions with similar spread values
-    const recentPredictions = await prisma.prediction.findMany({
-      where: {
-        predictionType: 'SPREAD',
-        createdAt: {
-          gte: thirtyDaysAgo
-        },
-        game: {
-          status: 'FINAL'
-        }
-      },
-      include: {
-        game: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 50
-    });
-
-    // Calculate prediction errors
-    const errors: number[] = [];
-    for (const prediction of recentPredictions) {
-      if (!prediction.game.homeScore || !prediction.game.awayScore) continue;
-
-      const predictedSpread = parseFloat(prediction.predictionValue);
-      const actualSpread = prediction.game.homeScore - prediction.game.awayScore;
-      const error = Math.abs(predictedSpread - actualSpread);
-
-      // Only include errors for similar spread ranges
-      const currentSpread = parseFloat(String(game.odds?.spread?.homeSpread || '0'));
-      if (Math.abs(predictedSpread - currentSpread) <= 0.5) {
-        errors.push(error);
-      }
-    }
-
-    return errors;
+    // Prisma dependency removed for prediction-only runs.
+    // Return empty array so margin adjustment defaults to 1.0
+    return [];
   }
 
   /**
