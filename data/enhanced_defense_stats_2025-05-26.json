@@ -1,0 +1,502 @@
+[
+  {
+    "team": "Arkansas-Monticello Boll Weevils",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 31,
+    "putouts": 81,
+    "doublePlays": 3,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Central Missouri Mules",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 28,
+    "putouts": 78,
+    "doublePlays": 2,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Charlotte 49ers",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 35,
+    "putouts": 108,
+    "doublePlays": 3,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Florida International Panthers",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 13,
+    "putouts": 27,
+    "doublePlays": 1,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Georgia Bulldogs",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 7,
+    "putouts": 27,
+    "doublePlays": 0,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Harvard Crimson",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 13,
+    "putouts": 24,
+    "doublePlays": 0,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Nebraska Cornhuskers",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 30,
+    "putouts": 81,
+    "doublePlays": 3,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Nicaragua",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 34,
+    "putouts": 87,
+    "doublePlays": 2,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Notre Dame Fighting Irish",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 13,
+    "putouts": 30,
+    "doublePlays": 1,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Purdue Boilermakers",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 22,
+    "putouts": 54,
+    "doublePlays": 2,
+    "fieldingPct": 1
+  },
+  {
+    "team": "San Francisco Dons",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 9,
+    "putouts": 24,
+    "doublePlays": 0,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Stanford Cardinal",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 9,
+    "putouts": 24,
+    "doublePlays": 1,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Texas-Rio Grande Valley Vaqueros",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 6,
+    "putouts": 27,
+    "doublePlays": 0,
+    "fieldingPct": 1
+  },
+  {
+    "team": "Wake Forest Demon Deacons",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 8,
+    "putouts": 27,
+    "doublePlays": 0,
+    "fieldingPct": 1
+  },
+  {
+    "team": "West Virginia Mountaineers",
+    "season": 2025,
+    "oaa": null,
+    "errors": 0,
+    "assists": 11,
+    "putouts": 54,
+    "doublePlays": 1,
+    "fieldingPct": 1
+  },
+  {
+    "team": "San Jose State Spartans",
+    "season": 2025,
+    "oaa": null,
+    "errors": 1,
+    "assists": 51,
+    "putouts": 132,
+    "doublePlays": 5,
+    "fieldingPct": 0.995
+  },
+  {
+    "team": "St. Louis Cardinals",
+    "season": 2025,
+    "oaa": 25,
+    "errors": 17,
+    "assists": 520,
+    "putouts": 1412,
+    "doublePlays": 36,
+    "fieldingPct": 0.991
+  },
+  {
+    "team": "Vanderbilt Commodores",
+    "season": 2025,
+    "oaa": null,
+    "errors": 1,
+    "assists": 23,
+    "putouts": 81,
+    "doublePlays": 2,
+    "fieldingPct": 0.99
+  },
+  {
+    "team": "Washington Huskies",
+    "season": 2025,
+    "oaa": null,
+    "errors": 1,
+    "assists": 29,
+    "putouts": 75,
+    "doublePlays": 6,
+    "fieldingPct": 0.99
+  },
+  {
+    "team": "Georgia Tech Yellow Jackets",
+    "season": 2025,
+    "oaa": null,
+    "errors": 1,
+    "assists": 21,
+    "putouts": 78,
+    "doublePlays": 4,
+    "fieldingPct": 0.99
+  },
+  {
+    "team": "Minnesota Golden Gophers",
+    "season": 2025,
+    "oaa": null,
+    "errors": 1,
+    "assists": 15,
+    "putouts": 78,
+    "doublePlays": 0,
+    "fieldingPct": 0.989
+  },
+  {
+    "team": "Kansas City Royals",
+    "season": 2025,
+    "oaa": 4,
+    "errors": 21,
+    "assists": 494,
+    "putouts": 1444,
+    "doublePlays": 50,
+    "fieldingPct": 0.989
+  },
+  {
+    "team": "California Golden Bears",
+    "season": 2025,
+    "oaa": null,
+    "errors": 1,
+    "assists": 17,
+    "putouts": 75,
+    "doublePlays": 2,
+    "fieldingPct": 0.989
+  },
+  {
+    "team": "Tampa Bay Rays",
+    "season": 2025,
+    "oaa": 3,
+    "errors": 21,
+    "assists": 499,
+    "putouts": 1397,
+    "doublePlays": 60,
+    "fieldingPct": 0.989
+  },
+  {
+    "team": "Texas Rangers",
+    "season": 2025,
+    "oaa": 11,
+    "errors": 21,
+    "assists": 483,
+    "putouts": 1408,
+    "doublePlays": 42,
+    "fieldingPct": 0.989
+  },
+  {
+    "team": "Philadelphia Phillies",
+    "season": 2025,
+    "oaa": -3,
+    "errors": 21,
+    "assists": 457,
+    "putouts": 1430,
+    "doublePlays": 37,
+    "fieldingPct": 0.989
+  },
+  {
+    "team": "Atlanta Braves",
+    "season": 2025,
+    "oaa": 20,
+    "errors": 22,
+    "assists": 476,
+    "putouts": 1380,
+    "doublePlays": 37,
+    "fieldingPct": 0.988
+  },
+  {
+    "team": "Detroit Tigers",
+    "season": 2025,
+    "oaa": -5,
+    "errors": 23,
+    "assists": 457,
+    "putouts": 1443,
+    "doublePlays": 38,
+    "fieldingPct": 0.988
+  },
+  {
+    "team": "Los Angeles Dodgers",
+    "season": 2025,
+    "oaa": 6,
+    "errors": 23,
+    "assists": 462,
+    "putouts": 1419,
+    "doublePlays": 41,
+    "fieldingPct": 0.988
+  },
+  {
+    "team": "Seattle Mariners",
+    "season": 2025,
+    "oaa": -6,
+    "errors": 23,
+    "assists": 464,
+    "putouts": 1412,
+    "doublePlays": 41,
+    "fieldingPct": 0.988
+  },
+  {
+    "team": "Arizona Wildcats",
+    "season": 2025,
+    "oaa": null,
+    "errors": 4,
+    "assists": 74,
+    "putouts": 240,
+    "doublePlays": 6,
+    "fieldingPct": 0.987
+  },
+  {
+    "team": "Houston Astros",
+    "season": 2025,
+    "oaa": 18,
+    "errors": 23,
+    "assists": 391,
+    "putouts": 1396,
+    "doublePlays": 28,
+    "fieldingPct": 0.987
+  },
+  {
+    "team": "Acereros del Norte",
+    "season": 2025,
+    "oaa": null,
+    "errors": 16,
+    "assists": 343,
+    "putouts": 872,
+    "doublePlays": 34,
+    "fieldingPct": 0.987
+  },
+  {
+    "team": "New York Yankees",
+    "season": 2025,
+    "oaa": 1,
+    "errors": 24,
+    "assists": 432,
+    "putouts": 1380,
+    "doublePlays": 29,
+    "fieldingPct": 0.987
+  },
+  {
+    "team": "Arizona Diamondbacks",
+    "season": 2025,
+    "oaa": null,
+    "errors": 25,
+    "assists": 467,
+    "putouts": 1415,
+    "doublePlays": 37,
+    "fieldingPct": 0.987
+  },
+  {
+    "team": "Toronto Blue Jays",
+    "season": 2025,
+    "oaa": 7,
+    "errors": 24,
+    "assists": 407,
+    "putouts": 1394,
+    "doublePlays": 35,
+    "fieldingPct": 0.987
+  },
+  {
+    "team": "Tulane Green Wave",
+    "season": 2025,
+    "oaa": null,
+    "errors": 2,
+    "assists": 39,
+    "putouts": 108,
+    "doublePlays": 4,
+    "fieldingPct": 0.987
+  },
+  {
+    "team": "New York Mets",
+    "season": 2025,
+    "oaa": -8,
+    "errors": 26,
+    "assists": 472,
+    "putouts": 1413,
+    "doublePlays": 43,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "Miami Marlins",
+    "season": 2025,
+    "oaa": 0,
+    "errors": 25,
+    "assists": 449,
+    "putouts": 1358,
+    "doublePlays": 35,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "Cincinnati Reds",
+    "season": 2025,
+    "oaa": 4,
+    "errors": 26,
+    "assists": 415,
+    "putouts": 1437,
+    "doublePlays": 28,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "Chattanooga Lookouts",
+    "season": 2025,
+    "oaa": null,
+    "errors": 21,
+    "assists": 352,
+    "putouts": 1109,
+    "doublePlays": 30,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "Chicago Cubs",
+    "season": 2025,
+    "oaa": 0,
+    "errors": 27,
+    "assists": 445,
+    "putouts": 1421,
+    "doublePlays": 45,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "San Francisco Giants",
+    "season": 2025,
+    "oaa": -12,
+    "errors": 28,
+    "assists": 520,
+    "putouts": 1404,
+    "doublePlays": 42,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "Washington Nationals",
+    "season": 2025,
+    "oaa": -20,
+    "errors": 27,
+    "assists": 452,
+    "putouts": 1395,
+    "doublePlays": 37,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "Durham Bulls",
+    "season": 2025,
+    "oaa": null,
+    "errors": 25,
+    "assists": 398,
+    "putouts": 1312,
+    "doublePlays": 38,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "Chinese Taipei",
+    "season": 2025,
+    "oaa": null,
+    "errors": 2,
+    "assists": 28,
+    "putouts": 108,
+    "doublePlays": 3,
+    "fieldingPct": 0.986
+  },
+  {
+    "team": "Erie SeaWolves",
+    "season": 2025,
+    "oaa": null,
+    "errors": 22,
+    "assists": 330,
+    "putouts": 1154,
+    "doublePlays": 30,
+    "fieldingPct": 0.985
+  },
+  {
+    "team": "Kansas Jayhawks",
+    "season": 2025,
+    "oaa": null,
+    "errors": 1,
+    "assists": 16,
+    "putouts": 51,
+    "doublePlays": 0,
+    "fieldingPct": 0.985
+  },
+  {
+    "team": "Toros de Tijuana",
+    "season": 2025,
+    "oaa": null,
+    "errors": 18,
+    "assists": 356,
+    "putouts": 849,
+    "doublePlays": 38,
+    "fieldingPct": 0.985
+  },
+  {
+    "team": "Columbus Clippers",
+    "season": 2025,
+    "oaa": null,
+    "errors": 24,
+    "assists": 373,
+    "putouts": 1224,
+    "doublePlays": 31,
+    "fieldingPct": 0.985
+  }
+]

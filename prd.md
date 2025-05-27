@@ -99,6 +99,22 @@ This approach is now required for all new MLB/NBA data integrations to ensure re
 ### 1F. Integrate Injuries & Lineups  
 - Real-time injury and lineup data.
 
+### Enhanced Defensive Analytics (Retrosheet, Chadwick, etc.)
+- **Goal:** Integrate additional advanced defensive metrics for the current MLB season (**2025**) from open public sources such as Retrosheet and Chadwick Bureau.
+- **Rationale:** Further enrich the model with granular and historical defensive analytics, focusing on the latest available data.
+- **Planned Pipeline:**
+  - Automated download and parsing of Retrosheet event files for 2025
+  - Aggregation of advanced team and position-level metrics (range factor, double plays, assists, errors, splits)
+  - Loader and automated test scripts for validation
+  - Output to `data/enhanced_defense_stats_<date>.json`
+- **Supported Metrics:**
+  - Range Factor (RF)
+  - Double Plays (DP)
+  - Assists (A)
+  - Errors (E)
+  - By-position splits (e.g., SS, 2B, OF breakdowns)
+- **Status:** Next up after bullpen/defense stats pipeline merge
+
 ---
 
 ## 2. Model Enhancements
